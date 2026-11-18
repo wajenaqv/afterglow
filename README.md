@@ -50,6 +50,9 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 
 **macOS**: build from source for now ([below](#-build-from-source)). A signed download comes later.
 
+> [!IMPORTANT]
+> Quit any other live wallpaper app (Wallpaper Engine, Lively) first: they draw in the same place behind your icons and will cover AfterGlow.
+
 ## ◉ How it works
 
 ```text
@@ -61,7 +64,7 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
   your scripts   ──►    POST localhost:<port>/signal
 ```
 
-- **A wallpaper host.** One window per monitor, behind the desktop icons. It pauses for fullscreen apps and games, and on battery.
+- **A wallpaper host.** The wallpaper on every monitor, behind the desktop icons, with hover effects. It pauses for fullscreen apps and games, and on battery. Pause and start at login live in the tray.
 - **Two signals.** Every connector boils activity down to `app.new` (something just happened) and `app.unread(n)` (how much is waiting).
 - **Reactions.** Each wallpaper says what it can do (`pulse`, `count`, `flash`, …) and you choose how signals map onto them.
 - **Connectors.** Windows notifications (WhatsApp, Slack, Teams, Discord), macOS Dock badges, Gmail and Outlook, Spotify, Do Not Disturb, time of day, and a local endpoint for anything else: scripts, Home Assistant, CI.
@@ -75,8 +78,10 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 ## ▤ Roadmap
 
 - [x] App scaffold, CI on Windows and macOS, Windows installer releases
-- [ ] Wallpaper host: behind the icons, every monitor, pause rules, hover effects
-- [ ] The jellyfish, with reactions built in, and a signal simulator
+- [x] Wallpaper host on Windows: behind the icons, every monitor, pause rules, hover effects
+- [ ] Wallpaper host tested on macOS, with its pause rules
+- [x] The jellyfish wallpaper
+- [ ] Reactions built into the jellyfish, and a signal simulator
 - [ ] Windows notifications and macOS Dock badges (WhatsApp works)
 - [ ] Gmail / Outlook, Spotify, Do Not Disturb
 - [ ] Rule editor, more wallpapers, rotation
