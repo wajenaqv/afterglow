@@ -47,3 +47,8 @@ pub fn fullscreen_app_in_front() -> bool {
 pub fn on_battery() -> bool {
     false
 }
+
+/// TODO: detect windows covering each display on macOS (CGWindowListCopyWindowInfo).
+pub fn covered(screens: &[(i32, i32, u32, u32)]) -> Vec<bool> {
+    vec![false; screens.len()]
+}

@@ -2,7 +2,7 @@
 //   Wallpaper ▸        jellyfish / big jellyfish / paw prints (one ticked)
 //   Frame rate ▸       smooth 30 / light 20 / eco 15 fps (one ticked)
 //   Pause              stop every wallpaper (no CPU) until unticked
-//   Pause when an app is fullscreen / Pause on battery   (saved)
+//   Pause when hidden by windows / when an app is fullscreen / on battery   (saved)
 //   Start at login
 //   Settings…          the AfterGlow window: pick a wallpaper and its options
 //   Quit AfterGlow
@@ -65,6 +65,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let pause = CheckMenuItem::with_id(app, "pause", "Pause", true, false, None::<&str>)?;
     let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "Pause when an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
     let battery = CheckMenuItem::with_id(app, "pause-battery", "Pause on battery", true, saved.pause_on_battery, None::<&str>)?;
+    let covered = CheckMenuItem::with_id(app, "pause-covered", "Pause when hidden by windows", true, saved.pause_covered, None::<&str>)?;
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, autostart_on, None::<&str>)?;
     let open_settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit AfterGlow", true, None::<&str>)?;
@@ -76,6 +77,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             &PredefinedMenuItem::separator(app)?,
             &pause,
             &PredefinedMenuItem::separator(app)?,
+            &covered,
             &fullscreen,
             &battery,
             &autostart,
@@ -123,12 +125,13 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 app.state::<Host>().user_paused.store(pause.is_checked().unwrap_or(false), Ordering::Relaxed);
                 host::apply_pause(app);
             }
-            "pause-fullscreen" | "pause-battery" => {
+            "pause-covered" | "pause-fullscreen" | "pause-battery" => {
                 let host = app.state::<Host>();
                 let snapshot = {
                     let mut s = host.settings.lock().unwrap();
                     s.pause_fullscreen = fullscreen.is_checked().unwrap_or(true);
                     s.pause_on_battery = battery.is_checked().unwrap_or(true);
+                    s.pause_covered = covered.is_checked().unwrap_or(true);
                     s.clone()
                 };
                 settings::save(app, &snapshot);

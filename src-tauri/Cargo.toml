@@ -34,6 +34,8 @@ windows = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Shell",
   "Win32_System_Power",
+  "Win32_Graphics_Dwm",
+  "Win32_System_Threading",
 ] }
 
 # macOS: Objective-C messages to NSWindow (desktop level, all Spaces)

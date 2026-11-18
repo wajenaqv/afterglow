@@ -53,13 +53,18 @@ function cursor(p) {
   under = hit ?? null;
 }
 
-let paused = false;
+// Pause: the app sends one flag per frame (a monitor hidden behind app
+// windows pauses on its own), or a single flag for all of them
 function pause(p) {
-  paused = !!p;
-  frames.forEach((fr) => send(fr, { type: "paused", value: paused }));
+  frames.forEach((fr, i) => {
+    const value = Array.isArray(p) ? !!p[i] : !!p;
+    if (fr.paused === value) return;
+    fr.paused = value;
+    send(fr, { type: "paused", value });
+  });
 }
-// a frame that loads late learns the current state
-frames.forEach((fr) => fr.f.addEventListener("load", () => send(fr, { type: "paused", value: paused })));
+// a frame that loads (or reloads with another wallpaper) learns its state
+frames.forEach((fr) => fr.f.addEventListener("load", () => send(fr, { type: "paused", value: !!fr.paused })));
 
 if ("__TAURI_INTERNALS__" in window) {
   import("@tauri-apps/api/webviewWindow").then(({ getCurrentWebviewWindow }) => {

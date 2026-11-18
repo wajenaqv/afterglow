@@ -5,7 +5,8 @@
 //   options           per wallpaper, its URL options, e.g. {"jellyfish": {"tint": "cool"}}
 //   pause_fullscreen  the tray's pause rules
 //   pause_on_battery
-//   fps               frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
+//   pause_covered     pause a monitor's wallpaper while app windows hide it
+//   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //
 // Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps).
 
@@ -30,6 +31,7 @@ pub struct Settings {
     pub options: BTreeMap<String, BTreeMap<String, String>>,
     pub pause_fullscreen: bool,
     pub pause_on_battery: bool,
+    pub pause_covered: bool,
     pub fps: u32,
 }
 
@@ -38,7 +40,7 @@ pub const FPS_CHOICES: &[u32] = &[30, 20, 15];
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { wallpaper: "jellyfish".into(), options: BTreeMap::new(), pause_fullscreen: true, pause_on_battery: true, fps: 30 }
+        Settings { wallpaper: "jellyfish".into(), options: BTreeMap::new(), pause_fullscreen: true, pause_on_battery: true, pause_covered: true, fps: 30 }
     }
 }
 

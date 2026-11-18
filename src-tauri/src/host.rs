@@ -14,8 +14,10 @@
 //   cursor    every 33 ms: windows behind the icons get no mouse events, so we
 //             read the cursor position and send it to the window under it as
 //             a "cursor" event ({x, y} in CSS px within that window, or null)
-//   pause     every 2 s: pause when the tray says so, when a fullscreen app or
-//             game is in front, or on battery; sent as a "paused" event
+//   pause     every 1 s: pause everything when the tray says so, when a fullscreen
+//             app or game is in front, or on battery; and any monitor whose
+//             desktop is hidden behind app windows. Sent as a "paused" event
+//             with one flag per monitor the window covers
 //   monitors  every 3 s: if monitors were added, removed or moved, rebuild
 //
 // Events go to each window by label (emit_to); host.html listens on its own
@@ -103,6 +105,8 @@ pub struct Host {
     pub settings: Mutex<Settings>,
     /// Paused from the tray menu (not saved: AfterGlow always starts running)
     pub user_paused: AtomicBool,
+    /// What each window was last told (to log changes)
+    last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
     /// Bumped on every rebuild, so new windows get fresh labels (a label
     /// can't be reused while its old window is still closing)
     generation: AtomicUsize,
@@ -255,25 +259,38 @@ pub fn show_wallpaper(app: &AppHandle) {
 /// straight away from the tray when Pause is toggled.
 pub fn apply_pause(app: &AppHandle) {
     let host = app.state::<Host>();
-    let (rule_fullscreen, rule_battery) = {
+    let (rule_fullscreen, rule_battery, rule_covered) = {
         let s = host.settings.lock().unwrap();
-        (s.pause_fullscreen, s.pause_on_battery)
+        (s.pause_fullscreen, s.pause_on_battery, s.pause_covered)
     };
-    let pause = host.user_paused.load(Ordering::Relaxed)
+    // Everything pauses...
+    let all = host.user_paused.load(Ordering::Relaxed)
         || (rule_fullscreen && platform::fullscreen_app_in_front())
         || (rule_battery && platform::on_battery());
-    // Sent every time (not only on change): a window that just loaded learns
-    // the current state within one tick
-    let labels: Vec<String> = host.walls.lock().unwrap().iter().map(|w| w.label.clone()).collect();
-    for label in labels {
-        let _ = app.emit_to(EventTarget::webview_window(&label), "paused", pause);
+    // ...or just the monitors whose desktop is hidden behind app windows
+    let walls = host.walls.lock().unwrap().clone();
+    for wall in walls {
+        let rects: Vec<(i32, i32, u32, u32)> = wall.screens.iter().map(|s| (s.x, s.y, s.w, s.h)).collect();
+        let hidden = if rule_covered && !all { platform::covered(&rects) } else { vec![false; rects.len()] };
+        // one flag per monitor, in the order host.html laid out its frames.
+        // Sent every time (not only on change): a window that just loaded
+        // learns the current state within one tick
+        let flags: Vec<bool> = hidden.iter().map(|&h| all || h).collect();
+        {
+            let mut last = host.last_paused.lock().unwrap();
+            if last.get(&wall.label) != Some(&flags) {
+                eprintln!("afterglow: {} paused per monitor: {:?}", wall.label, flags);
+                last.insert(wall.label.clone(), flags.clone());
+            }
+        }
+        let _ = app.emit_to(EventTarget::webview_window(&wall.label), "paused", flags);
     }
 }
 
 fn pause_loop(app: AppHandle) {
     loop {
         apply_pause(&app);
-        thread::sleep(Duration::from_secs(2));
+        thread::sleep(Duration::from_secs(1));
     }
 }
 
