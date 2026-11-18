@@ -9,7 +9,8 @@ use std::sync::atomic::Ordering;
 
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Manager};
+use tauri::window::Color;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::host::{self, Host};
@@ -73,10 +74,21 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Opens the Settings window. It only exists while open: created here and
+/// destroyed when closed, so it costs no memory the rest of the time
+/// (a hidden webview still holds ~100 MB).
 pub fn show_settings(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
-        let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        return;
+    }
+    let built = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
+        .title("AfterGlow")
+        .inner_size(960.0, 600.0)
+        .background_color(Color(0, 0, 0, 255))
+        .build();
+    if let Err(e) = built {
+        eprintln!("afterglow: could not open settings: {e}");
     }
 }

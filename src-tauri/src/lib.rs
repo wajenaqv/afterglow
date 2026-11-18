@@ -31,21 +31,15 @@ pub fn run() {
             tray::build(app.handle())?;
             Ok(())
         })
-        // Closing the settings window hides it; AfterGlow keeps running in the tray
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
-            }
-        })
         .build(tauri::generate_context!())
         .expect("error while building afterglow")
-        .run(|app, event| {
+        .run(|app, event| match event {
+            // Windows closing (Settings, or the wallpapers while monitors are
+            // rebuilt) never quits AfterGlow; only Quit in the tray does
+            // (that one comes with an exit code)
+            tauri::RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
             // Leave the normal desktop wallpaper behind when quitting
-            if let tauri::RunEvent::Exit = event {
-                host::stop(app);
-            }
+            tauri::RunEvent::Exit => host::stop(app),
+            _ => {}
         });
 }

@@ -10,16 +10,7 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "AfterGlow",
-        "width": 960,
-        "height": 600,
-        "backgroundColor": "#000000",
-        "visible": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
