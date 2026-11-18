@@ -83,7 +83,7 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 - [x] The jellyfish wallpaper
 - [x] More wallpapers (big jellyfish, cat paws) and a Settings window to pick one, remembered across restarts
 - [x] Pauses a monitor's wallpaper while windows cover it (Windows), and a frame-rate setting
-- [ ] GPU rendering, so a visible wallpaper costs about 1% of the CPU
+- [x] GPU rendering (with a CPU fallback and a choice in Settings): a visible wallpaper costs under 1% of the CPU
 - [ ] Reactions built into the wallpapers, and a signal simulator
 - [ ] Windows notifications and macOS Dock badges (WhatsApp works)
 - [ ] Gmail / Outlook, Spotify, Do Not Disturb
