@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Detail comparison</title>
+    <title>Wallpaper comparison</title>
     <style>
       body { background: #0d1117; color: #e6edf3; font: 14px system-ui; margin: 16px; }
       .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -12,36 +12,79 @@
       iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
       .controls { margin: 12px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
       button, select { font: inherit; }
+      #diff { color: #8b949e; }
     </style>
   </head>
   <body>
     <!-- Dev tool (bun run dev, /tools/compare.html): the same wallpaper moment
-         at two sampling detail levels, side by side, rendered at 1920x1080. -->
+         rendered two ways, side by side at 1920x1080: CPU vs GPU renderer, or
+         two sampling detail levels. "measure" compares the two frames' pixels. -->
     <div class="controls">
       <select id="wall">
         <option value="jellyfish">jellyfish</option>
         <option value="big-jellyfish">big jellyfish</option>
+        <option value="paws">paw prints</option>
+      </select>
+      <select id="mode">
+        <option value="renderer">CPU vs GPU</option>
+        <option value="detail">detail 1 vs 0.5</option>
       </select>
       <label><input type="checkbox" id="frozen" checked /> frozen moment</label>
       <button id="next">another moment</button>
+      <button id="measure">measure</button>
       <span id="at"></span>
+      <span id="diff"></span>
     </div>
     <div class="row">
-      <figure><figcaption>detail 1 (heywajih's original)</figcaption><div class="frame"><iframe id="a"></iframe></div></figure>
-      <figure><figcaption>detail 0.5 (new default, half the samples)</figcaption><div class="frame"><iframe id="b"></iframe></div></figure>
+      <figure><figcaption id="capA"></figcaption><div class="frame"><iframe id="a"></iframe></div></figure>
+      <figure><figcaption id="capB"></figcaption><div class="frame"><iframe id="b"></iframe></div></figure>
     </div>
     <script>
       const a = document.getElementById("a"), b = document.getElementById("b");
-      const wall = document.getElementById("wall"), frozen = document.getElementById("frozen");
+      const wall = document.getElementById("wall"), mode = document.getElementById("mode"), frozen = document.getElementById("frozen");
       let at = 60;
       function load() {
         const still = frozen.checked ? `&still=cmp&at=${at.toFixed(1)}` : "";
         document.getElementById("at").textContent = frozen.checked ? `t = ${at.toFixed(1)} s` : "live";
-        a.src = `/wallpapers/${wall.value}.html?hover=0&detail=1${still}`;
-        b.src = `/wallpapers/${wall.value}.html?hover=0&detail=0.5${still}`;
+        document.getElementById("diff").textContent = "";
+        const [qa, qb, la, lb] =
+          mode.value === "renderer"
+            ? ["render=cpu", "render=gpu", "CPU (canvas 2D)", "GPU (WebGL2)"]
+            : ["detail=1&render=cpu", "detail=0.5&render=cpu", "detail 1 (heywajih's original)", "detail 0.5 (default)"];
+        document.getElementById("capA").textContent = la;
+        document.getElementById("capB").textContent = lb;
+        a.src = `/wallpapers/${wall.value}.html?hover=0&${qa}${still}`;
+        b.src = `/wallpapers/${wall.value}.html?hover=0&${qb}${still}`;
+      }
+      // Pixel difference between the two frames (both must have rendered)
+      function measure() {
+        const grab = (f) => {
+          const c = f.contentDocument.querySelector("canvas");
+          const o = document.createElement("canvas");
+          o.width = c.width;
+          o.height = c.height;
+          const x = o.getContext("2d");
+          x.drawImage(c, 0, 0);
+          return x.getImageData(0, 0, o.width, o.height).data;
+        };
+        const da = grab(a), db = grab(b);
+        let sumA = 0, sumB = 0, diff = 0, big = 0, lit = 0;
+        for (let i = 0; i < da.length; i += 4) {
+          const la = da[i] + da[i + 1] + da[i + 2], lb = db[i] + db[i + 1] + db[i + 2];
+          sumA += la;
+          sumB += lb;
+          if (la > 30 || lb > 30) {
+            lit++;
+            const d = Math.abs(la - lb);
+            diff += d;
+            if (d > 90) big++;
+          }
+        }
+        document.getElementById("diff").textContent = `light ratio ${(sumB / sumA).toFixed(3)} · mean diff per lit pixel ${(diff / lit / 3).toFixed(1)} · lit pixels changed a lot ${((100 * big) / lit).toFixed(1)}%`;
       }
       document.getElementById("next").onclick = () => { at = 40 + Math.random() * 400; load(); };
-      wall.onchange = frozen.onchange = load;
+      document.getElementById("measure").onclick = measure;
+      wall.onchange = mode.onchange = frozen.onchange = load;
       const fit = new ResizeObserver((es) => es.forEach((e) => (e.target.querySelector("iframe").style.transform = `scale(${e.contentRect.width / 1920})`)));
       document.querySelectorAll(".frame").forEach((f) => fit.observe(f));
       load();

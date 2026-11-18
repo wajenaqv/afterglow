@@ -35,6 +35,8 @@
 //          moment's for stills, random live)
 
 import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
+import { wantGPU } from "./gpu.js";
+import { createJellyGL } from "./jellyfish-gl.js";
 
 const reduced = !STILL && matchMedia("(prefers-reduced-motion: reduce)").matches;
 const HERO = params.has("hero") || "hero" in document.body.dataset;
@@ -56,12 +58,22 @@ const BELL_RING = 70 * Math.sqrt(DETAIL); // samples per unit of ring length
 const LINE_STEP = 0.03 / DETAIL; // units between samples down arms and tentacles
 
 // ---- canvas grid ----
-const canvas = document.createElement("canvas");
-canvas.className = "canvas-wall";
-canvas.setAttribute("role", "img");
-canvas.setAttribute("aria-label", "Glowing jellyfish drawn in coloured text characters, pulsing slowly upward through dark water.");
+// Two renderers (AfterGlow): the GPU one (jellyfish-gl.js, WebGL2) when the
+// Rendering setting allows it (gpu.js), else this file's canvas 2D one. Both
+// draw the same picture from the same per-jelly state (jellyState below).
+function newCanvas() {
+  const c = document.createElement("canvas");
+  c.className = "canvas-wall";
+  c.setAttribute("role", "img");
+  c.setAttribute("aria-label", "Glowing jellyfish drawn in coloured text characters, pulsing slowly upward through dark water.");
+  return c;
+}
+let canvas = newCanvas();
 document.body.appendChild(canvas);
-const ctx = canvas.getContext("2d");
+let ctx = null; // canvas 2D (CPU renderer)
+let GLR = null; // the GPU renderer (set up below, once the jellies exist)
+const measure = document.createElement("canvas").getContext("2d"); // for character widths
+const FONT = (px) => `700 ${px}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
 
 let W, H, cw, ch, cols, rows;
 let acc, sr, sg, sb, tent; // per cell: summed light, summed colour, tentacle share
@@ -72,16 +84,18 @@ function resize() {
   H = innerHeight;
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   // fine grid: smoother bells and tentacles. Stills scale freely, so a 6K
   // still is the same picture as 1080p, just sharper
   const fontPx = STILL ? H / 105 : Math.max(6, Math.min(12, H / 105));
-  ctx.font = `700 ${fontPx}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
-  ctx.textBaseline = "top";
-  cw = ctx.measureText("M").width;
+  measure.font = FONT(fontPx);
+  cw = measure.measureText("M").width;
   ch = fontPx * 1.02;
   cols = Math.ceil(W / cw);
   rows = Math.ceil(H / ch);
+  if (GLR) return GLR.resize({ dpr, cw, ch, cols, rows, fontPx, font: FONT(fontPx) });
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.font = FONT(fontPx);
+  ctx.textBaseline = "top";
   const n = cols * rows;
   acc = new Float32Array(n);
   sr = new Float32Array(n);
@@ -282,6 +296,51 @@ function project(x, y, z) {
   const x1 = x * cy - z * sy, z1 = x * sy + z * cy;
   const y2 = y * cp - z1 * sp, z2 = y * sp + z1 * cp + camDist;
   return [W / 2 + (x1 * focal) / z2, H / 2 - (y2 * focal) / z2, z2];
+}
+
+// One jelly's state at time t, shared by both renderers: where it is, how
+// contracted, how bright. Null when it's faded out (off the top or bottom).
+// Also remembers where its bell is on screen, for the hover check.
+function jellyState(j, t) {
+  const p = reduced ? 0.3 : Math.max(pulse(t, j.period, j.phase), 0.75 * (j.excite || 0));
+  const push = reduced ? 0 : pushOf(j, t);
+  const travel = j.speed * t + PUSH * push;
+  const bottom = -10.5 - j.r * SIZE;
+  const top = 10.5 + j.r * SIZE + 2.5;
+  const span = top - bottom;
+  const y = j.fixedY ?? bottom + ((((travel + j.yf * span) % span) + span) % span);
+  const fade = j.fixedY != null ? 1 : Math.max(0, Math.min(1, (y - bottom) / 2.5, (top - y) / 2.5));
+  if (fade <= 0) return null;
+  const sway = j.still ? 0 : 1;
+  const cx = j.xf * HALF_W * 0.9 + Math.sin(t * 0.07 + j.seed) * 0.8 * sway;
+  const cz = j.z + Math.cos(t * 0.05 + j.seed) * 0.6 * sway;
+  const R = j.r * SIZE * (1 - 0.18 * p);
+  const Hb = j.r * SIZE * (0.5 + 0.25 * p);
+  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0));
+  const [bx, by, bz] = project(cx, y + Hb * 0.4, cz);
+  j.screen = { x: bx, y: by, r: (R * focal) / bz };
+  return { p, push, y, fade, cx, cz, R, Hb, flash, jr: j.r * SIZE, ct: Math.cos(j.tilt), st: Math.sin(j.tilt), col: HUES[j.hue % HUES.length] };
+}
+
+// The fixed sample parameters of one jelly, for the GPU renderer: one vertex
+// per sample as [p0, p1, p2, p3, kind], walking the same loops as drawJelly
+// (bell rings at their largest size; the shader skips samples a contracted
+// ring doesn't have)
+function templateFor(j) {
+  const out = [];
+  const TH_MAX = 1.3;
+  const jr = j.r * SIZE;
+  for (let th = 0.02; th <= TH_MAX; th += BELL_STEP) {
+    const ringMax = Math.max(10, Math.round(Math.sin(th) * jr * BELL_RING));
+    for (let i = 0; i < ringMax; i++) out.push(th, i, 0, 0, 0);
+  }
+  const armLen = 1.6 * jr;
+  for (let a = 0; a < 4; a++) for (let s = 0; s < armLen; s += LINE_STEP) for (let u = -1; u <= 1; u += 0.5) out.push(a, s, u, armLen, 1);
+  for (let i = 0; i < j.tentacles; i++) {
+    const len = (2.2 + hash(j.seed, i) * 2.2) * jr;
+    for (let s = 0; s < len; s += LINE_STEP) out.push(i, s, len, 0, 2);
+  }
+  return new Float32Array(out);
 }
 
 function drawJelly(j, t) {
@@ -488,6 +547,27 @@ function render(now, dt) {
   camDist = 70;
   focal = (H / 20) * camDist;
 
+  HALF_W = (10 * W) / H;
+  if (GLR) {
+    // GPU: hover bookkeeping and per-jelly state here, everything else in shaders
+    for (const j of JELLIES) {
+      j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);
+      const sc = j.screen;
+      if (HOVER && pointer.on && sc && Math.hypot((pointer.x - sc.x) / (sc.r * 1.3), (pointer.y - sc.y) / (sc.r * 1.1)) < 1) j.excite = Math.min(1, j.excite + dt * 6);
+    }
+    const jellies = [];
+    for (const j of JELLIES) {
+      const s = jellyState(j, t);
+      if (s) jellies.push({ j, s });
+    }
+    GLR.draw({ t, W, H, camDist, focal, cam: [cy, sy, cp, sp], halfW: HALF_W, deep: DEEP, snowCol: SNOW_COL, bg: BG, reduced, bellStep: BELL_STEP, bellRing: BELL_RING, lineStep: LINE_STEP, jellies });
+    if (PERF && ++PERF.n === 60) {
+      console.log(`perf gpu ${cols}x${rows} cells: cpu side ${((performance.now() - p0)).toFixed(2)} ms (last frame)`);
+      PERF.n = 0;
+    }
+    return;
+  }
+
   acc.fill(0);
   sr.fill(0);
   sg.fill(0);
@@ -495,7 +575,6 @@ function render(now, dt) {
   tent.fill(0);
 
   // Marine snow, drifting slowly down
-  HALF_W = (10 * W) / H;
   for (const [xf, y0, z, m] of SNOW) {
     const y = ((((y0 - t * (0.08 + m * 0.06)) + 10) % 20) + 20) % 20 - 10;
     glow(xf * HALF_W * 1.05 + Math.sin(t * 0.2 + m * 9) * 0.3, y, z, 0.06 + 0.1 * m, SNOW_COL, false);
@@ -567,6 +646,40 @@ function render(now, dt) {
 }
 
 setPalette();
+
+// Pick the renderer. The GPU one gets the jellies' fixed sample parameters
+// once; if it can't start, or its context is lost later (driver update, GPU
+// reset), the page carries on with the CPU renderer on a fresh canvas.
+if (wantGPU()) {
+  GLR = createJellyGL(canvas, { still: STILL, jellies: JELLIES, templateFor, snow: new Float32Array(SNOW.flatMap(([xf, y0, z, m]) => [xf, y0, z, m, 3])) });
+  if (GLR) {
+    document.documentElement.dataset.renderer = "gpu";
+    canvas.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      console.warn("afterglow: GPU context lost, switching the jellyfish to the CPU");
+      useCPU();
+    });
+  }
+}
+if (!GLR) useCPU(true);
+// ?debug: per-cell light from whichever renderer is running (dev aid)
+if (params.has("debug"))
+  window.__jelly = () => (GLR ? { gpu: GLR.readLight() } : { cpu: { acc, sr, sg, sb, tent, cols, rows } });
+function useCPU(first) {
+  GLR = null;
+  if (!first) {
+    const fresh = newCanvas();
+    canvas.replaceWith(fresh);
+    canvas = fresh;
+  }
+  ctx = canvas.getContext("2d");
+  document.documentElement.dataset.renderer = "cpu";
+  if (!first) {
+    resize();
+    render(performance.now(), 0);
+  }
+}
+
 if (STILL) {
   // One frame at the chosen moment, handed to the stills page
   fontReady().then(() => {
