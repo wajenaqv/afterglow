@@ -41,6 +41,17 @@ src/                JS: wallpapers, shared renderers, settings/picker/rule edito
   - Local endpoint `POST localhost:<port>/signal` for scripts, Home Assistant, CI.
   - Never use unofficial WhatsApp clients (Baileys, whatsapp-web.js): against WhatsApp's terms, risk of a ban.
 
+## What exists (phase 1, in progress)
+
+- `src-tauri/src/host.rs`: one borderless webview window per monitor (labels `wall-<generation>-<n>`, fresh labels on every rebuild) showing `wallpapers/jellyfish.html`; threads for the cursor (33 ms, `app.cursor_position()` -> `cursor` event `{x, y}` in CSS px or `null`, sent only to the window under the cursor), pause (2 s: tray Pause, fullscreen app, battery -> `paused` event to every wall, re-sent each tick so new windows catch up) and monitors (3 s: rebuild when the layout changes, on the main thread).
+- `src-tauri/src/platform/windows.rs`: Progman `0x052C`, WorkerW lookup (pre-24H2 sibling of `SHELLDLL_DefView`, else child of Progman), `SetParent`, child coords relative to the virtual screen, `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`; `restore_desktop()` re-applies the current wallpaper on quit; fullscreen = `SHQueryUserNotificationState` busy/D3D/presentation; battery = `GetSystemPowerStatus`.
+- `src-tauri/src/platform/macos.rs`: `setLevel:` desktop level, `setCollectionBehavior:` all Spaces + stationary + ignores cycle, `setIgnoresMouseEvents:`. Fullscreen and battery detection are TODO (return false).
+- `src-tauri/src/tray.rs`: Pause, Pause when an app is fullscreen, Pause on battery, Start at login (autostart plugin), Settings… (the hidden `main` window), Quit. macOS runs as an accessory app (menu bar only, no Dock icon). Single-instance plugin: a second launch opens Settings.
+- The settings window (`index.html`) starts hidden; closing it hides it.
+- `src/wallpapers/common.js` + `jellyfish.js`: ported from heywajih (look unchanged). In the app, cursor and pause come from the window-scoped Tauri events; in a browser, DOM pointer events and never paused. A paused wallpaper stops requesting frames (`isPaused`/`whenResumed`). JetBrains Mono is bundled (`@fontsource`), so wallpapers work offline. Brand tokens live in `src/brand.css`, shared by the app window and wallpapers.
+- `tools/record.html` (dev only, `bun run dev`): records the README's jellyfish card GIF and saves it to `assets/readme/jellyfish.gif` through a dev-only Vite endpoint (`vite.config.js`, fixed file names only). `scripts/readme-art.js` makes the banner.
+- Not yet: settings UI and choosing a wallpaper, persisting tray choices (they reset on restart), macOS pause rules, Low Power Mode.
+
 ## Phases
 
 1. Shell on both OSes: wallpaper window per monitor behind the icons, tray, start at login, pause rules, cursor forwarding.

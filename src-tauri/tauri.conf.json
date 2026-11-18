@@ -16,7 +16,8 @@
         "title": "AfterGlow",
         "width": 960,
         "height": 600,
-        "backgroundColor": "#000000"
+        "backgroundColor": "#000000",
+        "visible": false
       }
     ],
     "security": {

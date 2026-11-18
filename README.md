@@ -22,7 +22,7 @@
 Your desktop, quietly aware. **AfterGlow** puts glowing text-art wallpapers behind your desktop icons and lets your apps nudge them. A message arrives and a jellyfish pulses green, then slowly fades: an afterglow. No popups, no badges, no sounds. You just *see* that something is waiting.
 
 <p align="center">
-  <img src="assets/readme/jellyfish.svg" alt="Three glowing ASCII jellyfish in the cool palette" width="100%">
+  <img src="assets/readme/jellyfish.gif" alt="Three glowing ASCII jellyfish in the cool palette, pulsing and drifting" width="100%">
 </p>
 
 ## ✦ What it does

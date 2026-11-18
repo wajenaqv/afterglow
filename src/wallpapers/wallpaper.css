@@ -1,0 +1,19 @@
+/* Wallpaper pages: one full-window canvas on the brand background. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+body.canvas-page {
+  overflow: hidden;
+  cursor: none;
+}
+
+.canvas-wall {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}

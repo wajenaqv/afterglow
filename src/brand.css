@@ -1,0 +1,22 @@
+/* AfterGlow brand palette: heywajih.com's default CRT green theme.
+   Each colour has one job (same roles as heywajih's style.css):
+     --bg       background (always black)
+     --fg       everything you read
+     --dim      labels, notes, secondary text
+     --accent   the app talking: status, highlights, "on" states
+     --bright   things you can act on (buttons, links) and the name
+     --glow     r, g, b of the glow around text; --glow-a its strength
+     --logo-top / --logo-bottom   the wordmark's vertical fade
+   Never hard-code a colour outside this block. Wallpapers read these with
+   cssRGB() (src/wallpapers/common.js), never by parsing hex. */
+:root {
+  --bg: #000000;
+  --fg: #33ff99;
+  --dim: #4d8f6e;
+  --accent: #7dffc0;
+  --bright: #ffffff;
+  --glow: 51, 255, 153;
+  --glow-a: 0.45;
+  --logo-top: #ffffff;
+  --logo-bottom: #33ff99;
+}

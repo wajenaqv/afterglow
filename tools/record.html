@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>README GIF recorder</title>
+    <style>
+      body { background: #0d1117; color: #e6edf3; font: 14px system-ui; margin: 24px; }
+      #card { width: 1000px; height: 400px; display: block; border-radius: 12px; }
+      #jelly { display: block; margin-top: 16px; width: 475px; height: 400px; border: 0; }
+      button { font: inherit; padding: 6px 14px; margin: 12px 8px 0 0; }
+    </style>
+  </head>
+  <body>
+    <!-- Dev tool (bun run dev, open /tools/record.html): records the README's
+         jellyfish card as an animated GIF and saves it to
+         assets/readme/jellyfish.gif. Not part of the app build. -->
+    <canvas id="card" width="1000" height="400"></canvas>
+    <iframe id="jelly" src="/wallpapers/jellyfish.html?count=3&tint=cool&hover=0"></iframe>
+    <div>
+      <button id="rec">record &amp; save GIF</button>
+      <span id="status">loading…</span>
+    </div>
+    <script type="module" src="./record.js"></script>
+  </body>
+</html>
