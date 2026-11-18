@@ -5,8 +5,10 @@
 //     because a window behind the desktop icons gets no mouse events
 //   - pause/resume from the app ("paused" event: fullscreen game, battery,
 //     or the tray's Pause), so a paused wallpaper uses no CPU at all
-// In a plain browser (bun run dev) the DOM's own pointer events are used and
-// nothing is ever paused, so wallpapers can be developed there.
+// In the app, wallpapers run inside frames of wallpapers/host.html (one per
+// monitor), which passes both on with postMessage. Opened directly in a
+// browser (bun run dev), the DOM's own pointer events are used and nothing is
+// ever paused, so wallpapers can be developed there.
 //
 // URL options every wallpaper understands:
 //   ?size=<0.3-2.5> scale of the main object (1 = default)
@@ -24,7 +26,9 @@ import "./wallpaper.css";
 // heywajih can keep their theme code paths (they stay off).
 export const THEME_NAMES = ["green"];
 export const params = new URLSearchParams(location.search);
-export const IN_APP = "__TAURI_INTERNALS__" in window;
+// Inside a frame (host.html in the app, or a dev tool): cursor and pause come
+// from the parent page
+export const FRAMED = window.parent !== window;
 
 // ---- still mode ----
 export const STILL = params.has("still");
@@ -72,18 +76,16 @@ function setPaused(p) {
   if (!p) resumers.splice(0).forEach((fn) => fn());
 }
 
-if (IN_APP) {
-  // Events are sent to this window only (one window per monitor)
-  import("@tauri-apps/api/webviewWindow").then(({ getCurrentWebviewWindow }) => {
-    const win = getCurrentWebviewWindow();
-    // payload: { x, y } in CSS px relative to this window, or null when the
-    // cursor is on another screen
-    if (HOVER)
-      win.listen("cursor", ({ payload }) => {
-        if (payload) movePointer(payload.x, payload.y);
-        else pointer.on = false;
-      });
-    win.listen("paused", ({ payload }) => setPaused(!!payload));
+if (FRAMED) {
+  // { type: "cursor", at: { x, y } | null } in CSS px within this frame,
+  // { type: "paused", value: bool }
+  addEventListener("message", (e) => {
+    if (e.origin !== location.origin || e.source !== window.parent) return;
+    const d = e.data;
+    if (d?.type === "cursor" && HOVER) {
+      if (d.at) movePointer(d.at.x, d.at.y);
+      else pointer.on = false;
+    } else if (d?.type === "paused") setPaused(!!d.value);
   });
 } else if (HOVER) {
   addEventListener("pointermove", (e) => movePointer(e.clientX, e.clientY));

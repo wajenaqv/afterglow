@@ -1,17 +1,25 @@
-// The wallpaper host: one borderless webview window per monitor, placed
-// behind the desktop icons (platform::attach), showing a wallpaper page.
+// The wallpaper host: borderless webview windows placed behind the desktop
+// icons (platform::attach), each loading wallpapers/host.html, which shows
+// the wallpaper once per monitor the window covers.
+//
+// How many windows (plan_walls):
+//   - Windows, all monitors at the same display scale: ONE window spanning
+//     every monitor. Each webview costs ~100 MB before drawing anything, so
+//     this saves that much per extra monitor; host.html puts a frame on each.
+//   - Otherwise (mixed scales, where one window can't be sharp on both; or
+//     macOS, where a window can't span Spaces on different displays): one
+//     window per monitor.
 //
 // Three background loops (plain threads, like goroutines with a ticker):
 //   cursor    every 33 ms: windows behind the icons get no mouse events, so we
-//             read the cursor position and send it to the wallpaper on that
-//             monitor as a "cursor" event ({x, y} in CSS px, or null)
+//             read the cursor position and send it to the window under it as
+//             a "cursor" event ({x, y} in CSS px within that window, or null)
 //   pause     every 2 s: pause when the tray says so, when a fullscreen app or
 //             game is in front, or on battery; sent as a "paused" event
 //   monitors  every 3 s: if monitors were added, removed or moved, rebuild
-//             the wallpaper windows
 //
-// Events go to each wallpaper window by label (emit_to), and the page listens
-// on its own window (src/wallpapers/common.js).
+// Events go to each window by label (emit_to); host.html listens on its own
+// window and passes them to its frames.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -23,10 +31,23 @@ use tauri::{AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, Physical
 
 use crate::platform;
 
-// The wallpaper every monitor shows, for now. (Picking one comes with settings.)
-const WALLPAPER: &str = "wallpapers/jellyfish.html";
+// The wallpaper every monitor shows, for now (picking one comes with
+// settings): a page under wallpapers/, and its options
+const WALLPAPER: &str = "jellyfish";
+const WALLPAPER_QUERY: &str = "";
 
-/// One monitor's wallpaper window and where it sits, in physical pixels.
+/// A monitor, in physical pixels.
+#[derive(Clone, PartialEq, Debug)]
+struct Screen {
+    x: i32,
+    y: i32,
+    w: u32,
+    h: u32,
+    scale: f64,
+}
+
+/// One wallpaper window: the rectangle it covers (physical px) and the
+/// monitors inside it.
 #[derive(Clone)]
 struct Wall {
     label: String,
@@ -35,31 +56,44 @@ struct Wall {
     w: u32,
     h: u32,
     scale: f64,
+    screens: Vec<Screen>,
 }
 
 impl Wall {
     fn contains(&self, x: f64, y: f64) -> bool {
         x >= self.x as f64 && y >= self.y as f64 && x < (self.x as f64 + self.w as f64) && y < (self.y as f64 + self.h as f64)
     }
-}
 
-/// Same monitors in the same places (labels aside)?
-fn same_layout(a: &[Wall], b: &[Wall]) -> bool {
-    a.len() == b.len()
-        && a.iter().zip(b).all(|(p, q)| p.x == q.x && p.y == q.y && p.w == q.w && p.h == q.h && p.scale == q.scale)
+    /// What host.html needs: its monitors in CSS px relative to the window.
+    fn init_script(&self) -> String {
+        let screens: Vec<[f64; 4]> = self
+            .screens
+            .iter()
+            .map(|s| {
+                [
+                    (s.x - self.x) as f64 / self.scale,
+                    (s.y - self.y) as f64 / self.scale,
+                    s.w as f64 / self.scale,
+                    s.h as f64 / self.scale,
+                ]
+            })
+            .collect();
+        let config = serde_json::json!({ "wall": WALLPAPER, "query": WALLPAPER_QUERY, "screens": screens });
+        format!("window.__AFTERGLOW__ = {config};")
+    }
 }
 
 /// Shared state (Tauri's `manage`): the windows, and the pause switches.
 #[derive(Default)]
 pub struct Host {
     walls: Mutex<Vec<Wall>>,
+    /// The monitors the windows were built for
+    screens: Mutex<Vec<Screen>>,
     /// Paused from the tray menu
     pub user_paused: AtomicBool,
     /// Pause rules, on by default
     pub pause_fullscreen: AtomicBool,
     pub pause_on_battery: AtomicBool,
-    /// What the wallpapers were last told
-    paused: AtomicBool,
     /// Bumped on every rebuild, so new windows get fresh labels (a label
     /// can't be reused while its old window is still closing)
     generation: AtomicUsize,
@@ -90,28 +124,54 @@ pub fn stop(_app: &AppHandle) {
     platform::restore_desktop();
 }
 
-/// The monitors as Walls (labels wall-<generation>-<n>), in physical pixels.
-fn current_walls(app: &AppHandle, generation: usize) -> Vec<Wall> {
-    let monitors = app.available_monitors().unwrap_or_default();
-    monitors
+fn current_screens(app: &AppHandle) -> Vec<Screen> {
+    app.available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(|m| Screen { x: m.position().x, y: m.position().y, w: m.size().width, h: m.size().height, scale: m.scale_factor() })
+        .collect()
+}
+
+/// Decide the windows for these monitors (see the top of this file).
+fn plan_walls(screens: &[Screen], generation: usize) -> Vec<Wall> {
+    let one_window = cfg!(windows) && screens.len() > 1 && screens.iter().all(|s| s.scale == screens[0].scale);
+    if one_window {
+        let x = screens.iter().map(|s| s.x).min().unwrap();
+        let y = screens.iter().map(|s| s.y).min().unwrap();
+        let right = screens.iter().map(|s| s.x + s.w as i32).max().unwrap();
+        let bottom = screens.iter().map(|s| s.y + s.h as i32).max().unwrap();
+        return vec![Wall {
+            label: format!("wall-{generation}-0"),
+            x,
+            y,
+            w: (right - x) as u32,
+            h: (bottom - y) as u32,
+            scale: screens[0].scale,
+            screens: screens.to_vec(),
+        }];
+    }
+    screens
         .iter()
         .enumerate()
-        .map(|(i, m)| Wall {
+        .map(|(i, s)| Wall {
             label: format!("wall-{generation}-{i}"),
-            x: m.position().x,
-            y: m.position().y,
-            w: m.size().width,
-            h: m.size().height,
-            scale: m.scale_factor(),
+            x: s.x,
+            y: s.y,
+            w: s.w,
+            h: s.h,
+            scale: s.scale,
+            screens: vec![s.clone()],
         })
         .collect()
 }
 
-/// Close any old wallpaper windows and open one per monitor.
+/// Close any old wallpaper windows and open new ones for the current monitors.
 fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     let host = app.state::<Host>();
     let generation = host.generation.fetch_add(1, Ordering::Relaxed);
-    let walls = current_walls(app, generation);
+    let screens = current_screens(app);
+    let walls = plan_walls(&screens, generation);
+    eprintln!("afterglow: {} monitor(s) {:?} -> {} wallpaper window(s)", screens.len(), screens, walls.len());
 
     for (label, window) in app.webview_windows() {
         if label.starts_with("wall-") {
@@ -120,9 +180,9 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     }
 
     for wall in &walls {
-        let window = WebviewWindowBuilder::new(app, &wall.label, WebviewUrl::App(WALLPAPER.into()))
+        let window = WebviewWindowBuilder::new(app, &wall.label, WebviewUrl::App("wallpapers/host.html".into()))
             .title("AfterGlow wallpaper")
-            .decorations(false)
+            .initialization_script(&wall.init_script())            .decorations(false)
             .resizable(false)
             .skip_taskbar(true)
             .focused(false)
@@ -139,6 +199,7 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     }
 
     *host.walls.lock().unwrap() = walls;
+    *host.screens.lock().unwrap() = screens;
     Ok(())
 }
 
@@ -155,7 +216,7 @@ fn cursor_loop(app: AppHandle) {
 
         let walls = app.state::<Host>().walls.lock().unwrap().clone();
         let here = walls.iter().find(|w| w.contains(pos.x, pos.y));
-        // the monitor the cursor left hears that it's gone
+        // the window the cursor left hears that it's gone
         if let Some(prev) = &last_label {
             if here.map(|w| &w.label) != Some(prev) {
                 let _ = app.emit_to(EventTarget::webview_window(prev), "cursor", None::<Cursor>);
@@ -176,7 +237,6 @@ pub fn apply_pause(app: &AppHandle) {
     let pause = host.user_paused.load(Ordering::Relaxed)
         || (host.pause_fullscreen.load(Ordering::Relaxed) && platform::fullscreen_app_in_front())
         || (host.pause_on_battery.load(Ordering::Relaxed) && platform::on_battery());
-    host.paused.store(pause, Ordering::Relaxed);
     // Sent every time (not only on change): a window that just loaded learns
     // the current state within one tick
     let labels: Vec<String> = host.walls.lock().unwrap().iter().map(|w| w.label.clone()).collect();
@@ -195,9 +255,9 @@ fn pause_loop(app: AppHandle) {
 fn monitor_loop(app: AppHandle) {
     loop {
         thread::sleep(Duration::from_secs(3));
-        let now = current_walls(&app, 0);
-        let known = app.state::<Host>().walls.lock().unwrap().clone();
-        if !same_layout(&now, &known) && !now.is_empty() {
+        let now = current_screens(&app);
+        let known = app.state::<Host>().screens.lock().unwrap().clone();
+        if now != known && !now.is_empty() {
             // windows are created and attached on the main thread (required on macOS)
             let a = app.clone();
             let _ = app.run_on_main_thread(move || {

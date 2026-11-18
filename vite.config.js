@@ -44,6 +44,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
+        host: resolve(__dirname, "wallpapers/host.html"),
         jellyfish: resolve(__dirname, "wallpapers/jellyfish.html"),
       },
     },
