@@ -69,6 +69,50 @@ function bannerSVG() {
 `;
 }
 
+// The jellyfish card: same width, black and rounded corners as the banner,
+// three jellies on the right (a still from heywajih.com's stills maker:
+// jellyfish, cool palette, count 3, 1520x1280, saved as
+// assets/readme/jellyfish-cool.png) and a terminal line on the left. The PNG
+// is embedded, because GitHub's <img> SVGs can't load other files.
+function jellyfishSVG() {
+  const width = 1400;
+  const height = 560;
+  const png = readFileSync("assets/readme/jellyfish-cool.png").toString("base64");
+  const imgH = height;
+  const imgW = Math.round((1520 / 1280) * imgH);
+  const imgX = width - imgW - 20;
+  const textX = 72;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="Three glowing ASCII jellyfish in the cool palette">
+  <style>
+    text { font-family: ${FONT}; white-space: pre; font-variant-ligatures: none; }
+    .cmd { fill: ${C.fg}; font-size: 24px; }
+    .prompt { fill: ${C.accent}; }
+    .note { fill: #4d8f6e; font-size: 19px; }
+    .cursor { fill: ${C.fg}; animation: blink 1.1s steps(1) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+  </style>
+  <defs>
+    <clipPath id="card"><rect width="${width}" height="${height}" rx="16"/></clipPath>
+    <filter id="glow" x="-5%" y="-50%" width="110%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="0 0 0 0 0.2  0 0 0 0 1  0 0 0 0 0.6  0 0 0 0.6 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g clip-path="url(#card)">
+    <rect width="${width}" height="${height}" fill="${C.bg}"/>
+    <image x="${imgX}" y="0" width="${imgW}" height="${imgH}" href="data:image/png;base64,${png}"/>
+  </g>
+  <g filter="url(#glow)">
+    <text class="cmd" x="${textX}" y="${height / 2 - 14}"><tspan class="prompt">$ </tspan>afterglow wallpaper jellyfish<tspan class="cursor"> &#9608;</tspan></text>
+  </g>
+  <text class="note" x="${textX}" y="${height / 2 + 30}">  --tint cool  --count 3</text>
+</svg>
+`;
+}
+
 mkdirSync("assets/readme", { recursive: true });
 writeFileSync("assets/readme/banner.svg", bannerSVG());
-console.log("wrote assets/readme/banner.svg");
+writeFileSync("assets/readme/jellyfish.svg", jellyfishSVG());
+console.log("wrote assets/readme/banner.svg and assets/readme/jellyfish.svg");
