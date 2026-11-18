@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Detail comparison</title>
+    <style>
+      body { background: #0d1117; color: #e6edf3; font: 14px system-ui; margin: 16px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      figure { margin: 0; }
+      figcaption { margin: 0 0 6px; }
+      .frame { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #000; border-radius: 8px; }
+      iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; }
+      .controls { margin: 12px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      button, select { font: inherit; }
+    </style>
+  </head>
+  <body>
+    <!-- Dev tool (bun run dev, /tools/compare.html): the same wallpaper moment
+         at two sampling detail levels, side by side, rendered at 1920x1080. -->
+    <div class="controls">
+      <select id="wall">
+        <option value="jellyfish">jellyfish</option>
+        <option value="big-jellyfish">big jellyfish</option>
+      </select>
+      <label><input type="checkbox" id="frozen" checked /> frozen moment</label>
+      <button id="next">another moment</button>
+      <span id="at"></span>
+    </div>
+    <div class="row">
+      <figure><figcaption>detail 1 (heywajih's original)</figcaption><div class="frame"><iframe id="a"></iframe></div></figure>
+      <figure><figcaption>detail 0.5 (new default, half the samples)</figcaption><div class="frame"><iframe id="b"></iframe></div></figure>
+    </div>
+    <script>
+      const a = document.getElementById("a"), b = document.getElementById("b");
+      const wall = document.getElementById("wall"), frozen = document.getElementById("frozen");
+      let at = 60;
+      function load() {
+        const still = frozen.checked ? `&still=cmp&at=${at.toFixed(1)}` : "";
+        document.getElementById("at").textContent = frozen.checked ? `t = ${at.toFixed(1)} s` : "live";
+        a.src = `/wallpapers/${wall.value}.html?hover=0&detail=1${still}`;
+        b.src = `/wallpapers/${wall.value}.html?hover=0&detail=0.5${still}`;
+      }
+      document.getElementById("next").onclick = () => { at = 40 + Math.random() * 400; load(); };
+      wall.onchange = frozen.onchange = load;
+      const fit = new ResizeObserver((es) => es.forEach((e) => (e.target.querySelector("iframe").style.transform = `scale(${e.contentRect.width / 1920})`)));
+      document.querySelectorAll(".frame").forEach((f) => fit.observe(f));
+      load();
+    </script>
+  </body>
+</html>

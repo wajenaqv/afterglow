@@ -7,7 +7,7 @@
 // 0..1 per channel; ink() tone-maps it, picks a character by brightness and
 // keeps the light's colour, the way jellyfish.js does it.
 
-import { params, hash, cssRGB, THEME_NAMES, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
+import { params, num, hash, cssRGB, THEME_NAMES, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
 
 export const reduced = !STILL && matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const preview = params.has("preview");
@@ -177,7 +177,8 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     render(performance.now());
   });
   let last = 0;
-  const interval = 1000 / (reduced ? 1 : preview ? 8 : fps);
+  // ?fps lowers the rate (AfterGlow performance setting), never raises it
+  const interval = 1000 / (reduced ? 1 : preview ? 8 : Math.min(fps, num("fps", fps, 10, 60)));
   const tick = (now) => {
     // Paused by the app: stop scheduling frames entirely (no CPU) until resumed
     if (isPaused()) return whenResumed(() => requestAnimationFrame(tick));

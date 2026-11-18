@@ -158,6 +158,24 @@ button.use:disabled {
   padding-left: 0;
 }
 
+h2.section {
+  margin-top: 30px;
+}
+.perf {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.perf label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  cursor: pointer;
+}
+.perf input {
+  accent-color: var(--fg);
+}
+
 footer {
   margin-top: 28px;
   font-size: 12.5px;

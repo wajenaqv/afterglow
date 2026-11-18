@@ -45,6 +45,15 @@ const SIZE = num("size", 1, 0.3, 2.5);
 const COUNT = HERO ? 1 : Math.round(num("count", Math.max(4, Math.min(10, Math.round(2.5 + 2.5 * (innerWidth / innerHeight)))), 1, 10));
 const themeName = params.get("theme");
 const themed = THEME_NAMES.includes(themeName) && themeName !== "green";
+// Sampling detail (AfterGlow): 1 = heywajih's original density, about 8 light
+// samples per character cell; the default 0.5 takes half as many. Each
+// sample's area weight grows to match, so brightness per cell stays the same.
+// 2D surfaces (the bell) thin out in both directions, lines (tentacles,
+// arms) along their length. ?detail=0.25-1
+const DETAIL = num("detail", 0.5, 0.25, 1);
+const BELL_STEP = 0.03 / Math.sqrt(DETAIL); // radians between bell rings
+const BELL_RING = 70 * Math.sqrt(DETAIL); // samples per unit of ring length
+const LINE_STEP = 0.03 / DETAIL; // units between samples down arms and tentacles
 
 // ---- canvas grid ----
 const canvas = document.createElement("canvas");
@@ -309,9 +318,9 @@ function drawJelly(j, t) {
   // Local -> world: tilt the jelly a little around the z axis
   const put = (lx, ly, lz, b, R_, G_, B_, isTent, area) =>
     glowRGB(cx + lx * ct - ly * st, y + lx * st + ly * ct, cz + lz, b * fade, R_, G_, B_, isTent, area);
-  const BELL_AREA = 0.03 * R * ((Math.PI * 2) / 70); // one bell sample's patch of membrane
-  const ARM_AREA = 0.03 * 0.07 * j.r * SIZE;
-  const TENT_AREA = 0.03 * 0.05;
+  const BELL_AREA = BELL_STEP * R * ((Math.PI * 2) / BELL_RING); // one bell sample's patch of membrane
+  const ARM_AREA = LINE_STEP * 0.07 * j.r * SIZE;
+  const TENT_AREA = LINE_STEP * 0.05;
   const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)); // each contraction (and a touch) makes the bell glow brighter
   // remember where the bell is on screen, for the hover check
   const [bx, by, bz] = project(cx, y + Hb * 0.4, cz);
@@ -324,9 +333,9 @@ function drawJelly(j, t) {
   // sample, and colours are passed as numbers; same maths, same picture.)
   const [bellR, bellG, bellB] = col.bell;
   const [gloR, gloG, gloB] = col.glow;
-  for (let th = 0.02; th <= TH_MAX; th += 0.03) {
+  for (let th = 0.02; th <= TH_MAX; th += BELL_STEP) {
     const sth = Math.sin(th), cth = Math.cos(th);
-    const ring = Math.max(10, Math.round(sth * R * 70));
+    const ring = Math.max(10, Math.round(sth * R * BELL_RING));
     const thf = th / TH_MAX;
     // The rim curls in as the bell contracts and flares out as it relaxes
     const edge = Math.max(0, th - 1.02);
@@ -366,12 +375,12 @@ function drawJelly(j, t) {
   const armR = gloR + (bellR - gloR) * 0.5, armG = gloG + (bellG - gloG) * 0.5, armB = gloB + (bellB - gloB) * 0.5;
   // how far each step down the arms trails (the same for all four arms)
   let n = 0;
-  for (let s = 0; s < armLen; s += 0.03) lagTab[n++] = drag(s * 0.08) * 0.6;
+  for (let s = 0; s < armLen; s += LINE_STEP) lagTab[n++] = drag(s * 0.08) * 0.6;
   for (let a = 0; a < 4; a++) {
     const ang = a * (Math.PI / 2) + 0.4;
     const ca = Math.cos(ang), sa = Math.sin(ang);
     let si = 0;
-    for (let s = 0; s < armLen; s += 0.03, si++) {
+    for (let s = 0; s < armLen; s += LINE_STEP, si++) {
       const sway = Math.sin(s * 1.6 - t * 1.1 + a) * 0.15 * s;
       const bx = ca * (0.12 + sway), bz = sa * (0.12 + sway);
       const by = Hb * 0.15 - s - lagTab[si];
@@ -390,7 +399,7 @@ function drawJelly(j, t) {
   let maxLen = 0;
   for (let i = 0; i < j.tentacles; i++) maxLen = Math.max(maxLen, (2.2 + hash(j.seed, i) * 2.2) * j.r * SIZE);
   n = 0;
-  for (let s = 0; s < maxLen; s += 0.03, n++) {
+  for (let s = 0; s < maxLen; s += LINE_STEP, n++) {
     const lag = s * 0.11;
     plTab[n] = pAt(t - lag);
     lagTab[n] = drag(lag) * 0.7;
@@ -403,7 +412,7 @@ function drawJelly(j, t) {
     const len = (2.2 + hash(j.seed, i) * 2.2) * j.r * SIZE;
     const rx = R * sTM * Math.cos(ph), rz = R * sTM * Math.sin(ph), ry = Hb * cTM;
     let si = 0;
-    for (let s = 0; s < len; s += 0.03, si++) {
+    for (let s = 0; s < len; s += LINE_STEP, si++) {
       // Waves travel down each tentacle, growing towards the tip
       const k = s / len;
       const wave1 = Math.sin(s * 1.1 - t * 1.5 + i * 1.7) * 0.35 * k;
@@ -417,8 +426,8 @@ function drawJelly(j, t) {
     }
   }
 }
-// Scratch tables for drawJelly, one entry per 0.03-unit step down an arm or
-// tentacle (the longest, a hero jelly at ?size=2.5, is ~1700 steps)
+// Scratch tables for drawJelly, one entry per LINE_STEP down an arm or
+// tentacle (the longest, a hero jelly at ?size=2.5 and detail 1, is ~1700 steps)
 const plTab = new Float64Array(4096);
 const lagTab = new Float64Array(4096);
 
@@ -442,7 +451,8 @@ let last = 0;
 // at 60 Hz). The refresh interval is the median of the first second's
 // ticks (robust to jitter), and frames run off a deadline that advances by
 // a fixed step, so timing noise never piles up.
-const TARGET_MS = 1000 / (reduced ? 1 : preview ? 8 : 30);
+// ?fps=15-30 (AfterGlow performance setting; 30 = the original)
+const TARGET_MS = 1000 / (reduced ? 1 : preview ? 8 : num("fps", 30, 10, 30));
 let frameMs = TARGET_MS, due = 0, prevRaf = 0;
 const ticks = [];
 function frame(now) {

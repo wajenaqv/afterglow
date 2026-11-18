@@ -17,6 +17,7 @@ const api = IN_APP
   ? {
       get: async () => (await import("@tauri-apps/api/core")).invoke("get_settings"),
       set: async (id, options) => (await import("@tauri-apps/api/core")).invoke("set_wallpaper", { id, options }),
+      setFps: async (fps) => (await import("@tauri-apps/api/core")).invoke("set_fps", { fps }),
     }
   : {
       get: async () => {
@@ -30,6 +31,13 @@ const api = IN_APP
         const s = await api.get();
         s.wallpaper = id;
         s.options = { ...(s.options ?? {}), [id]: options };
+        try {
+          localStorage.setItem("afterglow:settings", JSON.stringify(s));
+        } catch {}
+      },
+      setFps: async (fps) => {
+        const s = await api.get();
+        s.fps = fps;
         try {
           localStorage.setItem("afterglow:settings", JSON.stringify(s));
         } catch {}
@@ -138,8 +146,14 @@ const fit = new ResizeObserver((entries) => {
 document.querySelectorAll(".preview").forEach((p) => fit.observe(p));
 
 // Fill in what's saved, then start the previews
+// The frame rate (every wallpaper)
+const fpsInputs = [...document.querySelectorAll('input[name="fps"]')];
+fpsInputs.forEach((input) => input.addEventListener("change", () => input.checked && api.setFps(Number(input.value))));
+
 api.get().then((saved) => {
   settings = { wallpaper: saved.wallpaper ?? "jellyfish", options: saved.options ?? {} };
+  const fps = String(saved.fps ?? 30);
+  fpsInputs.forEach((input) => (input.checked = input.value === fps));
   for (const [id, card] of cards) {
     const mine = settings.options[id] ?? {};
     for (const [key, sel] of card.selects) sel.value = mine[key] ?? "";

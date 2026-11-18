@@ -5,8 +5,9 @@
 //   options           per wallpaper, its URL options, e.g. {"jellyfish": {"tint": "cool"}}
 //   pause_fullscreen  the tray's pause rules
 //   pause_on_battery
+//   fps               frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //
-// Also the commands the Settings window calls (get_settings, set_wallpaper).
+// Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps).
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -29,21 +30,31 @@ pub struct Settings {
     pub options: BTreeMap<String, BTreeMap<String, String>>,
     pub pause_fullscreen: bool,
     pub pause_on_battery: bool,
+    pub fps: u32,
 }
+
+/// The frame rates on offer (Settings → performance)
+pub const FPS_CHOICES: &[u32] = &[30, 20, 15];
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { wallpaper: "jellyfish".into(), options: BTreeMap::new(), pause_fullscreen: true, pause_on_battery: true }
+        Settings { wallpaper: "jellyfish".into(), options: BTreeMap::new(), pause_fullscreen: true, pause_on_battery: true, fps: 30 }
     }
 }
 
 impl Settings {
-    /// The chosen wallpaper's options as a URL query ("tint=cool&count=3").
+    /// The chosen wallpaper's options as a URL query ("tint=cool&count=3"),
+    /// plus the frame rate when it isn't the default 30.
     pub fn query(&self) -> String {
-        self.options
+        let mut parts: Vec<String> = self
+            .options
             .get(&self.wallpaper)
-            .map(|opts| opts.iter().filter(|(k, v)| safe(k) && safe(v)).map(|(k, v)| format!("{k}={v}")).collect::<Vec<_>>().join("&"))
-            .unwrap_or_default()
+            .map(|opts| opts.iter().filter(|(k, v)| safe(k) && safe(v)).map(|(k, v)| format!("{k}={v}")).collect())
+            .unwrap_or_default();
+        if self.fps != 30 && FPS_CHOICES.contains(&self.fps) {
+            parts.push(format!("fps={}", self.fps));
+        }
+        parts.join("&")
     }
 }
 
@@ -68,6 +79,9 @@ pub fn load(app: &AppHandle) -> Settings {
         .unwrap_or_default();
     if !is_known(&s.wallpaper) {
         s.wallpaper = Settings::default().wallpaper;
+    }
+    if !FPS_CHOICES.contains(&s.fps) {
+        s.fps = 30;
     }
     s
 }
@@ -114,4 +128,21 @@ pub fn get_settings(app: AppHandle) -> Settings {
 #[tauri::command]
 pub fn set_wallpaper(app: AppHandle, id: String, options: BTreeMap<String, String>) -> Result<(), String> {
     choose(&app, &id, Some(options))
+}
+
+/// The frame rate for every wallpaper (reloads them with the new rate).
+#[tauri::command]
+pub fn set_fps(app: AppHandle, fps: u32) -> Result<(), String> {
+    if !FPS_CHOICES.contains(&fps) {
+        return Err(format!("unsupported frame rate {fps}"));
+    }
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.fps = fps;
+        s.clone()
+    };
+    save(&app, &snapshot);
+    host::show_wallpaper(&app);
+    Ok(())
 }
