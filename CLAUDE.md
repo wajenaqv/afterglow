@@ -8,7 +8,7 @@ A separate project from heywajih.com (`~/Projects/heywajih`, which stays as it i
 
 - Stack: **Rust + Tauri v2** for the app and native layer; **vanilla JS + Vite** (no framework) for wallpapers and UI. Bun as package manager and script runner. The owner is more fluent in Go; Rust was picked because Tauri's multi-window, tray and plugins are stable and Microsoft's `windows` crate makes WinRT (the notification listener) routine. Keep the Rust plain and readable: no clever generics or macros where a struct and a function will do.
 - Platforms: Windows and macOS, both from v1.
-- v1 is for the owner only: no paid code signing, no notarization, no auto-updater, no download page. The repo is public (`wajenaqv/afterglow`), MIT for everything (code and wallpapers). Lively Wallpaper (GPL) may be read for its approach, never copied.
+- Windows users get a downloadable installer `.exe` (see Distribution). macOS is build-from-source for now (no Apple Developer account yet). The repo is public (`wajenaqv/afterglow`), MIT for everything (code and wallpapers). Lively Wallpaper (GPL) may be read for its approach, never copied.
 - Everything runs locally. No server, no telemetry. Connectors keep metadata only (which app, counts, at most a sender name), never message content. Tokens live in the OS keychain; API client ids/secrets in `.env` (git-ignored, see `.env.example`).
 
 ## Architecture (planned)
@@ -26,9 +26,9 @@ src/                JS: wallpapers, shared renderers, settings/picker/rule edito
 - **Pause** when a fullscreen app/game is in front (the owner plays Overwatch and CS2 daily), on battery, and in Low Power Mode on macOS.
 - **Signals.** Two normalized types every platform can produce: `app.new { source }` (pulse/flash) and `app.unread { source, n }` (counts). Wallpapers declare their reactions (`pulse(colour)`, `count(n)`, `flash`); rules map source + signal -> wallpaper reaction + colour. How long a reaction lingers is called its `afterglow`.
 - **Connectors.**
-  - Windows notifications: `UserNotificationListener` (WinRT, via the `windows` crate). Needs package identity, so the Windows build is an MSIX signed with a self-signed certificate the owner trusts locally (certs never committed). Covers WhatsApp, Slack, Teams, Discord, Outlook.
+  - Windows notifications: `UserNotificationListener` (WinRT, via the `windows` crate). Covers WhatsApp, Slack, Teams, Discord, Outlook. Needs package identity, which a plain NSIS `.exe` install doesn't have: either a sparse package (package with external location) registered by the installer, or an MSIX. Both must be signed with a certificate the user's PC trusts, so for public users this connector depends on real code signing (see Distribution). Until then it works only on the owner's PC (self-signed certificate trusted locally, never committed), and public users get the other connectors.
   - macOS Dock badges: Accessibility API (`AXUIElement`, read the Dock items' badge labels; the approach the app Doll uses). macOS has no public API to read other apps' notifications. A badge count going up = `app.new`, the count itself = `app.unread`. Needs Accessibility permission, which macOS ties to the code signature: sign dev builds with the owner's free Apple Development certificate so the permission survives rebuilds.
-  - Gmail / Outlook: OAuth with a loopback redirect (no server), then poll or IMAP IDLE. Skip Gmail push (needs Pub/Sub). An unverified Google app is limited to 100 test users, fine for v1.
+  - Gmail / Outlook: OAuth with a loopback redirect (no server), then poll or IMAP IDLE. Skip Gmail push (needs Pub/Sub). An unverified Google app is limited to 100 test users you add by hand; public users need the app verified by Google (needs a privacy policy page). The desktop OAuth client id ships inside the app (normal for desktop apps; Google treats it as public), so it's set at build time from a CI secret, not committed.
   - Spotify (now playing), OS state (Do Not Disturb/Focus, time of day, battery).
   - Local endpoint `POST localhost:<port>/signal` for scripts, Home Assistant, CI.
   - Never use unofficial WhatsApp clients (Baileys, whatsapp-web.js): against WhatsApp's terms, risk of a ban.
@@ -40,7 +40,14 @@ src/                JS: wallpapers, shared renderers, settings/picker/rule edito
 3. Windows notification listener + macOS Dock badges (WhatsApp works on both).
 4. Gmail/Outlook, Spotify, OS signals.
 5. Rule editor UI ("when [source] [signal], [wallpaper] does [reaction] in [colour]"), more wallpapers, rotation, PNG export.
-Later: sync settings between machines; if ever public: signing, notarization, MSIX/Store, updater.
+Later: sync settings between machines; code signing (Windows), Apple notarization and a macOS download, in-app updates.
+
+## Distribution
+
+- Windows: `.github/workflows/release.yml` runs on a `v*` tag, builds the NSIS installer (`Afterglow_<version>_x64-setup.exe`, per-user install, no admin) with `tauri-action`, and attaches it to a **draft** GitHub Release that the owner reviews and publishes. Bump `version` in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` together before tagging.
+- Unsigned for now: SmartScreen shows "Windows protected your PC" (More info -> Run anyway); the release notes and README say so.
+- Signing options when it's time: Azure Trusted Signing (cheapest, monthly fee; check eligibility for individuals in the owner's country) or an OV code-signing certificate (yearly). Signing also unlocks the notification connector for public users (package identity, above). SmartScreen reputation still builds up over downloads.
+- In-app updates: Tauri's updater plugin with its own (free) update-signing key, serving `latest.json` from GitHub Releases. Not set up yet; the private key would be a repo secret, never committed.
 
 ## Design language (from heywajih, keep it)
 
@@ -66,7 +73,7 @@ Later: sync settings between machines; if ever public: signing, notarization, MS
 - `bun run tauri build`
 - `bun run dev` / `bun run build`: the web side only
 
-CI (`.github/workflows/build.yml`) builds on Windows and macOS on every push and pull request.
+CI (`.github/workflows/build.yml`) builds on Windows and macOS on every push and pull request. Releases: `.github/workflows/release.yml` (see Distribution).
 
 ## Owner context
 

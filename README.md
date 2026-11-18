@@ -4,7 +4,15 @@ Live ASCII wallpapers for Windows and macOS that glow when something happens.
 
 A WhatsApp message arrives and a jellyfish pulses green, then slowly fades. Your inbox fills up and more jellies drift in. Afterglow puts glowing text-art wallpapers behind your desktop icons and lets your apps nudge them, so you can tell at a glance that something is waiting, without a single popup.
 
-> **Status:** early. The app scaffold exists; the wallpaper host, the first wallpapers and the connectors are being built. v1 is a personal build: no signed releases yet.
+> **Status:** early. The app scaffold exists; the wallpaper host, the first wallpapers and the connectors are being built.
+
+## Download
+
+**Windows:** grab `Afterglow_<version>_x64-setup.exe` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest) and run it. It installs for your user only, no admin needed.
+
+The installer isn't code-signed yet, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**.
+
+**macOS:** build from source for now (see below).
 
 ## How it works
 
