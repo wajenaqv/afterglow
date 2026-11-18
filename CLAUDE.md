@@ -60,7 +60,11 @@ Owner's priority (2026-11-18): get the basic app working (several wallpapers you
 
 1. Done on Windows: shell, wallpaper windows behind the icons, tray, start at login, pause rules, cursor forwarding. macOS compiles but is untested.
 2. Done on Windows: a basic app. Paws and big jellyfish ported; Settings with a wallpaper picker (live previews, per-wallpaper options) and a frame-rate setting (30/20/15 fps); switching applies live; choices remembered; Wallpaper and Frame rate submenus in the tray; the AG logo as app and tray icon; per-monitor pause while app windows hide the desktop (Windows). Still open: run it on the owner's Mac and add the macOS pause rules (fullscreen, battery, covered).
-3. Next (owner, 2026-11-18): a GPU renderer (WebGL2) for the jellyfish, then the paws, to cut the cost of a visible wallpaper towards ~1% of the CPU. The GPU computes the light (bell/arm/tentacle samples generated in shaders, additive blending into a cell-sized float texture), blurs it and picks each cell's glyph from a pre-rendered glyph atlas; the CPU only sends per-jelly numbers (position, pulse, colour) each frame. Must look the same as the CPU renderer (check with tools/compare.html); keep the CPU renderer as the fallback without WebGL2. Baseline to beat (owner's PC, two monitors, visible, 30 fps): ~86% of one core.
+3. In progress (branch `gpu-renderer`): GPU rendering (WebGL2) for every wallpaper, to cut the cost of a visible wallpaper towards ~1% of the CPU. Baseline to beat (owner's PC, two monitors, visible, 30 fps): ~86% of one core.
+   - A "Rendering" choice in Settings → performance, saved: Automatic (default: GPU when WebGL2 works, else CPU; also falls back if the GPU context is lost), GPU, CPU (compatibility: old drivers, remote desktop, VMs). Settings shows what's actually running and on which graphics card.
+   - Jellyfish renderer (jellyfish + big jellyfish): the GPU generates the bell/arm/tentacle samples in shaders, adds their light into a cell-sized float texture (additive blending), blurs it and picks each cell's glyph from a pre-rendered glyph atlas; the CPU only sends per-jelly numbers (position, pulse, colour) each frame.
+   - Night-scene renderer (paws): per-cell light in a fragment shader, glyphs from the same atlas.
+   - Each GPU version must look the same as its CPU version (tools/compare.html).
 4. Reactions and the signal bus: jellyfish `pulse(colour)`, `count(n)`, `flash`; paws reactions; a signal simulator; the local endpoint.
 5. Windows notification listener + macOS Dock badges (WhatsApp works on both).
 6. Gmail/Outlook, Spotify, OS signals.
@@ -82,6 +86,11 @@ Later: sync settings between machines; code signing (Windows), Apple notarizatio
 - Reactions follow the same rules: a pulse is a gentle brightening that fades (an afterglow), not a flash bang, popup or text.
 - What failed on heywajih (don't repeat): busy many-object scenes (bedroom, window nap, keyboard cat), skylines in ASCII, a date palm (fine greens/browns never got pretty), hand-drawn rings for the black hole, solid fills that wash pastels out.
 - Received best: the jellyfish (natural palette is the owner's favourite) and the clock.
+
+## Rules for wallpapers (owner, 2026-11-18)
+
+- Every wallpaper has two renderers: a GPU one (WebGL2) and a CPU one (canvas 2D), picked by the Rendering setting, with the CPU one as the fallback. This holds for every wallpaper added from now on, not only the current three. The two must look the same: compare them on tools/compare.html before shipping.
+- Every wallpaper stops requesting frames while paused (common.js `isPaused`/`whenResumed`), takes `?fps`, and works without the cursor.
 
 ## Technical rules carried over
 
