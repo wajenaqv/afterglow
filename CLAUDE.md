@@ -1,4 +1,4 @@
-# afterglow
+# AfterGlow
 
 Desktop app for Windows and macOS: live ASCII/glow wallpapers behind the desktop icons that react to activity in other apps (a WhatsApp message -> the jellyfish pulses green; many unread emails -> more jellies). It replaces Wallpaper Engine / Plash for the owner's own wallpapers and adds "sockets" (connectors) that drive them.
 
@@ -10,6 +10,14 @@ A separate project from heywajih.com (`~/Projects/heywajih`, which stays as it i
 - Platforms: Windows and macOS, both from v1.
 - Windows users get a downloadable installer `.exe` (see Distribution). macOS is build-from-source for now (no Apple Developer account yet). The repo is public (`wajenaqv/afterglow`), MIT for everything (code and wallpapers). Lively Wallpaper (GPL) may be read for its approach, never copied.
 - Everything runs locally. No server, no telemetry. Connectors keep metadata only (which app, counts, at most a sender name), never message content. Tokens live in the OS keychain; API client ids/secrets in `.env` (git-ignored, see `.env.example`).
+
+## Brand
+
+- Name: **AfterGlow** (capital A and G) wherever people read it: window titles, installer, tray, README, release names. Lowercase `afterglow` only for technical ids: repo, package and crate names, `com.wajenaqv.afterglow`, file paths. "afterglow" (lowercase, common noun) is also the word for how long a reaction lingers.
+- Colours: heywajih.com's default CRT green theme is the brand. Tokens in `src/style.css` `:root`, same names and roles as heywajih: `--bg #000000`, `--fg #33ff99`, `--dim #4d8f6e`, `--accent #7dffc0`, `--bright #ffffff`, `--glow 51,255,153` at `--glow-a 0.45`, `--logo-top #ffffff` -> `--logo-bottom #33ff99`. Never hard-code a colour outside that block.
+- Where: everything that is AfterGlow itself (app windows, settings, tray, wordmark, icon, README art, release pages) uses the brand palette. Wallpapers keep their own palettes (the jellyfish's natural palette is the owner's favourite) and also offer the brand green; reactions default to brand green unless a rule picks another colour.
+- Font: JetBrains Mono, ligatures off on character grids. The look is heywajih's terminal: black, green text with a soft glow.
+- TODO: a real app icon in the brand style (the current icons are Tauri's defaults); generate all sizes with `bun run tauri icon <source.png>`.
 
 ## Architecture (planned)
 
@@ -44,7 +52,7 @@ Later: sync settings between machines; code signing (Windows), Apple notarizatio
 
 ## Distribution
 
-- Windows: `.github/workflows/release.yml` runs on a `v*` tag, builds the NSIS installer (`Afterglow_<version>_x64-setup.exe`, per-user install, no admin) with `tauri-action`, and attaches it to a **draft** GitHub Release that the owner reviews and publishes. Bump `version` in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` together before tagging.
+- Windows: `.github/workflows/release.yml` runs on a `v*` tag, builds the NSIS installer (`AfterGlow_<version>_x64-setup.exe`, per-user install, no admin) with `tauri-action`, and attaches it to a **draft** GitHub Release that the owner reviews and publishes. Bump `version` in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` together before tagging.
 - Unsigned for now: SmartScreen shows "Windows protected your PC" (More info -> Run anyway); the release notes and README say so.
 - Signing options when it's time: Azure Trusted Signing (cheapest, monthly fee; check eligibility for individuals in the owner's country) or an OV code-signing certificate (yearly). Signing also unlocks the notification connector for public users (package identity, above). SmartScreen reputation still builds up over downloads.
 - In-app updates: Tauri's updater plugin with its own (free) update-signing key, serving `latest.json` from GitHub Releases. Not set up yet; the private key would be a repo secret, never committed.

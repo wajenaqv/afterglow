@@ -2,7 +2,7 @@ name: release
 
 # Push a version tag to publish a Windows installer:
 #   git tag v0.1.0 && git push origin v0.1.0
-# This builds Afterglow_<version>_x64-setup.exe and attaches it to a draft
+# This builds AfterGlow_<version>_x64-setup.exe and attaches it to a draft
 # GitHub Release; review the draft and press Publish.
 
 on:
@@ -38,9 +38,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: Afterglow ${{ github.ref_name }}
+          releaseName: AfterGlow ${{ github.ref_name }}
           releaseBody: |
-            Windows installer: download `Afterglow_*_x64-setup.exe` below and run it.
+            Windows installer: download `AfterGlow_*_x64-setup.exe` below and run it.
             It installs for your user only (no admin needed).
 
             This build isn't code-signed yet, so Windows may show "Windows protected your PC".

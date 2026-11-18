@@ -1,7 +1,8 @@
 // Placeholder window until the wallpaper host lands (phase 1).
-// The word glows letter by letter and fades, an afterglow in miniature.
+// The wordmark glows letter by letter, green to white and back (heywajih's
+// logo colours): an afterglow in miniature. Colours live in style.css.
 
-const WORD = "afterglow";
+const WORD = "AfterGlow";
 const mark = document.getElementById("mark");
 const letters = [...WORD].map((ch) => {
   const s = document.createElement("span");
@@ -12,20 +13,12 @@ const letters = [...WORD].map((ch) => {
 
 const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function light(i) {
-  const s = letters[i];
-  s.style.color = "#fff";
-  s.style.textShadow = "0 0 12px var(--glow), 0 0 28px var(--glow)";
-  setTimeout(() => {
-    s.style.color = "";
-    s.style.textShadow = "0 0 4px var(--glow)";
-  }, 500);
-}
-
 if (!still) {
   let i = 0;
   setInterval(() => {
-    light(i);
+    const s = letters[i];
+    s.classList.add("lit");
+    setTimeout(() => s.classList.remove("lit"), 450);
     i = (i + 1) % letters.length;
   }, 260);
 }
