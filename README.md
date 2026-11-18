@@ -21,10 +21,6 @@
 
 Your desktop, quietly aware. **AfterGlow** puts glowing text-art wallpapers behind your desktop icons and lets your apps nudge them. A message arrives and a jellyfish pulses green, then slowly fades: an afterglow. No popups, no badges, no sounds. You just *see* that something is waiting.
 
-<p align="center">
-  <img src="assets/readme/demo.svg" alt="A WhatsApp message arrives and the jellyfish pulses green, then fades" width="100%">
-</p>
-
 ## ✦ What it does
 
 | when… | your wallpaper… |
