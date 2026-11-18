@@ -247,11 +247,15 @@ fn cursor_loop(app: AppHandle) {
 /// Tell every wallpaper window to show the chosen wallpaper (after Settings
 /// or the tray changed it). host.html swaps its frames; no window rebuild.
 pub fn show_wallpaper(app: &AppHandle) {
-    let host = app.state::<Host>();
-    let showing = Showing::from(&host.settings.lock().unwrap());
-    let labels: Vec<String> = host.walls.lock().unwrap().iter().map(|w| w.label.clone()).collect();
+    let showing = Showing::from(&app.state::<Host>().settings.lock().unwrap());
+    emit_to_walls(app, "wallpaper", showing);
+}
+
+/// Send an event to every wallpaper window (host.html passes it to its frames).
+pub fn emit_to_walls<S: Serialize + Clone>(app: &AppHandle, event: &str, payload: S) {
+    let labels: Vec<String> = app.state::<Host>().walls.lock().unwrap().iter().map(|w| w.label.clone()).collect();
     for label in labels {
-        let _ = app.emit_to(EventTarget::webview_window(&label), "wallpaper", showing.clone());
+        let _ = app.emit_to(EventTarget::webview_window(&label), event, payload.clone());
     }
 }
 

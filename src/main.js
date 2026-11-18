@@ -120,6 +120,7 @@ for (const w of WALLPAPERS) {
     <div class="body">
       <h3>${w.name}</h3>
       <p class="dim about">${w.about}</p>
+      <p class="dim reacts">reacts to: ${(w.reacts ?? []).join(" · ") || "nothing yet"}</p>
       <div class="opts"></div>
       <button type="button" class="use"></button>
     </div>`;
@@ -155,6 +156,35 @@ const fit = new ResizeObserver((entries) => {
 document.querySelectorAll(".preview").forEach((p) => fit.observe(p));
 
 // Fill in what's saved, then start the previews
+// ---- the signal simulator (signals.rs send_signal) ----
+// The "waiting" buttons keep their own count, sent as the "simulator" app's
+// unread count (added to any real apps' counts by the bus)
+let simWaiting = 0;
+const waitingNote = document.getElementById("waiting");
+async function sendSignal(signal) {
+  if (!IN_APP) return (waitingNote.textContent = "open Settings from the AfterGlow tray to send signals");
+  try {
+    await (await import("@tauri-apps/api/core")).invoke("send_signal", { signal });
+  } catch (e) {
+    waitingNote.textContent = String(e);
+  }
+}
+document.querySelectorAll("[data-signal]").forEach((b) => b.addEventListener("click", () => sendSignal(JSON.parse(b.dataset.signal))));
+document.querySelectorAll("[data-waiting]").forEach((b) =>
+  b.addEventListener("click", () => {
+    simWaiting = Number(b.dataset.waiting) === 0 ? 0 : simWaiting + Number(b.dataset.waiting);
+    waitingNote.textContent = simWaiting ? `${simWaiting} waiting` : "";
+    sendSignal(simWaiting ? { source: "simulator", kind: "unread", count: simWaiting } : { source: "simulator", kind: "clear" });
+  }),
+);
+document.getElementById("copy-curl").addEventListener("click", async (e) => {
+  try {
+    await navigator.clipboard.writeText(document.getElementById("curl").textContent);
+    e.target.textContent = "copied";
+    setTimeout(() => (e.target.textContent = "copy"), 1500);
+  } catch {}
+});
+
 // The version, from the app (tauri.conf.json), in the footer
 if (IN_APP)
   import("@tauri-apps/api/app").then(async ({ getVersion }) => {

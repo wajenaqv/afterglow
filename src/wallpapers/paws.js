@@ -27,7 +27,7 @@
 //          ?still=<id>&at=<s> (one frame for the stills page, see common.js)
 //          ?size=<0.3-2.5> (print size) ?preview
 
-import { num, seeded, hash, params, HOVER, pointer, stillFor, STILL, STILL_AT } from "./common.js";
+import { num, seeded, hash, params, HOVER, pointer, stillFor, STILL, STILL_AT, onReaction } from "./common.js";
 const TRAIL = params.has("trail");
 import { C, setPalette, startScene, scale, add, mix, smooth, ellipse, circle, reduced } from "./nightscene.js";
 
@@ -105,7 +105,7 @@ function printLight(lx, ly) {
 }
 
 // ---- walks: prints { x, y, a (heading), at, tint } ----
-function makeWalk(seed, start) {
+function makeWalk(seed, start, tintOverride) {
   const rnd = seeded(seed);
   // enter from a random point on any edge, heading for a point somewhere inside
   const edge = Math.floor(rnd() * 4), e = rnd();
@@ -117,7 +117,8 @@ function makeWalk(seed, start) {
   const wander = 0.04 + rnd() * 0.05, phase = rnd() * 6;
   const stopAt = rnd() < 0.45 ? 6 + Math.floor(rnd() * 8) : -1;
   const turnAt = 4 + Math.floor(rnd() * 10), turnBy = (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.9);
-  const tint = TINTS[Math.floor(rnd() * TINTS.length)];
+  const picked = TINTS[Math.floor(rnd() * TINTS.length)];
+  const tint = tintOverride ?? picked; // a messenger cat walks in its app's colour
   const prints = [];
   let time = start;
   for (let n = 0; n < 120; n++) {
@@ -262,6 +263,20 @@ function trailPrints(t) {
   });
 }
 
+// ---- reactions (AfterGlow; common.js onReaction, signals.rs) ----
+//   pulse  a messenger cat walks in from an edge, in the app's colour
+//   flash  every glowing print brightens for a moment
+const messengers = []; // walks started by pulses
+let messengerN = 0;
+let lastT = 0; // the scene time of the last frame
+let flashAmt = 0;
+onReaction((r) => {
+  if (r.type === "pulse") {
+    const colour = r.colour.map((v) => Math.max(0, Math.min(255, v)) / 255);
+    messengers.push(makeWalk(90001 + messengerN++ * 7919, lastT, colour));
+  } else if (r.type === "flash") flashAmt = 1;
+});
+
 function frame(t) {
   if (TRAIL) {
     active = trailPrints(t);
@@ -269,15 +284,20 @@ function frame(t) {
   }
   if (!reduced) curious(t);
   walksUpTo(t);
+  flashAmt *= Math.exp(-Math.max(0, t - lastT) / 0.5);
+  lastT = t;
+  while (messengers.length && messengers[0].end + LIFE < t) messengers.shift();
   active = [];
-  for (const cat of cats) for (const w of cat.walks) for (const p of w.prints) {
+  const walks = cats.flatMap((cat) => cat.walks).concat(messengers);
+  for (const w of walks) for (const p of w.prints) {
     const age = reduced ? 3 : t - p.at;
     const g = reduced ? (p.at < 8 ? 0.8 : 0) : glowAt(age);
     if (g <= 0.01) continue;
     // fresh prints run whiter, then take the walk's colour and cool to violet
     const fresh = Math.exp(-age / 0.45) * 0.5;
-    const colour = add(scale(mix(p.tint, OLD, smooth(1, 7, age)), 1 - fresh), FLASH, fresh);
-    active.push({ ...p, g, colour, ca: Math.cos(p.a), sa: Math.sin(p.a) });
+    let colour = add(scale(mix(p.tint, OLD, smooth(1, 7, age)), 1 - fresh), FLASH, fresh);
+    if (flashAmt > 0.01) colour = add(colour, FLASH, flashAmt * 0.6);
+    active.push({ ...p, g: g * (1 + flashAmt), colour, ca: Math.cos(p.a), sa: Math.sin(p.a) });
   }
 }
 

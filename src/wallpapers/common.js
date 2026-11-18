@@ -76,9 +76,21 @@ function setPaused(p) {
   if (!p) resumers.splice(0).forEach((fn) => fn());
 }
 
+// ---- reactions (signals.rs) ----
+// { type: "pulse", colour: [r, g, b] (0..255), afterglow: seconds, source }
+// { type: "count", n }   how many things are waiting, across all apps
+// { type: "flash" }
+// A wallpaper handles the ones it can (catalog.js lists which).
+const reactionHandlers = [];
+export const onReaction = (fn) => reactionHandlers.push(fn);
+function react(r) {
+  if (!r || typeof r.type !== "string") return;
+  reactionHandlers.forEach((fn) => fn(r));
+}
+
 if (FRAMED) {
   // { type: "cursor", at: { x, y } | null } in CSS px within this frame,
-  // { type: "paused", value: bool }
+  // { type: "paused", value: bool }, { type: "reaction", reaction }
   addEventListener("message", (e) => {
     if (e.origin !== location.origin || e.source !== window.parent) return;
     const d = e.data;
@@ -86,8 +98,24 @@ if (FRAMED) {
       if (d.at) movePointer(d.at.x, d.at.y);
       else pointer.on = false;
     } else if (d?.type === "paused") setPaused(!!d.value);
+    else if (d?.type === "reaction") react(d.reaction);
   });
-} else if (HOVER) {
+} else if (!STILL) {
+  // Opened directly in a browser: keys fire reactions, for tuning them
+  //   P pulse (brand green), G pulse (another colour), F flash,
+  //   C or + three more waiting, - three fewer, X none waiting
+  let count = 0;
+  addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (k === "p") react({ type: "pulse", colour: [51, 255, 153], afterglow: 4, source: "test" });
+    else if (k === "g") react({ type: "pulse", colour: [234, 67, 53], afterglow: 4, source: "test" });
+    else if (k === "f") react({ type: "flash" });
+    else if (k === "c" || k === "+" || k === "=") react({ type: "count", n: (count += 3) });
+    else if (k === "-") react({ type: "count", n: (count = Math.max(0, count - 3)) });
+    else if (k === "x") react({ type: "count", n: (count = 0) });
+  });
+}
+if (!FRAMED && HOVER) {
   addEventListener("pointermove", (e) => movePointer(e.clientX, e.clientY));
   document.addEventListener("pointerleave", () => (pointer.on = false));
   document.documentElement.addEventListener("mouseleave", () => (pointer.on = false));

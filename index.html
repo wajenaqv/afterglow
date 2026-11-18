@@ -33,6 +33,19 @@
         <label><input type="radio" name="render" value="cpu" /> CPU <span class="dim">for old drivers, remote desktop or a VM</span></label>
       </div>
       <p class="dim hint running">running on: <span id="running">…</span></p>
+
+      <h2 class="section"><span class="dim">#</span> signals</h2>
+      <p class="dim hint">Try the reactions without any apps connected. A message pulses one jelly (or sends a cat) in that app's colour; things waiting bring in more jellies.</p>
+      <div class="signals">
+        <button type="button" data-signal='{"source":"whatsapp","kind":"new"}'>whatsapp message</button>
+        <button type="button" data-signal='{"source":"gmail","kind":"new"}'>gmail email</button>
+        <button type="button" data-signal='{"source":"slack","kind":"new"}'>slack message</button>
+        <button type="button" data-waiting="3">3 more waiting</button>
+        <button type="button" data-waiting="0">nothing waiting</button>
+        <button type="button" data-signal='{"source":"simulator","kind":"flash"}'>flash</button>
+        <span class="dim" id="waiting"></span>
+      </div>
+      <p class="dim hint endpoint">from your own scripts: <code id="curl">curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'</code> <button type="button" id="copy-curl">copy</button></p>
     </main>
     <footer class="dim">
       <span>pause, pause rules and start at login live in the tray menu</span>

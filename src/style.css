@@ -190,6 +190,32 @@ h3.sub {
   color: var(--accent);
 }
 
+.reacts {
+  margin: 0;
+  font-size: 12px;
+}
+.signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.signals button,
+.endpoint button {
+  cursor: pointer;
+}
+.signals button:hover,
+.endpoint button:hover {
+  border-color: var(--fg);
+}
+.endpoint {
+  margin-top: 12px;
+}
+.endpoint code {
+  color: var(--fg);
+  word-break: break-all;
+}
+
 footer {
   display: flex;
   justify-content: space-between;

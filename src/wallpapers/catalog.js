@@ -1,4 +1,5 @@
 // The wallpapers AfterGlow offers and their options, for the Settings picker.
+// `reacts`: the reactions it shows (signals.rs): pulse, count, flash.
 // Keep the ids in sync with WALLPAPERS in src-tauri/src/settings.rs (the tray
 // menu and validation) and with the pages in wallpapers/<id>.html.
 //
@@ -18,18 +19,21 @@ export const WALLPAPERS = [
     name: "jellyfish",
     about: "Glowing, see-through jellyfish pulsing up through dark water, trailing their tentacles. Touch one with the cursor and it flashes.",
     options: [PALETTE, { key: "count", label: "count", choices: [["", "auto"], ...Array.from({ length: 10 }, (_, i) => [String(i + 1), String(i + 1)])] }],
+    reacts: ["pulse", "count", "flash"],
   },
   {
     id: "big-jellyfish",
     name: "big jellyfish",
     about: "One big jellyfish that stays where it is and just pulses, each pulse rippling down its tentacles. Touch it and it flashes.",
     options: [PALETTE, { key: "hue", label: "colour", choices: [["", "random"], ...Array.from({ length: 6 }, (_, i) => [String(i + 1), String(i + 1)])], hues: true }],
+    reacts: ["pulse", "flash"],
   },
   {
     id: "paws",
     name: "paw prints",
     about: "Glowing paw prints of an invisible cat walking across the screen. Rest the cursor and the curious cat comes over, circles it and sits a moment.",
     options: [PALETTE],
+    reacts: ["pulse", "flash"],
   },
 ];
 

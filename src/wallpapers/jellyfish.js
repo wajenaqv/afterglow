@@ -34,7 +34,7 @@
 //          ?hue=1-6: the big jelly's colour in the palette (default: the
 //          moment's for stills, random live)
 
-import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
+import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createJellyGL } from "./jellyfish-gl.js";
 
@@ -276,6 +276,79 @@ if (HERO) {
 const SNOW = Array.from({ length: 600 }, () => [random() * 2 - 1, random() * 20 - 10, random() * 16 - 8, random()]);
 let HALF_W = 10; // half the visible width in world units (10 = half the height)
 
+// ---- reactions (AfterGlow; common.js onReaction, signals.rs) ----
+//   pulse  the on-screen jelly pulsed longest ago contracts and glows in the
+//          app's colour, fading over the afterglow
+//   count  extra jellies drift in as things wait: one per 3, up to 10 in all.
+//          They're made up front (so the GPU knows their samples) and fade
+//          in and out; the usual jellies keep their exact places
+//   flash  every jelly gets the touch flash
+// Extras use their own random numbers, after the snow's, so nothing else moves.
+const MAX_JELLIES = 10;
+const extraRandom = seeded(777);
+const EXTRAS = HERO
+  ? []
+  : Array.from({ length: Math.max(0, MAX_JELLIES - COUNT) }, (_, k) => ({
+      // golden-ratio steps across the width, so each new extra lands far
+      // from the ones before it
+      xf: ((k * 0.618 + 0.11) % 1) * 1.9 - 0.95 + (extraRandom() - 0.5) * 0.1,
+      z: (extraRandom() * 2 - 1) * 3,
+      yf: extraRandom(),
+      r: 1.1 + extraRandom() * 1.2,
+      period: 2.6 + extraRandom() * 1.6,
+      phase: extraRandom() * 10,
+      speed: 0.18 + extraRandom() * 0.14,
+      tilt: (extraRandom() - 0.5) * 0.5,
+      hue: (COUNT + k) % HUES.length,
+      tentacles: 8 + Math.floor(extraRandom() * 6),
+      seed: (COUNT + k) * 97,
+      extra: true,
+      presence: 0,
+    }));
+JELLIES.push(...EXTRAS);
+let extrasWanted = 0;
+let pulseClock = 0; // orders pulses, so they take turns
+
+// A jelly's colours, tinted towards a pulse's colour while it glows
+function colOf(j) {
+  const base = HUES[j.hue % HUES.length];
+  const a = j.glowAmt || 0;
+  if (a < 0.01) return base;
+  const tint = (c, k) => c.map((v, i) => v + (j.glowRGB[i] - v) * k);
+  return { bell: tint(base.bell, a * 0.85), glow: tint(base.glow, Math.min(1, a)), tent: tint(base.tent, a * 0.7) };
+}
+
+onReaction((r) => {
+  if (r.type === "pulse") {
+    // on screen, and pulsed longest ago (ties: the nearest the middle)
+    const onScreen = JELLIES.filter((j) => (j.presence ?? 1) > 0.5 && j.screen && j.screen.x > 0 && j.screen.x < W && j.screen.y > 0 && j.screen.y < H);
+    const pool = onScreen.length ? onScreen : JELLIES.filter((j) => (j.presence ?? 1) > 0.5);
+    pool.sort((a, b) => (a.pulsedAt ?? -1) - (b.pulsedAt ?? -1) || Math.abs(a.screen?.x - W / 2) - Math.abs(b.screen?.x - W / 2));
+    const j = pool[0];
+    if (!j) return;
+    j.glowRGB = r.colour.map((v) => Math.max(0, Math.min(255, v)));
+    j.glowAmt = 1;
+    j.glowTau = Math.max(0.2, (r.afterglow || 4) / 3); // mostly gone after the afterglow
+    j.excite = Math.max(j.excite || 0, 0.8); // contracts as it lights up
+    j.pulsedAt = ++pulseClock;
+  } else if (r.type === "count") {
+    extrasWanted = Math.min(EXTRAS.length, Math.ceil(Math.max(0, r.n) / 3));
+  } else if (r.type === "flash") {
+    for (const j of JELLIES) j.excite = 1;
+  }
+});
+
+// Once per frame: pulses fade, extras drift in or out
+function reactionsTick(dt) {
+  for (const j of JELLIES) {
+    if (j.glowAmt) j.glowAmt = j.glowAmt * Math.exp(-dt / j.glowTau);
+    if (j.extra) {
+      const want = EXTRAS.indexOf(j) < extrasWanted ? 1 : 0;
+      j.presence += Math.max(-dt / 3, Math.min(dt / 3, want - j.presence));
+    }
+  }
+}
+
 // Pulse shape 0..1: a quick contraction, then a slow relaxation
 const pulse = (t, period, phase) => {
   const u = (((t + phase) / period) % 1 + 1) % 1;
@@ -309,17 +382,20 @@ function jellyState(j, t) {
   const top = 10.5 + j.r * SIZE + 2.5;
   const span = top - bottom;
   const y = j.fixedY ?? bottom + ((((travel + j.yf * span) % span) + span) % span);
-  const fade = j.fixedY != null ? 1 : Math.max(0, Math.min(1, (y - bottom) / 2.5, (top - y) / 2.5));
-  if (fade <= 0) return null;
+  const fade = (j.fixedY != null ? 1 : Math.max(0, Math.min(1, (y - bottom) / 2.5, (top - y) / 2.5))) * (j.presence ?? 1);
+  if (fade <= 0) {
+    j.screen = null; // not on screen: no hover, no pulses
+    return null;
+  }
   const sway = j.still ? 0 : 1;
   const cx = j.xf * HALF_W * 0.9 + Math.sin(t * 0.07 + j.seed) * 0.8 * sway;
   const cz = j.z + Math.cos(t * 0.05 + j.seed) * 0.6 * sway;
   const R = j.r * SIZE * (1 - 0.18 * p);
   const Hb = j.r * SIZE * (0.5 + 0.25 * p);
-  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0));
+  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)) * (1 + 0.8 * (j.glowAmt || 0));
   const [bx, by, bz] = project(cx, y + Hb * 0.4, cz);
   j.screen = { x: bx, y: by, r: (R * focal) / bz };
-  return { p, push, y, fade, cx, cz, R, Hb, flash, jr: j.r * SIZE, ct: Math.cos(j.tilt), st: Math.sin(j.tilt), col: HUES[j.hue % HUES.length] };
+  return { p, push, y, fade, cx, cz, R, Hb, flash, jr: j.r * SIZE, ct: Math.cos(j.tilt), st: Math.sin(j.tilt), col: colOf(j) };
 }
 
 // The fixed sample parameters of one jelly, for the GPU renderer: one vertex
@@ -365,22 +441,25 @@ function drawJelly(j, t) {
   const top = 10.5 + j.r * SIZE + 2.5;
   const span = top - bottom;
   const y = j.fixedY ?? bottom + ((((travel + j.yf * span) % span) + span) % span);
-  const fade = j.fixedY != null ? 1 : Math.max(0, Math.min(1, (y - bottom) / 2.5, (top - y) / 2.5));
-  if (fade <= 0) return;
+  const fade = (j.fixedY != null ? 1 : Math.max(0, Math.min(1, (y - bottom) / 2.5, (top - y) / 2.5))) * (j.presence ?? 1);
+  if (fade <= 0) {
+    j.screen = null; // not on screen: no hover, no pulses
+    return;
+  }
   const sway = j.still ? 0 : 1;
   const cx = j.xf * HALF_W * 0.9 + Math.sin(t * 0.07 + j.seed) * 0.8 * sway;
   const cz = j.z + Math.cos(t * 0.05 + j.seed) * 0.6 * sway;
   const R = j.r * SIZE * (1 - 0.18 * p); // narrower when contracted
   const Hb = j.r * SIZE * (0.5 + 0.25 * p); // a shallow umbrella, taller when contracted
   const ct = Math.cos(j.tilt), st = Math.sin(j.tilt);
-  const col = HUES[j.hue % HUES.length]; // theme mode has fewer hues
+  const col = colOf(j); // its hue (theme mode has fewer), tinted while a pulse glows
   // Local -> world: tilt the jelly a little around the z axis
   const put = (lx, ly, lz, b, R_, G_, B_, isTent, area) =>
     glowRGB(cx + lx * ct - ly * st, y + lx * st + ly * ct, cz + lz, b * fade, R_, G_, B_, isTent, area);
   const BELL_AREA = BELL_STEP * R * ((Math.PI * 2) / BELL_RING); // one bell sample's patch of membrane
   const ARM_AREA = LINE_STEP * 0.07 * j.r * SIZE;
   const TENT_AREA = LINE_STEP * 0.05;
-  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)); // each contraction (and a touch) makes the bell glow brighter
+  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)) * (1 + 0.8 * (j.glowAmt || 0)); // each contraction, a touch and a pulse make the bell glow brighter
   // remember where the bell is on screen, for the hover check
   const [bx, by, bz] = project(cx, y + Hb * 0.4, cz);
   j.screen = { x: bx, y: by, r: (R * focal) / bz };
@@ -548,6 +627,7 @@ function render(now, dt) {
   focal = (H / 20) * camDist;
 
   HALF_W = (10 * W) / H;
+  reactionsTick(dt);
   if (GLR) {
     // GPU: hover bookkeeping and per-jelly state here, everything else in shaders
     for (const j of JELLIES) {
@@ -664,7 +744,7 @@ if (wantGPU()) {
 if (!GLR) useCPU(true);
 // ?debug: per-cell light from whichever renderer is running (dev aid)
 if (params.has("debug"))
-  window.__jelly = () => (GLR ? { gpu: GLR.readLight() } : { cpu: { acc, sr, sg, sb, tent, cols, rows } });
+  (window.__jelly = () => (GLR ? { gpu: GLR.readLight() } : { cpu: { acc, sr, sg, sb, tent, cols, rows } })), (window.__jellies = JELLIES);
 function useCPU(first) {
   GLR = null;
   if (!first) {

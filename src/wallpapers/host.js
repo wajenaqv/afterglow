@@ -63,8 +63,22 @@ function pause(p) {
     send(fr, { type: "paused", value });
   });
 }
+// Reactions (pulse, count, flash) go to every frame. The latest count is
+// kept, so a frame that loads later (another wallpaper, a new monitor)
+// starts with it.
+let count = null;
+function reaction(r) {
+  if (r?.type === "count") count = r;
+  frames.forEach((fr) => send(fr, { type: "reaction", reaction: r }));
+}
+
 // a frame that loads (or reloads with another wallpaper) learns its state
-frames.forEach((fr) => fr.f.addEventListener("load", () => send(fr, { type: "paused", value: !!fr.paused })));
+frames.forEach((fr) =>
+  fr.f.addEventListener("load", () => {
+    send(fr, { type: "paused", value: !!fr.paused });
+    if (count) send(fr, { type: "reaction", reaction: count });
+  }),
+);
 
 if ("__TAURI_INTERNALS__" in window) {
   import("@tauri-apps/api/webviewWindow").then(({ getCurrentWebviewWindow }) => {
@@ -72,7 +86,13 @@ if ("__TAURI_INTERNALS__" in window) {
     win.listen("cursor", ({ payload }) => cursor(payload));
     win.listen("paused", ({ payload }) => pause(payload));
     win.listen("wallpaper", ({ payload }) => show(payload));
+    win.listen("reaction", ({ payload }) => reaction(payload));
   });
+  // the count when this window opened (after a monitor change, say)
+  import("@tauri-apps/api/core")
+    .then(({ invoke }) => invoke("signal_state"))
+    .then((n) => n > 0 && reaction({ type: "count", n }))
+    .catch(() => {});
 } else {
   // in a browser: the real mouse
   addEventListener("pointermove", (e) => cursor({ x: e.clientX, y: e.clientY }));
