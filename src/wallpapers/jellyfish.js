@@ -320,10 +320,12 @@ function colOf(j) {
 
 onReaction((r) => {
   if (r.type === "pulse") {
-    // on screen, and pulsed longest ago (ties: the nearest the middle)
+    // on screen, and pulsed longest ago (ties: any of them, so pulses land all
+    // over rather than always near the middle)
     const onScreen = JELLIES.filter((j) => (j.presence ?? 1) > 0.5 && j.screen && j.screen.x > 0 && j.screen.x < W && j.screen.y > 0 && j.screen.y < H);
     const pool = onScreen.length ? onScreen : JELLIES.filter((j) => (j.presence ?? 1) > 0.5);
-    pool.sort((a, b) => (a.pulsedAt ?? -1) - (b.pulsedAt ?? -1) || Math.abs(a.screen?.x - W / 2) - Math.abs(b.screen?.x - W / 2));
+    const order = new Map(pool.map((j) => [j, Math.random()]));
+    pool.sort((a, b) => (a.pulsedAt ?? -1) - (b.pulsedAt ?? -1) || order.get(a) - order.get(b));
     const j = pool[0];
     if (!j) return;
     j.glowRGB = r.colour.map((v) => Math.max(0, Math.min(255, v)));

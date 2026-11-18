@@ -128,6 +128,14 @@ pub fn send_signal(app: AppHandle, signal: Signal) -> Result<(), String> {
     handle(&app, signal)
 }
 
+/// Wallpaper windows report what they did with a reaction (they sit behind
+/// the desktop icons, out of reach of the web inspector); printed in the
+/// app's log
+#[tauri::command]
+pub fn wall_log(msg: String) {
+    eprintln!("afterglow: wall: {}", msg.chars().take(200).collect::<String>());
+}
+
 /// What a wallpaper that just loaded needs to know (the current count)
 #[tauri::command]
 pub fn signal_state(app: AppHandle) -> u32 {

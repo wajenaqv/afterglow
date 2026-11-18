@@ -37,6 +37,7 @@ pub fn run() {
             settings::set_renderer,
             signals::send_signal,
             signals::signal_state,
+            signals::wall_log,
         ])
         .setup(|app| {
             // No Dock icon on macOS: AfterGlow lives in the menu bar

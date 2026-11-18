@@ -86,6 +86,8 @@ export const onReaction = (fn) => reactionHandlers.push(fn);
 function react(r) {
   if (!r || typeof r.type !== "string") return;
   reactionHandlers.forEach((fn) => fn(r));
+  // tell the host page it arrived (it logs to the app; see host.js)
+  if (FRAMED) parent.postMessage({ type: "reacted", reaction: r.type, handlers: reactionHandlers.length, page: location.pathname }, location.origin);
 }
 
 if (FRAMED) {

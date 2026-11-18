@@ -1,6 +1,7 @@
 // The tray (Windows) / menu bar (macOS) icon and its menu:
 //   Wallpaper ▸        jellyfish / big jellyfish / paw prints (one ticked)
 //   Frame rate ▸       smooth 30 / light 20 / eco 15 fps (one ticked)
+//   Try a signal ▸     the simulator: a message, things waiting, a flash
 //   Pause              stop every wallpaper (no CPU) until unticked
 //   Pause when hidden by windows / when an app is fullscreen / on battery   (saved)
 //   Start at login
@@ -20,6 +21,7 @@ use tauri_plugin_autostart::ManagerExt;
 
 use crate::host::{self, Host};
 use crate::settings::{self, Settings, FPS_CHOICES, WALLPAPERS};
+use crate::signals::{self, Signal};
 
 const TRAY_ID: &str = "afterglow";
 
@@ -29,6 +31,31 @@ const TRAY_ID: &str = "afterglow";
 pub struct TrayItems {
     walls: Mutex<Vec<(String, CheckMenuItem<Wry>)>>,
     rates: Mutex<Vec<(u32, CheckMenuItem<Wry>)>>,
+}
+
+/// Try a signal ▸: (label, signal). "waiting" adds 3 to the simulator's own
+/// count, "nothing waiting" clears it.
+const TRIES: &[(&str, &str)] = &[
+    ("WhatsApp message", r#"{"source":"whatsapp","kind":"new"}"#),
+    ("Gmail email", r#"{"source":"gmail","kind":"new"}"#),
+    ("Slack message", r#"{"source":"slack","kind":"new"}"#),
+    ("3 more waiting", "waiting+3"),
+    ("Nothing waiting", "waiting=0"),
+    ("Flash", r#"{"source":"simulator","kind":"flash"}"#),
+];
+static SIM_WAITING: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+fn try_signal(_app: &AppHandle, what: &str) -> Option<Signal> {
+    let n = match what {
+        "waiting+3" => SIM_WAITING.fetch_add(3, Ordering::Relaxed) + 3,
+        "waiting=0" => {
+            SIM_WAITING.store(0, Ordering::Relaxed);
+            0
+        }
+        json => return serde_json::from_str(json).ok(),
+    };
+    let json = if n == 0 { r#"{"source":"simulator","kind":"clear"}"#.to_string() } else { format!(r#"{{"source":"simulator","kind":"unread","count":{n}}}"#) };
+    serde_json::from_str(&json).ok()
 }
 
 fn fps_label(fps: u32) -> String {
@@ -61,6 +88,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let rate_refs: Vec<&dyn IsMenuItem<Wry>> = rates.iter().map(|(_, i)| i as &dyn IsMenuItem<Wry>).collect();
     let wallpaper_menu = Submenu::with_items(app, "Wallpaper", true, &wall_refs)?;
     let rate_menu = Submenu::with_items(app, "Frame rate", true, &rate_refs)?;
+    // Try a signal ▸ the simulator, from the tray so nothing covers the wallpaper
+    let tries: Vec<MenuItem<Wry>> = TRIES
+        .iter()
+        .enumerate()
+        .map(|(i, (label, _))| MenuItem::with_id(app, format!("try:{i}"), *label, true, None::<&str>))
+        .collect::<tauri::Result<_>>()?;
+    let try_refs: Vec<&dyn IsMenuItem<Wry>> = tries.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
+    let try_menu = Submenu::with_items(app, "Try a signal", true, &try_refs)?;
 
     let pause = CheckMenuItem::with_id(app, "pause", "Pause", true, false, None::<&str>)?;
     let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "Pause when an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
@@ -74,6 +109,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         &[
             &wallpaper_menu,
             &rate_menu,
+            &try_menu,
             &PredefinedMenuItem::separator(app)?,
             &pause,
             &PredefinedMenuItem::separator(app)?,
@@ -109,6 +145,17 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 eprintln!("afterglow: {e}");
             }
             sync(app); // also re-ticks the item if it was clicked while already ticked
+            return;
+        }
+        // Try a signal ▸ <one>
+        if let Some(i) = id.strip_prefix("try:").and_then(|n| n.parse::<usize>().ok()) {
+            if let Some((_, json)) = TRIES.get(i) {
+                if let Some(sig) = try_signal(app, json) {
+                    if let Err(e) = signals::handle(app, sig) {
+                        eprintln!("afterglow: {e}");
+                    }
+                }
+            }
             return;
         }
         // Frame rate ▸ <one>

@@ -71,6 +71,16 @@ function reaction(r) {
   if (r?.type === "count") count = r;
   frames.forEach((fr) => send(fr, { type: "reaction", reaction: r }));
 }
+window.__afterglowReact = reaction; // dev aid: fire a reaction from the console
+
+// The app's log gets a line per reaction: received here, handled by a frame
+// (these windows sit behind the desktop icons, out of the inspector's reach)
+let log = () => {};
+if ("__TAURI_INTERNALS__" in window)
+  import("@tauri-apps/api/core").then(({ invoke }) => (log = (msg) => invoke("wall_log", { msg }).catch(() => {})));
+addEventListener("message", (e) => {
+  if (e.origin === location.origin && e.data?.type === "reacted") log(`frame ${e.data.page} handled ${e.data.reaction} (${e.data.handlers} handler)`);
+});
 
 // a frame that loads (or reloads with another wallpaper) learns its state
 frames.forEach((fr) =>
@@ -86,7 +96,10 @@ if ("__TAURI_INTERNALS__" in window) {
     win.listen("cursor", ({ payload }) => cursor(payload));
     win.listen("paused", ({ payload }) => pause(payload));
     win.listen("wallpaper", ({ payload }) => show(payload));
-    win.listen("reaction", ({ payload }) => reaction(payload));
+    win.listen("reaction", ({ payload }) => {
+      log(`host got ${payload?.type} for ${frames.length} frame(s)`);
+      reaction(payload);
+    });
   });
   // the count when this window opened (after a monitor change, say)
   import("@tauri-apps/api/core")
