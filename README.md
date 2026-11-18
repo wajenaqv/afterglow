@@ -41,7 +41,7 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 > [!TIP]
 > Early days: this is where AfterGlow is headed. See the [roadmap](#-roadmap) for what works today.
 
-## ⬇ Download
+## ↓ Download
 
 **Windows**: grab `AfterGlow_<version>_x64-setup.exe` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest) and run it. It installs just for you, no admin needed.
 
