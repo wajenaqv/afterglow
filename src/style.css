@@ -177,6 +177,18 @@ h2.section {
 .perf input {
   accent-color: var(--fg);
 }
+h3.sub {
+  font-size: 13px;
+  color: var(--fg);
+  margin: 18px 0 6px;
+  text-shadow: none;
+}
+.running {
+  margin: 10px 0 0;
+}
+#running.on {
+  color: var(--accent);
+}
 
 footer {
   display: flex;

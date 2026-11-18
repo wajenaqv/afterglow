@@ -8,7 +8,7 @@
 //   pause_covered     pause a monitor's wallpaper while app windows hide it
 //   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //
-// Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps).
+// Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps, set_renderer).
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -33,20 +33,32 @@ pub struct Settings {
     pub pause_on_battery: bool,
     pub pause_covered: bool,
     pub fps: u32,
+    /// "auto" (GPU when it works, else CPU), "gpu" or "cpu"
+    pub renderer: String,
 }
 
 /// The frame rates on offer (Settings → performance)
 pub const FPS_CHOICES: &[u32] = &[30, 20, 15];
+/// The rendering choices (Settings → performance)
+pub const RENDERERS: &[&str] = &["auto", "gpu", "cpu"];
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { wallpaper: "jellyfish".into(), options: BTreeMap::new(), pause_fullscreen: true, pause_on_battery: true, pause_covered: true, fps: 30 }
+        Settings {
+            wallpaper: "jellyfish".into(),
+            options: BTreeMap::new(),
+            pause_fullscreen: true,
+            pause_on_battery: true,
+            pause_covered: true,
+            fps: 30,
+            renderer: "auto".into(),
+        }
     }
 }
 
 impl Settings {
     /// The chosen wallpaper's options as a URL query ("tint=cool&count=3"),
-    /// plus the frame rate when it isn't the default 30.
+    /// plus the frame rate and renderer when they aren't the defaults.
     pub fn query(&self) -> String {
         let mut parts: Vec<String> = self
             .options
@@ -55,6 +67,9 @@ impl Settings {
             .unwrap_or_default();
         if self.fps != 30 && FPS_CHOICES.contains(&self.fps) {
             parts.push(format!("fps={}", self.fps));
+        }
+        if self.renderer != "auto" && RENDERERS.contains(&self.renderer.as_str()) {
+            parts.push(format!("render={}", self.renderer));
         }
         parts.join("&")
     }
@@ -84,6 +99,9 @@ pub fn load(app: &AppHandle) -> Settings {
     }
     if !FPS_CHOICES.contains(&s.fps) {
         s.fps = 30;
+    }
+    if !RENDERERS.contains(&s.renderer.as_str()) {
+        s.renderer = "auto".into();
     }
     s
 }
@@ -147,5 +165,22 @@ pub fn set_fps(app: AppHandle, fps: u32) -> Result<(), String> {
     save(&app, &snapshot);
     host::show_wallpaper(&app);
     tray::sync(&app);
+    Ok(())
+}
+
+/// How wallpapers are drawn: "auto", "gpu" or "cpu" (reloads them).
+#[tauri::command]
+pub fn set_renderer(app: AppHandle, renderer: String) -> Result<(), String> {
+    if !RENDERERS.contains(&renderer.as_str()) {
+        return Err(format!("unknown renderer {renderer}"));
+    }
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.renderer = renderer;
+        s.clone()
+    };
+    save(&app, &snapshot);
+    host::show_wallpaper(&app);
     Ok(())
 }

@@ -25,6 +25,14 @@
         <label><input type="radio" name="fps" value="20" /> light <span class="dim">20 fps, about a third less CPU</span></label>
         <label><input type="radio" name="fps" value="15" /> eco <span class="dim">15 fps, about half the CPU</span></label>
       </div>
+
+      <h3 class="sub">rendering</h3>
+      <div class="perf" role="radiogroup" aria-label="rendering">
+        <label><input type="radio" name="render" value="auto" /> automatic <span class="dim">the graphics card when it can, else the CPU</span></label>
+        <label><input type="radio" name="render" value="gpu" /> GPU <span class="dim">always the graphics card</span></label>
+        <label><input type="radio" name="render" value="cpu" /> CPU <span class="dim">for old drivers, remote desktop or a VM</span></label>
+      </div>
+      <p class="dim hint running">running on: <span id="running">…</span></p>
     </main>
     <footer class="dim">
       <span>pause, pause rules and start at login live in the tray menu</span>

@@ -10,6 +10,7 @@ import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
 import marks from "../scripts/wordmarks.json";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
+import { describe } from "./wallpapers/gpu.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 
@@ -18,6 +19,7 @@ const api = IN_APP
       get: async () => (await import("@tauri-apps/api/core")).invoke("get_settings"),
       set: async (id, options) => (await import("@tauri-apps/api/core")).invoke("set_wallpaper", { id, options }),
       setFps: async (fps) => (await import("@tauri-apps/api/core")).invoke("set_fps", { fps }),
+      setRenderer: async (renderer) => (await import("@tauri-apps/api/core")).invoke("set_renderer", { renderer }),
     }
   : {
       get: async () => {
@@ -38,6 +40,13 @@ const api = IN_APP
       setFps: async (fps) => {
         const s = await api.get();
         s.fps = fps;
+        try {
+          localStorage.setItem("afterglow:settings", JSON.stringify(s));
+        } catch {}
+      },
+      setRenderer: async (renderer) => {
+        const s = await api.get();
+        s.renderer = renderer;
         try {
           localStorage.setItem("afterglow:settings", JSON.stringify(s));
         } catch {}
@@ -156,10 +165,29 @@ if (IN_APP)
 const fpsInputs = [...document.querySelectorAll('input[name="fps"]')];
 fpsInputs.forEach((input) => input.addEventListener("change", () => input.checked && api.setFps(Number(input.value))));
 
+// Rendering: GPU or CPU, and what that means on this computer
+const renderInputs = [...document.querySelectorAll('input[name="render"]')];
+const running = document.getElementById("running");
+function showRunning(pref) {
+  const { gpu, text } = describe(pref);
+  running.textContent = text;
+  running.className = gpu ? "on" : "";
+}
+renderInputs.forEach((input) =>
+  input.addEventListener("change", () => {
+    if (!input.checked) return;
+    api.setRenderer(input.value);
+    showRunning(input.value);
+  }),
+);
+
 api.get().then((saved) => {
   settings = { wallpaper: saved.wallpaper ?? "jellyfish", options: saved.options ?? {} };
   const fps = String(saved.fps ?? 30);
   fpsInputs.forEach((input) => (input.checked = input.value === fps));
+  const render = saved.renderer ?? "auto";
+  renderInputs.forEach((input) => (input.checked = input.value === render));
+  showRunning(render);
   for (const [id, card] of cards) {
     const mine = settings.options[id] ?? {};
     for (const [key, sel] of card.selects) sel.value = mine[key] ?? "";

@@ -25,7 +25,7 @@ pub fn run() {
         ))
         .manage(host::Host::default())
         // what the Settings window calls (settings.rs)
-        .invoke_handler(tauri::generate_handler![settings::get_settings, settings::set_wallpaper, settings::set_fps])
+        .invoke_handler(tauri::generate_handler![settings::get_settings, settings::set_wallpaper, settings::set_fps, settings::set_renderer])
         .setup(|app| {
             // No Dock icon on macOS: AfterGlow lives in the menu bar
             #[cfg(target_os = "macos")]
