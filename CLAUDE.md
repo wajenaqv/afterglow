@@ -59,11 +59,12 @@ src/                JS: wallpapers, shared renderers, settings/picker/rule edito
 Owner's priority (2026-11-18): get the basic app working (several wallpapers you can pick, remembered) before signals and connectors.
 
 1. Done on Windows: shell, wallpaper windows behind the icons, tray, start at login, pause rules, cursor forwarding. macOS compiles but is untested.
-2. A basic app: port heywajih's cat paws (`paws.js` + `nightscene.js`) and the big jellyfish (`jellyfish.js` hero mode, `data-hero` page); Settings window with a wallpaper picker (live preview cards, per-wallpaper options: jellyfish palette/count, big jellyfish palette/hue, paws palette); switching applies live to every monitor; choices and tray toggles remembered across restarts; a Wallpaper submenu in the tray; run it on the owner's Mac and add macOS pause rules.
-3. Reactions and the signal bus: jellyfish `pulse(colour)`, `count(n)`, `flash`; paws reactions; a signal simulator; the local endpoint.
-4. Windows notification listener + macOS Dock badges (WhatsApp works on both).
-5. Gmail/Outlook, Spotify, OS signals.
-6. Rule editor UI ("when [source] [signal], [wallpaper] does [reaction] in [colour]"), more wallpapers, rotation, PNG export.
+2. Done on Windows: a basic app. Paws and big jellyfish ported; Settings with a wallpaper picker (live previews, per-wallpaper options) and a frame-rate setting (30/20/15 fps); switching applies live; choices remembered; Wallpaper and Frame rate submenus in the tray; the AG logo as app and tray icon; per-monitor pause while app windows hide the desktop (Windows). Still open: run it on the owner's Mac and add the macOS pause rules (fullscreen, battery, covered).
+3. Next (owner, 2026-11-18): a GPU renderer (WebGL2) for the jellyfish, then the paws, to cut the cost of a visible wallpaper towards ~1% of the CPU. The GPU computes the light (bell/arm/tentacle samples generated in shaders, additive blending into a cell-sized float texture), blurs it and picks each cell's glyph from a pre-rendered glyph atlas; the CPU only sends per-jelly numbers (position, pulse, colour) each frame. Must look the same as the CPU renderer (check with tools/compare.html); keep the CPU renderer as the fallback without WebGL2. Baseline to beat (owner's PC, two monitors, visible, 30 fps): ~86% of one core.
+4. Reactions and the signal bus: jellyfish `pulse(colour)`, `count(n)`, `flash`; paws reactions; a signal simulator; the local endpoint.
+5. Windows notification listener + macOS Dock badges (WhatsApp works on both).
+6. Gmail/Outlook, Spotify, OS signals.
+7. Rule editor UI ("when [source] [signal], [wallpaper] does [reaction] in [colour]"), more wallpapers, rotation, PNG export.
 Later: sync settings between machines; code signing (Windows), Apple notarization and a macOS download, in-app updates.
 
 ## Distribution
