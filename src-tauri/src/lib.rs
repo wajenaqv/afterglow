@@ -2,11 +2,13 @@
 //
 // Layout (each file says more at the top):
 //   host.rs      one wallpaper window per monitor, the cursor and pause loops
-//   tray.rs      the tray menu (pause, start at login, settings, quit)
+//   tray.rs      the tray menu (wallpaper, pause, start at login, settings, quit)
+//   settings.rs  the saved choices (settings.json) and the Settings window's commands
 //   platform/    the per-OS part of putting a window behind the desktop icons
 
 mod host;
 mod platform;
+mod settings;
 mod tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -22,6 +24,8 @@ pub fn run() {
             None,
         ))
         .manage(host::Host::default())
+        // what the Settings window calls (settings.rs)
+        .invoke_handler(tauri::generate_handler![settings::get_settings, settings::set_wallpaper])
         .setup(|app| {
             // No Dock icon on macOS: AfterGlow lives in the menu bar
             #[cfg(target_os = "macos")]

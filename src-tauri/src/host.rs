@@ -30,11 +30,20 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
 
 use crate::platform;
+use crate::settings::{self, Settings};
 
-// The wallpaper every monitor shows, for now (picking one comes with
-// settings): a page under wallpapers/, and its options
-const WALLPAPER: &str = "jellyfish";
-const WALLPAPER_QUERY: &str = "";
+/// What the wallpaper frames show: a page under wallpapers/ and its options.
+#[derive(Serialize, Clone)]
+struct Showing {
+    wall: String,
+    query: String,
+}
+
+impl Showing {
+    fn from(s: &Settings) -> Self {
+        Showing { wall: s.wallpaper.clone(), query: s.query() }
+    }
+}
 
 /// A monitor, in physical pixels.
 #[derive(Clone, PartialEq, Debug)]
@@ -65,7 +74,7 @@ impl Wall {
     }
 
     /// What host.html needs: its monitors in CSS px relative to the window.
-    fn init_script(&self) -> String {
+    fn init_script(&self, showing: &Showing) -> String {
         let screens: Vec<[f64; 4]> = self
             .screens
             .iter()
@@ -78,22 +87,22 @@ impl Wall {
                 ]
             })
             .collect();
-        let config = serde_json::json!({ "wall": WALLPAPER, "query": WALLPAPER_QUERY, "screens": screens });
+        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens });
         format!("window.__AFTERGLOW__ = {config};")
     }
 }
 
-/// Shared state (Tauri's `manage`): the windows, and the pause switches.
+/// Shared state (Tauri's `manage`): the windows, the saved settings and the
+/// tray's Pause switch.
 #[derive(Default)]
 pub struct Host {
     walls: Mutex<Vec<Wall>>,
     /// The monitors the windows were built for
     screens: Mutex<Vec<Screen>>,
-    /// Paused from the tray menu
+    /// The wallpaper, its options and the pause rules (settings.rs saves them)
+    pub settings: Mutex<Settings>,
+    /// Paused from the tray menu (not saved: AfterGlow always starts running)
     pub user_paused: AtomicBool,
-    /// Pause rules, on by default
-    pub pause_fullscreen: AtomicBool,
-    pub pause_on_battery: AtomicBool,
     /// Bumped on every rebuild, so new windows get fresh labels (a label
     /// can't be reused while its old window is still closing)
     generation: AtomicUsize,
@@ -107,8 +116,7 @@ struct Cursor {
 
 pub fn start(app: &AppHandle) -> tauri::Result<()> {
     let host = app.state::<Host>();
-    host.pause_fullscreen.store(true, Ordering::Relaxed);
-    host.pause_on_battery.store(true, Ordering::Relaxed);
+    *host.settings.lock().unwrap() = settings::load(app);
     build_walls(app)?;
 
     let a = app.clone();
@@ -171,6 +179,7 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     let generation = host.generation.fetch_add(1, Ordering::Relaxed);
     let screens = current_screens(app);
     let walls = plan_walls(&screens, generation);
+    let showing = Showing::from(&host.settings.lock().unwrap());
     eprintln!("afterglow: {} monitor(s) {:?} -> {} wallpaper window(s)", screens.len(), screens, walls.len());
 
     for (label, window) in app.webview_windows() {
@@ -182,7 +191,8 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     for wall in &walls {
         let window = WebviewWindowBuilder::new(app, &wall.label, WebviewUrl::App("wallpapers/host.html".into()))
             .title("AfterGlow wallpaper")
-            .initialization_script(&wall.init_script())            .decorations(false)
+            .initialization_script(&wall.init_script(&showing))
+            .decorations(false)
             .resizable(false)
             .skip_taskbar(true)
             .focused(false)
@@ -230,13 +240,28 @@ fn cursor_loop(app: AppHandle) {
     }
 }
 
+/// Tell every wallpaper window to show the chosen wallpaper (after Settings
+/// or the tray changed it). host.html swaps its frames; no window rebuild.
+pub fn show_wallpaper(app: &AppHandle) {
+    let host = app.state::<Host>();
+    let showing = Showing::from(&host.settings.lock().unwrap());
+    let labels: Vec<String> = host.walls.lock().unwrap().iter().map(|w| w.label.clone()).collect();
+    for label in labels {
+        let _ = app.emit_to(EventTarget::webview_window(&label), "wallpaper", showing.clone());
+    }
+}
+
 /// Work out whether wallpapers should be paused and tell them. Also called
 /// straight away from the tray when Pause is toggled.
 pub fn apply_pause(app: &AppHandle) {
     let host = app.state::<Host>();
+    let (rule_fullscreen, rule_battery) = {
+        let s = host.settings.lock().unwrap();
+        (s.pause_fullscreen, s.pause_on_battery)
+    };
     let pause = host.user_paused.load(Ordering::Relaxed)
-        || (host.pause_fullscreen.load(Ordering::Relaxed) && platform::fullscreen_app_in_front())
-        || (host.pause_on_battery.load(Ordering::Relaxed) && platform::on_battery());
+        || (rule_fullscreen && platform::fullscreen_app_in_front())
+        || (rule_battery && platform::on_battery());
     // Sent every time (not only on change): a window that just loaded learns
     // the current state within one tick
     let labels: Vec<String> = host.walls.lock().unwrap().iter().map(|w| w.label.clone()).collect();

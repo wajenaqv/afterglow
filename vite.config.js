@@ -21,7 +21,7 @@ function readmeArtSaver() {
         req.on("data", (c) => chunks.push(c));
         req.on("end", () => {
           const buf = Buffer.concat(chunks);
-          writeFileSync(resolve(__dirname, "assets/readme", name), buf);
+          writeFileSync(resolve(import.meta.dirname, "assets/readme", name), buf);
           res.end(String(buf.length));
         });
       });
@@ -43,9 +43,11 @@ export default defineConfig({
     outDir: "dist",
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "index.html"),
-        host: resolve(__dirname, "wallpapers/host.html"),
-        jellyfish: resolve(__dirname, "wallpapers/jellyfish.html"),
+        main: resolve(import.meta.dirname, "index.html"),
+        host: resolve(import.meta.dirname, "wallpapers/host.html"),
+        jellyfish: resolve(import.meta.dirname, "wallpapers/jellyfish.html"),
+        "big-jellyfish": resolve(import.meta.dirname, "wallpapers/big-jellyfish.html"),
+        paws: resolve(import.meta.dirname, "wallpapers/paws.html"),
       },
     },
   },

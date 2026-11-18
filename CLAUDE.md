@@ -41,13 +41,14 @@ src/                JS: wallpapers, shared renderers, settings/picker/rule edito
   - Local endpoint `POST localhost:<port>/signal` for scripts, Home Assistant, CI.
   - Never use unofficial WhatsApp clients (Baileys, whatsapp-web.js): against WhatsApp's terms, risk of a ban.
 
-## What exists (phase 1, in progress)
+## What exists (phase 1 done on Windows, merged 2026-11-18)
 
 - `src-tauri/src/host.rs`: borderless webview windows behind the icons (labels `wall-<generation>-<n>`, fresh labels on every rebuild), each loading `wallpapers/host.html`, which puts one same-origin frame per monitor showing the wallpaper (layout passed in `window.__AFTERGLOW__` by an initialization script). On Windows with every monitor at the same scale, ONE window spans all monitors; otherwise (mixed scales, macOS) one window per monitor; threads for the cursor (33 ms, `app.cursor_position()` -> `cursor` event `{x, y}` in CSS px or `null`, sent only to the window under the cursor), pause (2 s: tray Pause, fullscreen app, battery -> `paused` event to every wall, re-sent each tick so new windows catch up) and monitors (3 s: rebuild when the layout changes, on the main thread).
 - `src-tauri/src/platform/windows.rs`: Progman `0x052C`, WorkerW lookup (pre-24H2 sibling of `SHELLDLL_DefView`, else child of Progman), `SetParent`, child coords relative to the virtual screen, `WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`; `restore_desktop()` re-applies the current wallpaper on quit; fullscreen = `SHQueryUserNotificationState` busy/D3D/presentation; battery = `GetSystemPowerStatus`.
 - `src-tauri/src/platform/macos.rs`: `setLevel:` desktop level, `setCollectionBehavior:` all Spaces + stationary + ignores cycle, `setIgnoresMouseEvents:`. Fullscreen and battery detection are TODO (return false).
 - `src-tauri/src/tray.rs`: Pause, Pause when an app is fullscreen, Pause on battery, Start at login (autostart plugin), Settings… (the hidden `main` window), Quit. macOS runs as an accessory app (menu bar only, no Dock icon). Single-instance plugin: a second launch opens Settings.
-- The settings window (`index.html`) starts hidden; closing it hides it.
+- The settings window (`index.html`, label `main`) is created by `tray::show_settings` when opened and destroyed when closed (a hidden webview costs ~100 MB). `RunEvent::ExitRequested` with no exit code is prevented, so closing windows never quits; only Quit does.
+- Tested by the owner on Windows (2026-11-18): behind the icons on both monitors, hover, tray Pause, fullscreen pause, Quit restoring the wallpaper. Other live wallpaper apps (Wallpaper Engine, Lively) draw in the same WorkerW and cover AfterGlow: quit them first.
 - `src/wallpapers/common.js` + `jellyfish.js`: ported from heywajih (look unchanged). In the app, cursor and pause come from the window-scoped Tauri events; in a browser, DOM pointer events and never paused. A paused wallpaper stops requesting frames (`isPaused`/`whenResumed`). JetBrains Mono is bundled (`@fontsource`), so wallpapers work offline. Brand tokens live in `src/brand.css`, shared by the app window and wallpapers.
 - `tools/record.html` (dev only, `bun run dev`): records the README's jellyfish card GIF and saves it to `assets/readme/jellyfish.gif` through a dev-only Vite endpoint (`vite.config.js`, fixed file names only). `scripts/readme-art.js` makes the banner.
 - Memory (owner's PC, 2560x1440 + 1080x1920 portrait, both 100%, dev build, jellyfish on both): ~430 MB private total, ~116% of one core. Hidden Settings window removed (-100 MB, it's created on demand now); one window for both monitors (-20 MB). Tried and dropped: WebView2 `--force-gpu-mem-available-mb` / `--js-flags` (no effect), CPU canvas `willReadFrequently` (+90 MB). What's left is WebView2's GPU process (~200 MB) and the renderer with both scenes (~165 MB); the real fix would be a native Rust renderer.
@@ -55,11 +56,14 @@ src/                JS: wallpapers, shared renderers, settings/picker/rule edito
 
 ## Phases
 
-1. Shell on both OSes: wallpaper window per monitor behind the icons, tray, start at login, pause rules, cursor forwarding.
-2. The jellyfish adapted from heywajih with reactions built in; signal bus; a signal simulator (keys/dev panel to fire fake signals); local endpoint.
-3. Windows notification listener + macOS Dock badges (WhatsApp works on both).
-4. Gmail/Outlook, Spotify, OS signals.
-5. Rule editor UI ("when [source] [signal], [wallpaper] does [reaction] in [colour]"), more wallpapers, rotation, PNG export.
+Owner's priority (2026-11-18): get the basic app working (several wallpapers you can pick, remembered) before signals and connectors.
+
+1. Done on Windows: shell, wallpaper windows behind the icons, tray, start at login, pause rules, cursor forwarding. macOS compiles but is untested.
+2. A basic app: port heywajih's cat paws (`paws.js` + `nightscene.js`) and the big jellyfish (`jellyfish.js` hero mode, `data-hero` page); Settings window with a wallpaper picker (live preview cards, per-wallpaper options: jellyfish palette/count, big jellyfish palette/hue, paws palette); switching applies live to every monitor; choices and tray toggles remembered across restarts; a Wallpaper submenu in the tray; run it on the owner's Mac and add macOS pause rules.
+3. Reactions and the signal bus: jellyfish `pulse(colour)`, `count(n)`, `flash`; paws reactions; a signal simulator; the local endpoint.
+4. Windows notification listener + macOS Dock badges (WhatsApp works on both).
+5. Gmail/Outlook, Spotify, OS signals.
+6. Rule editor UI ("when [source] [signal], [wallpaper] does [reaction] in [colour]"), more wallpapers, rotation, PNG export.
 Later: sync settings between machines; code signing (Windows), Apple notarization and a macOS download, in-app updates.
 
 ## Distribution

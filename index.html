@@ -8,9 +8,16 @@
     <script type="module" src="/src/main.js"></script>
   </head>
   <body>
-    <main>
+    <!-- The Settings window (opened from the tray). src/main.js -->
+    <header>
       <pre id="mark" class="mark" aria-label="AfterGlow"></pre>
-      <p class="note">live wallpapers that glow when something happens</p>
+      <p class="prompt"><span class="ps">$</span> afterglow settings<span class="cursor" aria-hidden="true"> </span></p>
+    </header>
+    <main>
+      <h2><span class="dim">#</span> wallpaper</h2>
+      <p class="dim hint">Every monitor shows the one you pick. Options apply straight away to the one that's showing.</p>
+      <div id="cards" class="cards"></div>
     </main>
+    <footer class="dim">pause, pause rules and start at login live in the tray menu</footer>
   </body>
 </html>

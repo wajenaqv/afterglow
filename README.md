@@ -81,7 +81,8 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 - [x] Wallpaper host on Windows: behind the icons, every monitor, pause rules, hover effects
 - [ ] Wallpaper host tested on macOS, with its pause rules
 - [x] The jellyfish wallpaper
-- [ ] Reactions built into the jellyfish, and a signal simulator
+- [ ] More wallpapers (big jellyfish, cat paws) and a Settings window to pick one, remembered across restarts
+- [ ] Reactions built into the wallpapers, and a signal simulator
 - [ ] Windows notifications and macOS Dock badges (WhatsApp works)
 - [ ] Gmail / Outlook, Spotify, Do Not Disturb
 - [ ] Rule editor, more wallpapers, rotation

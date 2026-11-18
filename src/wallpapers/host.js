@@ -13,21 +13,35 @@
 // browser), one frame fills the page.
 //
 // The app's "cursor" and "paused" events arrive here and are passed on to the
-// frames with postMessage (src/wallpapers/common.js listens for them).
+// frames with postMessage (src/wallpapers/common.js listens for them); a
+// "wallpaper" event ({ wall, query }) swaps the page every frame shows.
 
 const config = window.__AFTERGLOW__ ?? {};
-const wall = /^[a-z-]+$/.test(config.wall ?? "") ? config.wall : "jellyfish";
-const query = config.query ? `?${config.query}` : "";
 const screens = Array.isArray(config.screens) && config.screens.length ? config.screens : [[0, 0, innerWidth, innerHeight]];
+
+// The page a frame shows: only known-looking names and options get through
+function pageFor(wall, query) {
+  const name = /^[a-z-]+$/.test(wall ?? "") ? wall : "jellyfish";
+  const q = /^[a-z0-9=&-]*$/i.test(query ?? "") && query ? `?${query}` : "";
+  return `/wallpapers/${name}.html${q}`;
+}
 
 const frames = screens.map(([x, y, w, h]) => {
   const f = document.createElement("iframe");
   Object.assign(f.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
-  f.src = `/wallpapers/${wall}.html${query}`;
+  f.src = pageFor(config.wall, config.query);
   f.setAttribute("aria-hidden", "true");
   document.body.append(f);
   return { f, x, y, w, h };
 });
+
+// Settings or the tray picked another wallpaper: swap every frame's page
+function show({ wall, query }) {
+  const src = pageFor(wall, query);
+  frames.forEach((fr) => {
+    if (fr.f.getAttribute("src") !== src) fr.f.src = src;
+  });
+}
 
 const send = (frame, msg) => frame.f.contentWindow?.postMessage(msg, location.origin);
 let under = null; // the frame the cursor is over
@@ -52,6 +66,7 @@ if ("__TAURI_INTERNALS__" in window) {
     const win = getCurrentWebviewWindow();
     win.listen("cursor", ({ payload }) => cursor(payload));
     win.listen("paused", ({ payload }) => pause(payload));
+    win.listen("wallpaper", ({ payload }) => show(payload));
   });
 } else {
   // in a browser: the real mouse
