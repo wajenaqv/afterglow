@@ -146,6 +146,12 @@ const fit = new ResizeObserver((entries) => {
 document.querySelectorAll(".preview").forEach((p) => fit.observe(p));
 
 // Fill in what's saved, then start the previews
+// The version, from the app (tauri.conf.json), in the footer
+if (IN_APP)
+  import("@tauri-apps/api/app").then(async ({ getVersion }) => {
+    document.getElementById("version").textContent = `afterglow v${await getVersion()} · MIT`;
+  });
+
 // The frame rate (every wallpaper)
 const fpsInputs = [...document.querySelectorAll('input[name="fps"]')];
 fpsInputs.forEach((input) => input.addEventListener("change", () => input.checked && api.setFps(Number(input.value))));

@@ -117,12 +117,13 @@ h3 {
 .about {
   margin: 0;
   font-size: 12.5px;
-  flex: 1;
 }
 .opts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
+  margin-top: auto; /* options sit together just above the button */
+  padding-top: 4px;
 }
 .opts label {
   display: flex;
@@ -145,6 +146,7 @@ button:focus-visible {
 }
 button.use {
   align-self: flex-start;
+  margin-top: auto; /* every card's button sits on the same line */
   cursor: pointer;
   color: var(--bright);
 }
@@ -177,6 +179,10 @@ h2.section {
 }
 
 footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 20px;
   margin-top: 28px;
   font-size: 12.5px;
 }

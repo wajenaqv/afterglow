@@ -144,5 +144,6 @@ pub fn set_fps(app: AppHandle, fps: u32) -> Result<(), String> {
     };
     save(&app, &snapshot);
     host::show_wallpaper(&app);
+    tray::sync(&app);
     Ok(())
 }

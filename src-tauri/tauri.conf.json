@@ -18,6 +18,11 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Mohammad Wajih",
+    "copyright": "© 2026 Mohammad Wajih. MIT License.",
+    "category": "Utility",
+    "shortDescription": "Live ASCII wallpapers that glow when something happens",
+    "longDescription": "AfterGlow puts glowing text-art wallpapers (jellyfish, paw prints) behind your desktop icons on every monitor, pauses them for fullscreen apps and games, and will let your apps nudge them when something is waiting.",
     "windows": {
       "nsis": {
         "installMode": "currentUser"

@@ -1,27 +1,49 @@
 // The tray (Windows) / menu bar (macOS) icon and its menu:
 //   Wallpaper ▸        jellyfish / big jellyfish / paw prints (one ticked)
+//   Frame rate ▸       smooth 30 / light 20 / eco 15 fps (one ticked)
 //   Pause              stop every wallpaper (no CPU) until unticked
-//   Pause when fullscreen / Pause on battery   the automatic pause rules (saved)
+//   Pause when an app is fullscreen / Pause on battery   (saved)
 //   Start at login
 //   Settings…          the AfterGlow window: pick a wallpaper and its options
 //   Quit AfterGlow
+// The tooltip names the wallpaper that's showing.
 
 use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use tauri::image::Image;
+use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIconBuilder;
 use tauri::window::Color;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::host::{self, Host};
-use crate::settings::{self, WALLPAPERS};
+use crate::settings::{self, Settings, FPS_CHOICES, WALLPAPERS};
 
-/// The Wallpaper submenu's items, kept so their ticks can follow changes made
+const TRAY_ID: &str = "afterglow";
+
+/// The menu's radio-style items, kept so their ticks can follow changes made
 /// in the Settings window (sync).
 #[derive(Default)]
-pub struct TrayItems(Mutex<Vec<(String, CheckMenuItem<Wry>)>>);
+pub struct TrayItems {
+    walls: Mutex<Vec<(String, CheckMenuItem<Wry>)>>,
+    rates: Mutex<Vec<(u32, CheckMenuItem<Wry>)>>,
+}
+
+fn fps_label(fps: u32) -> String {
+    match fps {
+        30 => "Smooth (30 fps)".into(),
+        20 => "Light (20 fps)".into(),
+        15 => "Eco (15 fps)".into(),
+        n => format!("{n} fps"),
+    }
+}
+
+fn tooltip(s: &Settings) -> String {
+    let name = WALLPAPERS.iter().find(|(id, _)| *id == s.wallpaper).map(|(_, name)| *name).unwrap_or("AfterGlow");
+    format!("AfterGlow · {name}")
+}
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
@@ -29,13 +51,16 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
 
     let walls: Vec<(String, CheckMenuItem<Wry>)> = WALLPAPERS
         .iter()
-        .map(|(id, name)| {
-            let item = CheckMenuItem::with_id(app, format!("wall:{id}"), *name, true, saved.wallpaper == *id, None::<&str>)?;
-            Ok((id.to_string(), item))
-        })
+        .map(|(id, name)| Ok((id.to_string(), CheckMenuItem::with_id(app, format!("wall:{id}"), *name, true, saved.wallpaper == *id, None::<&str>)?)))
         .collect::<tauri::Result<_>>()?;
-    let wall_refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = walls.iter().map(|(_, item)| item as &dyn tauri::menu::IsMenuItem<Wry>).collect();
+    let rates: Vec<(u32, CheckMenuItem<Wry>)> = FPS_CHOICES
+        .iter()
+        .map(|&fps| Ok((fps, CheckMenuItem::with_id(app, format!("fps:{fps}"), fps_label(fps), true, saved.fps == fps, None::<&str>)?)))
+        .collect::<tauri::Result<_>>()?;
+    let wall_refs: Vec<&dyn IsMenuItem<Wry>> = walls.iter().map(|(_, i)| i as &dyn IsMenuItem<Wry>).collect();
+    let rate_refs: Vec<&dyn IsMenuItem<Wry>> = rates.iter().map(|(_, i)| i as &dyn IsMenuItem<Wry>).collect();
     let wallpaper_menu = Submenu::with_items(app, "Wallpaper", true, &wall_refs)?;
+    let rate_menu = Submenu::with_items(app, "Frame rate", true, &rate_refs)?;
 
     let pause = CheckMenuItem::with_id(app, "pause", "Pause", true, false, None::<&str>)?;
     let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "Pause when an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
@@ -47,6 +72,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         app,
         &[
             &wallpaper_menu,
+            &rate_menu,
+            &PredefinedMenuItem::separator(app)?,
             &pause,
             &PredefinedMenuItem::separator(app)?,
             &fullscreen,
@@ -58,11 +85,19 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         ],
     )?;
 
-    app.manage(TrayItems(Mutex::new(walls)));
+    app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates) });
 
-    let mut tray = TrayIconBuilder::with_id("afterglow").tooltip("AfterGlow").menu(&menu).show_menu_on_left_click(true);
-    if let Some(icon) = app.default_window_icon() {
-        tray = tray.icon(icon.clone());
+    let mut tray = TrayIconBuilder::with_id(TRAY_ID).tooltip(tooltip(&saved)).menu(&menu).show_menu_on_left_click(true);
+    // The AG logo made for small sizes (scripts/icon.js): green on a black
+    // plate on Windows; a black template image on macOS, recoloured by the
+    // menu bar for light and dark mode
+    #[cfg(target_os = "macos")]
+    {
+        tray = tray.icon(Image::from_bytes(include_bytes!("../icons/tray/mac/44x44.png"))?).icon_as_template(true);
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        tray = tray.icon(Image::from_bytes(include_bytes!("../icons/tray/win/32x32.png"))?);
     }
     tray.on_menu_event(move |app, event| {
         let id = event.id.as_ref();
@@ -72,6 +107,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 eprintln!("afterglow: {e}");
             }
             sync(app); // also re-ticks the item if it was clicked while already ticked
+            return;
+        }
+        // Frame rate ▸ <one>
+        if let Some(fps) = id.strip_prefix("fps:").and_then(|n| n.parse::<u32>().ok()) {
+            if let Err(e) = settings::set_fps(app.clone(), fps) {
+                eprintln!("afterglow: {e}");
+            }
+            sync(app);
             return;
         }
         match id {
@@ -97,6 +140,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 if let Err(e) = result {
                     eprintln!("afterglow: start at login: {e}");
                 }
+                // show what actually happened
+                let _ = autostart.set_checked(app.autolaunch().is_enabled().unwrap_or(on));
             }
             "settings" => show_settings(app),
             "quit" => app.exit(0),
@@ -107,13 +152,20 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Tick the wallpaper that's showing, untick the others.
+/// Tick the wallpaper and frame rate in use, untick the others, and update
+/// the tooltip.
 pub fn sync(app: &AppHandle) {
-    let current = app.state::<Host>().settings.lock().unwrap().wallpaper.clone();
+    let s = app.state::<Host>().settings.lock().unwrap().clone();
     if let Some(items) = app.try_state::<TrayItems>() {
-        for (id, item) in items.0.lock().unwrap().iter() {
-            let _ = item.set_checked(*id == current);
+        for (id, item) in items.walls.lock().unwrap().iter() {
+            let _ = item.set_checked(*id == s.wallpaper);
         }
+        for (fps, item) in items.rates.lock().unwrap().iter() {
+            let _ = item.set_checked(*fps == s.fps);
+        }
+    }
+    if let Some(tray) = app.tray_by_id(TRAY_ID) {
+        let _ = tray.set_tooltip(Some(tooltip(&s)));
     }
 }
 
@@ -128,7 +180,7 @@ pub fn show_settings(app: &AppHandle) {
     }
     let built = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("AfterGlow")
-        .inner_size(1040.0, 720.0)
+        .inner_size(1040.0, 760.0)
         .min_inner_size(640.0, 480.0)
         .background_color(Color(0, 0, 0, 255))
         .build();
