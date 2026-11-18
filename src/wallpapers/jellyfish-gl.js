@@ -17,6 +17,8 @@
 // jellyfish.js). The samples' fixed parameters (ring angles, positions down
 // arms and tentacles) are built once per jelly.
 
+import { GLYPH_GLSL, QUAD_VS, buildAtlas, compile, floatTex, gpuContext } from "./glyph-atlas.js";
+
 const ACC_VS = `#version 300 es
 precision highp float;
 layout(location = 0) in vec4 aP;
@@ -162,12 +164,6 @@ layout(location = 0) out vec4 oLight;
 layout(location = 1) out vec4 oTent;
 void main() { oLight = vCol; oTent = vec4(vTent, 0.0, 0.0, 0.0); }`;
 
-const QUAD_VS = `#version 300 es
-void main() {
-  vec2 p = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0);
-  gl_Position = vec4(p, 0.0, 1.0);
-}`;
-
 // jellyfish.js blur(): a sum over a window, divided by its full size
 const BLUR_FS = `#version 300 es
 precision highp float;
@@ -192,15 +188,13 @@ void main() {
 // jellyfish.js render(): per cell, light -> colour and character
 const GLYPH_FS = `#version 300 es
 precision highp float;
-uniform sampler2D uLight, uTent, uGlow, uAtlas;
+uniform sampler2D uLight, uTent, uGlow;
 uniform vec2 uCell;     // CSS px
 uniform float uDpr;
 uniform float uCanvasH; // device px
 uniform vec3 uBG;       // 0..255
-uniform float uAtlasW;  // device px per glyph slot
-uniform float uAtlasH;  // device px per brightness row
 out vec4 o;
-const float LEVELS = 16.0;
+${GLYPH_GLSL}
 void main() {
   vec3 bg = uBG / 255.0;
   vec2 css = vec2(gl_FragCoord.x, uCanvasH - gl_FragCoord.y) / uDpr;
@@ -226,54 +220,17 @@ void main() {
   else if (tent > own * 0.6) g = 4.0 + min(3.0, floor((1.0 - L) * 4.0));
   else g = 8.0 + clamp(floor(L * 11.0 + 0.5), 1.0, 11.0) - 1.0;
   vec2 local = (css - vec2(cell) * uCell) * uDpr;
-  // the atlas row drawn in the grey nearest this colour's brightness
-  float lum = dot(c / 255.0, vec3(0.2126, 0.7152, 0.0722));
-  float level = clamp(floor(lum * LEVELS), 0.0, LEVELS - 1.0);
-  float grey = floor((level + 0.5) / LEVELS * 255.0 + 0.5) / 255.0;
-  float ink = texelFetch(uAtlas, ivec2(g * uAtlasW + local.x, level * uAtlasH + local.y), 0).r / grey;
-  o = vec4(mix(bg, c / 255.0, clamp(ink, 0.0, 1.0)), 1.0);
+  o = vec4(mix(bg, c / 255.0, glyphInk(g, c, local)), 1.0);
 }`;
 
 const GLYPHS = ".'`:" + "|!:;" + ".:-=+*oO#%@";
-// Brightness levels of the glyph atlas (see resize)
-const LEVELS = 16;
-const levelGrey = (level) => Math.round(((level + 0.5) / LEVELS) * 255);
-
-function compile(gl, vsSrc, fsSrc) {
-  const make = (type, src) => {
-    const s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
-    return s;
-  };
-  const p = gl.createProgram();
-  gl.attachShader(p, make(gl.VERTEX_SHADER, vsSrc));
-  gl.attachShader(p, make(gl.FRAGMENT_SHADER, fsSrc));
-  gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
-  const u = {};
-  const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
-  for (let i = 0; i < n; i++) {
-    const name = gl.getActiveUniform(p, i).name;
-    u[name] = gl.getUniformLocation(p, name);
-  }
-  return { p, u };
-}
 
 // Returns null when WebGL2 or float render targets aren't available, or the
 // shaders don't compile: the caller then uses the CPU renderer.
 // opts: { still, jellies, templateFor(j) -> Float32Array of [p0, p1, p2, p3, kind]*, snow }
 export function createJellyGL(canvas, opts) {
-  const gl = canvas.getContext("webgl2", {
-    alpha: false,
-    antialias: false,
-    depth: false,
-    stencil: false,
-    preserveDrawingBuffer: !!opts.still,
-  });
+  const gl = gpuContext(canvas, opts.still);
   if (!gl) return null;
-  if (!gl.getExtension("EXT_color_buffer_float") && !gl.getExtension("EXT_color_buffer_half_float")) return null;
 
   let acc, blur, glyph;
   try {
@@ -304,16 +261,7 @@ export function createJellyGL(canvas, opts) {
   const emptyVao = gl.createVertexArray();
 
   // Cell-sized float targets
-  const tex = (w, h) => {
-    const t = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    return t;
-  };
+  const tex = (w, h) => floatTex(gl, w, h);
   const fbo = (...textures) => {
     const f = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, f);
@@ -328,32 +276,8 @@ export function createJellyGL(canvas, opts) {
     if (g) [g.light, g.tent, g.tmp, g.glow].forEach((t) => gl.deleteTexture(t));
     const light = tex(cols, rows), tentT = tex(cols, rows), tmp = tex(cols, rows), glowT = tex(cols, rows);
     g = { cols, rows, cw, ch, dpr, light, tent: tentT, tmp, glow: glowT, accFbo: fbo(light, tentT), tmpFbo: fbo(tmp), glowFbo: fbo(glowT) };
-    // the glyph atlas: each character in white, in a slot one cell wide
-    const slotW = Math.ceil(cw * dpr) + 1;
-    const slotH = Math.ceil(ch * dpr) + 1;
-    const ac = document.createElement("canvas");
-    ac.width = slotW * GLYPHS.length;
-    ac.height = slotH * LEVELS;
-    const actx = ac.getContext("2d", { alpha: false });
-    // Drawn the way the CPU renderer's text is: light on black. Chrome shapes
-    // a character's edges by the brightness of its colour (dim text gets
-    // thinner edges, ~75-80% of the ink of white at the dark end), so each
-    // row of the atlas holds the glyphs drawn in one grey level, and the
-    // shader reads the row matching each cell's colour brightness.
-    actx.fillStyle = "#000";
-    actx.fillRect(0, 0, ac.width, ac.height);
-    actx.font = font.replace(/[\d.]+px/, `${fontPx * dpr}px`);
-    actx.textBaseline = "top";
-    for (let level = 0; level < LEVELS; level++) {
-      const v = levelGrey(level);
-      actx.fillStyle = `rgb(${v},${v},${v})`;
-      [...GLYPHS].forEach((chr, i) => actx.fillText(chr, i * slotW, level * slotH));
-    }
-    gl.bindTexture(gl.TEXTURE_2D, atlasTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, ac);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    // the glyph atlas (glyph-atlas.js)
+    const { slotW, slotH } = buildAtlas(gl, atlasTex, GLYPHS, { cw, ch, dpr, fontPx, font });
     g.slotW = slotW;
     g.slotH = slotH;
   }

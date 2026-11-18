@@ -299,6 +299,67 @@ function sample(X, Y) {
   return [col, null];
 }
 
+// ---- the GPU version of sample() (AfterGlow, scene-gl.js) ----
+// The prints that are glowing go to the GPU each frame as a small float
+// texture (row 0: x, y, cos, sin of the heading; row 1: colour, glow), and
+// this shader does sample()'s maths per cell: printLight()'s beans and pad,
+// their translucent fill and halo, added up over the prints.
+const PAWS_GLSL = `
+uniform sampler2D uPrints;
+uniform int uCount;
+uniform float uU;
+uniform vec3 uStart; // the scene's own background light (BG)
+float ellipseD(vec2 p, vec2 c, vec2 r) { return (length((p - c) / r) - 1.0) * min(r.x, r.y); }
+float circleD(vec2 p, vec2 c, float r) { return length(p - c) - r; }
+float smoothF(float a, float b, float v) { float t = clamp((v - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }
+float bean(float d) { return d < 0.0 ? 0.62 + 0.38 * smoothF(-0.09, 0.0, d) : 0.32 * exp(-d / 0.07); }
+float printLight(vec2 l) {
+  float s = 0.0;
+  s += bean(ellipseD(l, vec2(0.62, -0.27), vec2(0.25, 0.15)));
+  s += bean(ellipseD(l, vec2(0.62, 0.27), vec2(0.25, 0.15)));
+  s += bean(ellipseD(l, vec2(0.3, -0.64), vec2(0.17, 0.155)));
+  s += bean(ellipseD(l, vec2(0.3, 0.64), vec2(0.17, 0.155)));
+  s += bean(min(max(ellipseD(l, vec2(-0.34, 0.0), vec2(0.36, 0.52)), -(l.x + 0.62)), circleD(l, vec2(-0.06, 0.0), 0.21)));
+  return s;
+}
+vec3 sampleCell(vec2 P) {
+  vec3 col = uStart;
+  float reach = uU * 1.15;
+  for (int i = 0; i < uCount; i++) {
+    vec4 a = texelFetch(uPrints, ivec2(i, 0), 0);
+    vec2 d = P - a.xy;
+    if (dot(d, d) > reach * reach) continue;
+    float light = printLight(vec2(d.x * a.z + d.y * a.w, -d.x * a.w + d.y * a.z) / uU);
+    if (light > 0.01) {
+      vec4 b = texelFetch(uPrints, ivec2(i, 1), 0);
+      col += b.rgb * (1.25 * light * b.a);
+    }
+  }
+  return col;
+}`;
+let printsTex = null;
+const gpuSpec = {
+  glsl: PAWS_GLSL,
+  bind(gl, u, unit) {
+    const n = Math.max(1, active.length);
+    const data = new Float32Array(n * 2 * 4);
+    active.forEach((p, i) => {
+      data.set([p.x, p.y, p.ca, p.sa], i * 4);
+      data.set([p.colour[0], p.colour[1], p.colour[2], p.g], (n + i) * 4);
+    });
+    if (!printsTex) printsTex = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, printsTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, n, 2, 0, gl.RGBA, gl.FLOAT, data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.uniform1i(u.uPrints, unit);
+    gl.uniform1i(u.uCount, active.length);
+    gl.uniform1f(u.uU, U);
+    gl.uniform3f(u.uStart, ...BG);
+  },
+};
+
 startScene({
   label: "Glowing paw prints of invisible cats walking across a dark screen, drawn in coloured text characters.",
   fps: 15,
@@ -306,4 +367,5 @@ startScene({
   layout,
   frame,
   sample,
+  gpu: gpuSpec,
 });

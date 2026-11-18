@@ -8,6 +8,8 @@
 // keeps the light's colour, the way jellyfish.js does it.
 
 import { params, num, hash, cssRGB, THEME_NAMES, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
+import { wantGPU } from "./gpu.js";
+import { createSceneGL } from "./scene-gl.js";
 
 export const reduced = !STILL && matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const preview = params.has("preview");
@@ -100,13 +102,41 @@ function ink(col, chr, h = 0.5) {
 //   overlay(t, list)        optional: push [col, row, char, colour] drawn on top
 //   fontPx(H)               optional: character size in px for a screen H tall
 //                           (default H / 105, 6-12 px; smaller = finer detail)
-export function startScene({ label, fps = 20, layout, frame: onFrame, sample, overlay, fontPx: sizeFor }) {
-  const canvas = document.createElement("canvas");
-  canvas.className = "canvas-wall";
-  canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", label);
+//   gpu                     optional: the same scene for the GPU renderer
+//                           (scene-gl.js): { glsl, bind }. Used when the
+//                           Rendering setting allows (gpu.js) and the scene has
+//                           no overlay; otherwise the CPU renderer below.
+export function startScene({ label, fps = 20, layout, frame: onFrame, sample, overlay, fontPx: sizeFor, gpu }) {
+  const newCanvas = () => {
+    const c = document.createElement("canvas");
+    c.className = "canvas-wall";
+    c.setAttribute("role", "img");
+    c.setAttribute("aria-label", label);
+    return c;
+  };
+  let canvas = newCanvas();
   document.body.appendChild(canvas);
-  const ctx = canvas.getContext("2d");
+  let ctx = null;
+  let GLR = gpu && !overlay && wantGPU() ? createSceneGL(canvas, { still: STILL, spec: gpu }) : null;
+  if (GLR) {
+    document.documentElement.dataset.renderer = "gpu";
+    canvas.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      console.warn("afterglow: GPU context lost, switching the scene to the CPU");
+      GLR = null;
+      const fresh = newCanvas();
+      canvas.replaceWith(fresh);
+      canvas = fresh;
+      ctx = canvas.getContext("2d");
+      document.documentElement.dataset.renderer = "cpu";
+      resize();
+      render(performance.now());
+    });
+  } else {
+    ctx = canvas.getContext("2d");
+    document.documentElement.dataset.renderer = "cpu";
+  }
+  const measure = document.createElement("canvas").getContext("2d"); // for character widths
   const dims = {};
 
   function resize() {
@@ -114,12 +144,17 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     const W = innerWidth, H = innerHeight;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const fontPx = sizeFor ? sizeFor(H) : Math.max(6, Math.min(12, H / 105));
-    ctx.font = `700 ${fontPx}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
-    ctx.textBaseline = "top";
-    const cw = ctx.measureText("M").width, ch = fontPx * 1.02;
+    const font = `700 ${fontPx}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
+    measure.font = font;
+    const cw = measure.measureText("M").width, ch = fontPx * 1.02;
     Object.assign(dims, { W, H, A: W / H, cw, ch, cols: Math.ceil(W / cw), rows: Math.ceil(H / ch) });
+    if (GLR) GLR.resize({ dpr, cw, ch, cols: dims.cols, rows: dims.rows, fontPx, font });
+    else {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.font = font;
+      ctx.textBaseline = "top";
+    }
     layout(dims);
   }
 
@@ -128,6 +163,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     const { W, H, cw, ch, cols, rows } = dims;
     const t = STILL ? STILL_AT : reduced ? 0 : (now - start) / 1000 + 20;
     onFrame?.(t);
+    if (GLR) return GLR.draw({ H, bg: BG });
     const groups = new Map();
     const put = (c, r, ik) => {
       if (!ik) return;
