@@ -69,6 +69,24 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 - **Reactions.** Each wallpaper says what it can do (`pulse`, `count`, `flash`, …) and you choose how signals map onto them.
 - **Connectors.** Windows notifications (WhatsApp, Slack, Teams, Discord), macOS Dock badges, Gmail and Outlook, Spotify, Do Not Disturb, time of day, and a local endpoint for anything else: scripts, Home Assistant, CI.
 
+### Send signals from your own scripts
+
+While AfterGlow runs, it listens on your own computer (nothing outside can reach it):
+
+```sh
+curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
+```
+
+| field | |
+| --- | --- |
+| `source` | a name: `whatsapp`, `gmail`, `build`, … (known apps pulse in their own colour) |
+| `kind` | `new` (something happened: a pulse), `unread` (how many are waiting, with `count`), `clear`, `flash` |
+| `count` | for `unread` |
+| `colour` | optional `#rrggbb` for the pulse |
+| `afterglow` | optional seconds the pulse takes to fade (default 4) |
+
+Requests from web pages are refused, so a website can't set your wallpaper off. To try the reactions without writing anything, use **Try a signal** in the tray menu.
+
 ## ⚿ Private by design
 
 - Everything runs on your machine. There is no server and no telemetry.
@@ -84,7 +102,7 @@ You decide which app does what: *when* `source` *does* `signal`, *the wallpaper 
 - [x] More wallpapers (big jellyfish, cat paws) and a Settings window to pick one, remembered across restarts
 - [x] Pauses a monitor's wallpaper while windows cover it (Windows), and a frame-rate setting
 - [x] GPU rendering (with a CPU fallback and a choice in Settings): a visible wallpaper costs under 1% of the CPU
-- [ ] Reactions built into the wallpapers, and a signal simulator
+- [x] Reactions (pulse, count, flash), a signal simulator, and a local endpoint for your scripts
 - [ ] Windows notifications and macOS Dock badges (WhatsApp works)
 - [ ] Gmail / Outlook, Spotify, Do Not Disturb
 - [ ] Rule editor, more wallpapers, rotation
