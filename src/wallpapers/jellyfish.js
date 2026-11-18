@@ -180,6 +180,13 @@ let focal, camDist;
 // much of the character cell it covers, so sampling density and distance
 // don't change brightness. isTent marks tentacle strokes.
 function glow(x, y, z, b, rgb, isTent, area) {
+  glowRGB(x, y, z, b, rgb[0], rgb[1], rgb[2], isTent, area);
+}
+// The same with the colour as three numbers. This runs ~60,000 times a frame,
+// so it allocates nothing (AfterGlow: the per-sample colour arrays kept the
+// garbage collector busy; the maths is unchanged).
+function glowRGB(x, y, z, b, R, G, B, isTent, area) {
+  if (PERF) PERF.samples++;
   const x1 = x * cy - z * sy;
   const z1 = x * sy + z * cy;
   const y2 = y * cp - z1 * sp;
@@ -192,12 +199,17 @@ function glow(x, y, z, b, rgb, isTent, area) {
   const cellArea = ((cw * z2) / focal) * ((ch * z2) / focal);
   // Seen through water: farther away is dimmer and bluer
   const fog = Math.max(0, Math.min(1, (z2 - (camDist - 4)) / 8));
-  if (fog > 0) rgb = mix(rgb, DEEP, fog * 0.45);
+  if (fog > 0) {
+    const m = fog * 0.45;
+    R += (DEEP[0] - R) * m;
+    G += (DEEP[1] - G) * m;
+    B += (DEEP[2] - B) * m;
+  }
   const w = (area ? (b * area) / cellArea : b) * (1 - 0.45 * fog);
   acc[k] += w;
-  sr[k] += rgb[0] * w;
-  sg[k] += rgb[1] * w;
-  sb[k] += rgb[2] * w;
+  sr[k] += R * w;
+  sg[k] += G * w;
+  sb[k] += B * w;
   if (isTent) tent[k] += w;
 }
 
@@ -295,7 +307,8 @@ function drawJelly(j, t) {
   const ct = Math.cos(j.tilt), st = Math.sin(j.tilt);
   const col = HUES[j.hue % HUES.length]; // theme mode has fewer hues
   // Local -> world: tilt the jelly a little around the z axis
-  const put = (lx, ly, lz, b, rgb, isTent, area) => glow(cx + lx * ct - ly * st, y + lx * st + ly * ct, cz + lz, b * fade, rgb, isTent, area);
+  const put = (lx, ly, lz, b, R_, G_, B_, isTent, area) =>
+    glowRGB(cx + lx * ct - ly * st, y + lx * st + ly * ct, cz + lz, b * fade, R_, G_, B_, isTent, area);
   const BELL_AREA = 0.03 * R * ((Math.PI * 2) / 70); // one bell sample's patch of membrane
   const ARM_AREA = 0.03 * 0.07 * j.r * SIZE;
   const TENT_AREA = 0.03 * 0.05;
@@ -307,70 +320,107 @@ function drawJelly(j, t) {
   // Bell: a dome. Brightness from the rim (grazing angle), canals and gonads.
   const view = [Math.sin(yaw), 0, -Math.cos(yaw)];
   const TH_MAX = 1.3;
+  // (AfterGlow: per-ring values are worked out once per ring instead of per
+  // sample, and colours are passed as numbers; same maths, same picture.)
+  const [bellR, bellG, bellB] = col.bell;
+  const [gloR, gloG, gloB] = col.glow;
   for (let th = 0.02; th <= TH_MAX; th += 0.03) {
-    const ring = Math.max(10, Math.round(Math.sin(th) * R * 70));
+    const sth = Math.sin(th), cth = Math.cos(th);
+    const ring = Math.max(10, Math.round(sth * R * 70));
+    const thf = th / TH_MAX;
+    // The rim curls in as the bell contracts and flares out as it relaxes
+    const edge = Math.max(0, th - 1.02);
+    const flare = 1 + edge * (0.45 * (1 - p) - 0.5 * p);
+    const ly = Hb * cth;
+    const ny = cth * (R / Hb);
+    const margin = 0.3 * Math.pow(thf, 8); // the bell margin is brightest
+    const whiten = Math.pow(thf, 5) * 0.4; // ...and whiter
+    const rimR = bellR + (255 - bellR) * whiten, rimG = bellG + (255 - bellG) * whiten, rimB = bellB + (255 - bellB) * whiten;
+    const gr = Math.abs(th - 0.5);
     for (let i = 0; i < ring; i++) {
       const ph = (i / ring) * Math.PI * 2;
-      const scallop = 1 + 0.035 * Math.sin(ph * 16) * (th / TH_MAX); // wavy margin
-      // The rim curls in as the bell contracts and flares out as it relaxes
-      const edge = Math.max(0, th - 1.02);
-      const flare = 1 + edge * (0.45 * (1 - p) - 0.5 * p);
-      const lx = R * Math.sin(th) * Math.cos(ph) * scallop * flare;
-      const lz = R * Math.sin(th) * Math.sin(ph) * scallop * flare;
-      const ly = Hb * Math.cos(th);
+      const cph = Math.cos(ph), sph = Math.sin(ph);
+      const scallop = 1 + 0.035 * Math.sin(ph * 16) * thf; // wavy margin
+      const lx = R * sth * cph * scallop * flare;
+      const lz = R * sth * sph * scallop * flare;
       // Facing: how directly this bit of membrane faces us (normal . view)
-      const nx = Math.sin(th) * Math.cos(ph), nz = Math.sin(th) * Math.sin(ph), ny = Math.cos(th) * (R / Hb);
-      const nl = Math.hypot(nx, ny, nz);
+      const nx = sth * cph, nz = sth * sph;
+      const nl = Math.sqrt(nx * nx + ny * ny + nz * nz); // (Math.hypot is slow in V8)
       const facing = Math.abs((nx * view[0] + nz * view[2]) / nl);
       let b = 0.02 + 0.22 * Math.pow(1 - facing, 2.2); // translucent: faint, edges glow
-      b += 0.3 * Math.pow(th / TH_MAX, 8); // the bell margin is brightest
+      b += margin;
       const canal = Math.abs(Math.sin(ph * 4)); // eight radial canals
       if (canal < 0.07 && th > 0.25) b += 0.18;
       // Four horseshoe gonads around the top, glowing through the bell
-      const gq = Math.abs(Math.sin(ph * 2)), gr = Math.abs(th - 0.5);
+      const gq = Math.abs(Math.sin(ph * 2));
       const gonad = gr < 0.14 && gq > 0.6 ? 1 - gr / 0.14 : 0;
       b += gonad * 0.7;
       b *= flash;
-      put(lx, ly, lz, b,gonad > 0.2 ? col.glow : mix(col.bell, [255, 255, 255], Math.pow(th / TH_MAX, 5) * 0.4), false, BELL_AREA);
+      if (gonad > 0.2) put(lx, ly, lz, b, gloR, gloG, gloB, false, BELL_AREA);
+      else put(lx, ly, lz, b, rimR, rimG, rimB, false, BELL_AREA);
     }
   }
 
   // Oral arms: four frilly ribbons rippling down from the centre
+  const armLen = 1.6 * j.r * SIZE;
+  const armR = gloR + (bellR - gloR) * 0.5, armG = gloG + (bellG - gloG) * 0.5, armB = gloB + (bellB - gloB) * 0.5;
+  // how far each step down the arms trails (the same for all four arms)
+  let n = 0;
+  for (let s = 0; s < armLen; s += 0.03) lagTab[n++] = drag(s * 0.08) * 0.6;
   for (let a = 0; a < 4; a++) {
     const ang = a * (Math.PI / 2) + 0.4;
-    const armLen = 1.6 * j.r * SIZE;
-    for (let s = 0; s < armLen; s += 0.03) {
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    let si = 0;
+    for (let s = 0; s < armLen; s += 0.03, si++) {
       const sway = Math.sin(s * 1.6 - t * 1.1 + a) * 0.15 * s;
-      const bx = Math.cos(ang) * (0.12 + sway), bz = Math.sin(ang) * (0.12 + sway);
-      const by = Hb * 0.15 - s - drag(s * 0.08) * 0.6;
+      const bx = ca * (0.12 + sway), bz = sa * (0.12 + sway);
+      const by = Hb * 0.15 - s - lagTab[si];
+      const bright = 0.14 * flash * (1 - (s / armLen) * 0.6);
       for (let u = -1; u <= 1; u += 0.5) {
         const ruffle = Math.sin(s * 9 + u * 3 - t * 2) * 0.08;
         const w = u * 0.12 * j.r * SIZE * (1 - s / (1.2 * armLen));
-        put(bx - Math.sin(ang) * w + ruffle * Math.cos(ang), by, bz + Math.cos(ang) * w + ruffle * Math.sin(ang), 0.14 * flash * (1 - (s / armLen) * 0.6), mix(col.glow, col.bell, 0.5), false, ARM_AREA);
+        put(bx - sa * w + ruffle * ca, by, bz + ca * w + ruffle * sa, bright, armR, armG, armB, false, ARM_AREA);
       }
     }
   }
 
-  // Tentacles: from the margin, trailing below and waving, lagging the pulse
+  // Tentacles: from the margin, trailing below and waving, lagging the pulse.
+  // The pulse and push s units down depend only on s, so they're worked out
+  // once per step for all tentacles (they were recomputed for every sample).
+  let maxLen = 0;
+  for (let i = 0; i < j.tentacles; i++) maxLen = Math.max(maxLen, (2.2 + hash(j.seed, i) * 2.2) * j.r * SIZE);
+  n = 0;
+  for (let s = 0; s < maxLen; s += 0.03, n++) {
+    const lag = s * 0.11;
+    plTab[n] = pAt(t - lag);
+    lagTab[n] = drag(lag) * 0.7;
+  }
+  const [tenR, tenG, tenB] = col.tent;
+  const follow0 = 1 - 0.18 * p;
+  const sTM = Math.sin(TH_MAX), cTM = Math.cos(TH_MAX);
   for (let i = 0; i < j.tentacles; i++) {
     const ph = (i / j.tentacles) * Math.PI * 2;
     const len = (2.2 + hash(j.seed, i) * 2.2) * j.r * SIZE;
-    const rx = R * Math.sin(TH_MAX) * Math.cos(ph), rz = R * Math.sin(TH_MAX) * Math.sin(ph), ry = Hb * Math.cos(TH_MAX);
-    for (let s = 0; s < len; s += 0.03) {
+    const rx = R * sTM * Math.cos(ph), rz = R * sTM * Math.sin(ph), ry = Hb * cTM;
+    let si = 0;
+    for (let s = 0; s < len; s += 0.03, si++) {
       // Waves travel down each tentacle, growing towards the tip
       const k = s / len;
       const wave1 = Math.sin(s * 1.1 - t * 1.5 + i * 1.7) * 0.35 * k;
       const wave2 = Math.cos(s * 0.8 - t * 1.1 + i) * 0.25 * k;
       // lower down, it follows the bell's width and push from a moment ago
-      const lag = s * 0.11;
-      const pl = pAt(t - lag);
-      const follow = (1 - 0.18 * pl) / (1 - 0.18 * p); // the bell's width then, against now
+      const pl = plTab[si];
+      const follow = (1 - 0.18 * pl) / follow0; // the bell's width then, against now
       const spread = (1 + 0.05 * s * (1 - pl)) * follow; // fan out a little when relaxed
       const b = 1.1 * (1 - k * 0.85);
-      put(rx * spread + wave1, ry - s - drag(lag) * 0.7, rz * spread + wave2, b, col.tent, true, TENT_AREA);
+      put(rx * spread + wave1, ry - s - lagTab[si], rz * spread + wave2, b, tenR, tenG, tenB, true, TENT_AREA);
     }
   }
 }
+// Scratch tables for drawJelly, one entry per 0.03-unit step down an arm or
+// tentacle (the longest, a hero jelly at ?size=2.5, is ~1700 steps)
+const plTab = new Float64Array(4096);
+const lagTab = new Float64Array(4096);
 
 // ---- frame ----
 const RAMP = " .:-=+*oO#%@";
@@ -417,7 +467,11 @@ function frame(now) {
   render(now, dt);
 }
 
+// ?perf: log the average time of each part of a frame every 2 s (dev aid)
+const PERF = params.has("perf") ? { n: 0, sim: 0, cells: 0, draw: 0, lit: 0, samples: 0 } : null;
+
 function render(now, dt) {
+  const p0 = PERF && performance.now();
   const t = STILL ? STILL_AT : reduced ? 0 : (now - start) / 1000 + 40;
   // Far away with a narrow view, so tentacles hang straight instead of
   // fanning out in perspective; about 20 units of water from top to bottom
@@ -453,6 +507,7 @@ function render(now, dt) {
   // (No light shafts from the surface any more: as they faded, the character
   // cut-off turned them into dotted wedges that read as artifacts.)
 
+  const p1 = PERF && performance.now();
   const GLOW = 0.7;
   const HALO = ".'`:";
   const groups = new Map();
@@ -481,11 +536,23 @@ function render(now, dt) {
     list.push(k % cols, Math.floor(k / cols), chr);
   }
 
+  const p2 = PERF && performance.now();
   ctx.fillStyle = `rgb(${BG.join(",")})`;
   ctx.fillRect(0, 0, W, H);
+  let lit = 0;
   for (const [s, list] of groups) {
     ctx.fillStyle = s;
     for (let i = 0; i < list.length; i += 3) ctx.fillText(list[i + 2], list[i] * cw, list[i + 1] * ch);
+    lit += list.length / 3;
+  }
+  if (PERF) {
+    const p3 = performance.now();
+    PERF.n++, (PERF.sim += p1 - p0), (PERF.cells += p2 - p1), (PERF.draw += p3 - p2), (PERF.lit += lit);
+    if (PERF.n === 60) {
+      const f = (v) => (v / 60).toFixed(2);
+      console.log(`perf ${cols}x${rows} cells: sim ${f(PERF.sim)} ms, cells ${f(PERF.cells)} ms, draw ${f(PERF.draw)} ms, lit ${Math.round(PERF.lit / 60)}, styles ${groups.size}, samples ${Math.round(PERF.samples / 60)}`);
+      Object.assign(PERF, { n: 0, sim: 0, cells: 0, draw: 0, lit: 0, samples: 0 });
+    }
   }
 }
 
