@@ -87,6 +87,24 @@ curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
 
 Requests from web pages are refused, so a website can't set your wallpaper off. To try the reactions without writing anything, use **Try a signal** in the tray menu.
 
+### Connect your apps
+
+Switch connectors on in **Settings → connectors**:
+
+- **Windows notifications**: any app that shows Windows notifications (WhatsApp, Slack, Teams, Discord, …). Windows asks once to allow notification access.
+- **Dock badges** (macOS): the red counts on Dock icons. macOS asks for Accessibility access (System Settings → Privacy & Security → Accessibility).
+- **Gmail, Outlook, Spotify**: AfterGlow has no shared server or app keys, so you register your own (free) app and paste its client ID into Settings, then **sign in**. Use this redirect URI:
+
+| account | where to register | redirect URI | access |
+| --- | --- | --- | --- |
+| Gmail | [Google Cloud Console](https://console.cloud.google.com/apis/credentials): enable the Gmail API, OAuth client of type *Desktop app* (paste its client secret too) | `http://127.0.0.1:47812/callback` | `gmail.labels` (counts only) |
+| Outlook | [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps): account type *any organizational directory and personal Microsoft accounts*, platform *Mobile and desktop applications* | `http://localhost:47812/callback` | `Mail.ReadBasic` |
+| Spotify | [Spotify developer dashboard](https://developer.spotify.com/dashboard) | `http://127.0.0.1:47812/callback` | `user-read-currently-playing` |
+
+Sign-in tokens are kept in Windows Credential Manager or the macOS Keychain.
+
+**Rules** (Settings → connectors → rules) change what an app does: pulse, flash or nothing on a new message, a colour of your own, and whether its count brings in more jellies. **Do Not Disturb** quiets pulses and flashes on Windows (tray → Quiet during Do Not Disturb). **Rotation** and **save a still** (a PNG at your screen's size, into Pictures/AfterGlow) are in Settings → wallpaper.
+
 ## ⚿ Private by design
 
 - Everything runs on your machine. There is no server and no telemetry.
@@ -103,9 +121,10 @@ Requests from web pages are refused, so a website can't set your wallpaper off. 
 - [x] Pauses a monitor's wallpaper while windows cover it (Windows), and a frame-rate setting
 - [x] GPU rendering (with a CPU fallback and a choice in Settings): a visible wallpaper costs under 1% of the CPU
 - [x] Reactions (pulse, count, flash), a signal simulator, and a local endpoint for your scripts
-- [ ] Windows notifications and macOS Dock badges (WhatsApp works)
-- [ ] Gmail / Outlook, Spotify, Do Not Disturb
-- [ ] Rule editor, more wallpapers, rotation
+- [x] Windows notifications and macOS Dock badges (WhatsApp works)
+- [x] Gmail / Outlook, Spotify, Do Not Disturb
+- [x] Rules per app, wallpaper rotation, saving a still as a PNG
+- [ ] More wallpapers
 - [ ] Signed installers and a macOS download
 
 ## ⌘ Build from source
@@ -118,7 +137,7 @@ bun run tauri dev      # run with hot reload
 bun run tauri build    # build an installer / app bundle
 ```
 
-Connectors that need API keys read them from `.env`. Copy `.env.example` and fill in only the ones you use.
+On a Mac, the app from a CI run or your own build isn't notarized: after copying it to Applications, run `xattr -dr com.apple.quarantine /Applications/AfterGlow.app` once, or macOS says it's damaged.
 
 <br>
 
