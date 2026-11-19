@@ -184,19 +184,60 @@ fn displays() -> Vec<CGRect> {
     }
 }
 
-/// An app window filling a whole display: a fullscreen app (they get their
-/// own Space; while it's showing, its window covers the display, menu bar
-/// included) or a game.
+/// Does window `w` look like a fullscreen app on display `d` (both in
+/// points)? Full width, down to the bottom edge, and starting at the top or
+/// just under it: on a MacBook with a notch, fullscreen apps start below the
+/// notch (y = 38 pt) and macOS leaves that strip see-through, so a plain
+/// "window == display" test never matched there. (A zoomed window with the
+/// Dock hidden matches too; it hides the desktop anyway.)
+fn fullscreen_frame(w: &CGRect, d: &CGRect) -> bool {
+    const TOP_STRIP: f64 = 50.0; // the tallest menu bar / notch inset, points
+    let top = w.origin.y - d.origin.y;
+    (w.origin.x - d.origin.x).abs() < 1.0
+        && (w.size.width - d.size.width).abs() < 1.0
+        && ((w.origin.y + w.size.height) - (d.origin.y + d.size.height)).abs() < 1.0
+        && top > -1.0
+        && top <= TOP_STRIP
+}
+
+/// A fullscreen app or game on any display
 pub fn fullscreen_app_in_front() -> bool {
     let shown = displays();
-    app_window_frames().iter().any(|w| {
-        shown.iter().any(|d| {
-            (w.origin.x - d.origin.x).abs() < 1.0
-                && (w.origin.y - d.origin.y).abs() < 1.0
-                && (w.size.width - d.size.width).abs() < 1.0
-                && (w.size.height - d.size.height).abs() < 1.0
+    app_window_frames().iter().any(|w| shown.iter().any(|d| fullscreen_frame(w, d)))
+}
+
+/// Per display (physical px and scale, as Tauri reports them): is a
+/// fullscreen app showing on it? Our window joins every Space, fullscreen
+/// ones included, and would show through the strip beside the notch, so the
+/// host hides it there (set_visible).
+pub fn fullscreen_on(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
+    let windows = app_window_frames();
+    screens
+        .iter()
+        .map(|&(x, y, w, h, scale)| {
+            let s = if scale > 0.0 { scale } else { 1.0 };
+            let d = CGRect {
+                origin: CGPoint { x: x as f64 / s, y: y as f64 / s },
+                size: CGSize { width: w as f64 / s, height: h as f64 / s },
+            };
+            windows.iter().any(|w| fullscreen_frame(w, &d))
         })
-    })
+        .collect()
+}
+
+/// Show or hide a wall window without taking it off its Spaces (alpha 0
+/// rather than orderOut, so it's back instantly). Main thread only.
+pub fn set_visible(window: &tauri::WebviewWindow, visible: bool) {
+    let Ok(ns_window) = window.ns_window() else { return };
+    let ns_window = ns_window as *mut AnyObject;
+    if ns_window.is_null() {
+        return;
+    }
+    unsafe {
+        let ns_window: &AnyObject = &*ns_window;
+        let alpha: f64 = if visible { 1.0 } else { 0.0 }; // CGFloat is f64 on 64-bit
+        let _: () = msg_send![ns_window, setAlphaValue: alpha];
+    }
 }
 
 /// On battery power, or in Low Power Mode (which can be on while plugged in):

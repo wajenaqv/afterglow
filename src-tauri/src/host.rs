@@ -129,6 +129,11 @@ pub fn start(app: &AppHandle) -> tauri::Result<()> {
     thread::spawn(move || pause_loop(a));
     let a = app.clone();
     thread::spawn(move || monitor_loop(a));
+    #[cfg(target_os = "macos")]
+    {
+        let a = app.clone();
+        thread::spawn(move || fullscreen_loop(a));
+    }
     Ok(())
 }
 
@@ -288,6 +293,32 @@ pub fn apply_pause(app: &AppHandle) {
             }
         }
         let _ = app.emit_to(EventTarget::webview_window(&wall.label), "paused", flags);
+    }
+}
+
+/// macOS: hide a display's wall window while a fullscreen app is in front of
+/// it. The window is on every Space, fullscreen ones included, and showed
+/// through the see-through strip beside the notch. Checked every 250 ms so
+/// the jellies are back soon after swiping out of fullscreen.
+#[cfg(target_os = "macos")]
+fn fullscreen_loop(app: AppHandle) {
+    let mut shown: std::collections::HashMap<String, bool> = Default::default();
+    loop {
+        thread::sleep(Duration::from_millis(250));
+        let walls = app.state::<Host>().walls.lock().unwrap().clone();
+        for wall in walls {
+            let rects: Vec<(i32, i32, u32, u32, f64)> = wall.screens.iter().map(|s| (s.x, s.y, s.w, s.h, s.scale)).collect();
+            let visible = !platform::fullscreen_on(&rects).iter().any(|&f| f);
+            if shown.get(&wall.label) == Some(&visible) {
+                continue;
+            }
+            shown.insert(wall.label.clone(), visible);
+            if let Some(window) = app.get_webview_window(&wall.label) {
+                // AppKit calls belong on the main thread
+                let w = window.clone();
+                let _ = window.run_on_main_thread(move || platform::set_visible(&w, visible));
+            }
+        }
     }
 }
 
