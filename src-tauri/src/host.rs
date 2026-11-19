@@ -274,7 +274,7 @@ pub fn apply_pause(app: &AppHandle) {
     // ...or just the monitors whose desktop is hidden behind app windows
     let walls = host.walls.lock().unwrap().clone();
     for wall in walls {
-        let rects: Vec<(i32, i32, u32, u32)> = wall.screens.iter().map(|s| (s.x, s.y, s.w, s.h)).collect();
+        let rects: Vec<(i32, i32, u32, u32, f64)> = wall.screens.iter().map(|s| (s.x, s.y, s.w, s.h, s.scale)).collect();
         let hidden = if rule_covered && !all { platform::covered(&rects) } else { vec![false; rects.len()] };
         // one flag per monitor, in the order host.html laid out its frames.
         // Sent every time (not only on change): a window that just loaded

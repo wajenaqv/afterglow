@@ -38,17 +38,219 @@ pub fn attach(window: &tauri::WebviewWindow, _x: i32, _y: i32, _w: u32, _h: u32)
 /// macOS repaints the desktop by itself when our windows close.
 pub fn restore_desktop() {}
 
-/// TODO: detect fullscreen apps on macOS (CGWindowList or NSWorkspace).
+
+// ---- the pause rules (parity with Windows) ----
+//
+// macOS has no "fullscreen app" or "covered desktop" signal of its own, so
+// both come from the list of on-screen windows that every app can read
+// (CGWindowListCopyWindowInfo; no permission needed, as long as we only read
+// window sizes and owners, not titles). Only ordinary app windows count
+// (window layer 0): not the menu bar, the Dock, the desktop or overlays.
+//
+// Units: CoreGraphics measures in points with the origin at the top left of
+// the main display, y down. Tauri gives monitors in physical pixels, so they
+// are divided by each display's scale.
+//
+// These are C functions from Apple's frameworks, declared by hand below
+// (like cgo's `import "C"` in Go).
+
+use std::ffi::{c_char, c_void};
+
+type CFTypeRef = *const c_void;
+type CFArrayRef = *const c_void;
+type CFDictionaryRef = *const c_void;
+type CFStringRef = *const c_void;
+type CFNumberRef = *const c_void;
+
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct CGPoint {
+    x: f64,
+    y: f64,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct CGSize {
+    width: f64,
+    height: f64,
+}
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+struct CGRect {
+    origin: CGPoint,
+    size: CGSize,
+}
+
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    fn CFArrayGetCount(array: CFArrayRef) -> isize;
+    fn CFArrayGetValueAtIndex(array: CFArrayRef, idx: isize) -> *const c_void;
+    fn CFDictionaryGetValue(dict: CFDictionaryRef, key: *const c_void) -> *const c_void;
+    fn CFNumberGetValue(number: CFNumberRef, the_type: isize, value_ptr: *mut c_void) -> bool;
+    fn CFStringGetCString(s: CFStringRef, buffer: *mut c_char, size: isize, encoding: u32) -> bool;
+    fn CFRelease(cf: CFTypeRef);
+}
+
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    fn CGWindowListCopyWindowInfo(option: u32, relative_to_window: u32) -> CFArrayRef;
+    fn CGRectMakeWithDictionaryRepresentation(dict: CFDictionaryRef, rect: *mut CGRect) -> bool;
+    fn CGGetActiveDisplayList(max: u32, displays: *mut u32, count: *mut u32) -> i32;
+    fn CGDisplayBounds(display: u32) -> CGRect;
+    static kCGWindowLayer: CFStringRef;
+    static kCGWindowBounds: CFStringRef;
+    static kCGWindowOwnerPID: CFStringRef;
+    static kCGWindowAlpha: CFStringRef;
+}
+
+#[link(name = "IOKit", kind = "framework")]
+unsafe extern "C" {
+    fn IOPSCopyPowerSourcesInfo() -> CFTypeRef;
+    fn IOPSGetProvidingPowerSourceType(snapshot: CFTypeRef) -> CFStringRef;
+}
+
+const ON_SCREEN_ONLY: u32 = 1 << 0; // kCGWindowListOptionOnScreenOnly
+const EXCLUDE_DESKTOP: u32 = 1 << 4; // kCGWindowListExcludeDesktopElements
+const CF_NUMBER_SINT64: isize = 4; // kCFNumberSInt64Type
+const CF_NUMBER_FLOAT64: isize = 6; // kCFNumberFloat64Type
+const UTF8: u32 = 0x0800_0100; // kCFStringEncodingUTF8
+
+/// A number from a window's info dictionary (as f64), if present
+unsafe fn info_number(info: CFDictionaryRef, key: CFStringRef, ty: isize) -> Option<f64> {
+    unsafe {
+        let v = CFDictionaryGetValue(info, key);
+        if v.is_null() {
+            return None;
+        }
+        if ty == CF_NUMBER_FLOAT64 {
+            let mut f = 0f64;
+            if CFNumberGetValue(v, ty, &mut f as *mut f64 as *mut c_void) { Some(f) } else { None }
+        } else {
+            let mut n = 0i64;
+            if CFNumberGetValue(v, ty, &mut n as *mut i64 as *mut c_void) { Some(n as f64) } else { None }
+        }
+    }
+}
+
+/// The frames (in points) of other apps' ordinary, visible windows on screen
+fn app_window_frames() -> Vec<CGRect> {
+    let mut out = Vec::new();
+    let me = std::process::id() as f64;
+    unsafe {
+        let list = CGWindowListCopyWindowInfo(ON_SCREEN_ONLY | EXCLUDE_DESKTOP, 0);
+        if list.is_null() {
+            return out;
+        }
+        for i in 0..CFArrayGetCount(list) {
+            let info = CFArrayGetValueAtIndex(list, i);
+            if info_number(info, kCGWindowLayer, CF_NUMBER_SINT64) != Some(0.0) {
+                continue; // menu bar, Dock, overlays, our own desktop-level windows
+            }
+            if info_number(info, kCGWindowOwnerPID, CF_NUMBER_SINT64) == Some(me) {
+                continue;
+            }
+            if info_number(info, kCGWindowAlpha, CF_NUMBER_FLOAT64).unwrap_or(1.0) < 0.1 {
+                continue; // invisible
+            }
+            let bounds = CFDictionaryGetValue(info, kCGWindowBounds);
+            let mut r = CGRect::default();
+            if !bounds.is_null() && CGRectMakeWithDictionaryRepresentation(bounds, &mut r) && r.size.width > 1.0 && r.size.height > 1.0 {
+                out.push(r);
+            }
+        }
+        CFRelease(list);
+    }
+    out
+}
+
+fn displays() -> Vec<CGRect> {
+    let mut ids = [0u32; 16];
+    let mut n = 0u32;
+    unsafe {
+        if CGGetActiveDisplayList(16, ids.as_mut_ptr(), &mut n) != 0 {
+            return Vec::new();
+        }
+        ids[..n as usize].iter().map(|&d| CGDisplayBounds(d)).collect()
+    }
+}
+
+/// An app window filling a whole display: a fullscreen app (they get their
+/// own Space; while it's showing, its window covers the display, menu bar
+/// included) or a game.
 pub fn fullscreen_app_in_front() -> bool {
-    false
+    let shown = displays();
+    app_window_frames().iter().any(|w| {
+        shown.iter().any(|d| {
+            (w.origin.x - d.origin.x).abs() < 1.0
+                && (w.origin.y - d.origin.y).abs() < 1.0
+                && (w.size.width - d.size.width).abs() < 1.0
+                && (w.size.height - d.size.height).abs() < 1.0
+        })
+    })
 }
 
-/// TODO: read the power source on macOS (IOKit IOPSCopyPowerSourcesInfo).
+/// On battery power, or in Low Power Mode (which can be on while plugged in):
+/// both mean "save power" for the "Pause on battery" rule
 pub fn on_battery() -> bool {
-    false
+    let mut battery = false;
+    unsafe {
+        let snapshot = IOPSCopyPowerSourcesInfo();
+        if !snapshot.is_null() {
+            let source = IOPSGetProvidingPowerSourceType(snapshot); // not ours to release
+            if !source.is_null() {
+                let mut buf = [0 as c_char; 64];
+                if CFStringGetCString(source, buf.as_mut_ptr(), buf.len() as isize, UTF8) {
+                    let name = std::ffi::CStr::from_ptr(buf.as_ptr()).to_string_lossy();
+                    battery = name == "Battery Power";
+                }
+            }
+            CFRelease(snapshot);
+        }
+    }
+    battery || low_power_mode()
 }
 
-/// TODO: detect windows covering each display on macOS (CGWindowListCopyWindowInfo).
-pub fn covered(screens: &[(i32, i32, u32, u32)]) -> Vec<bool> {
-    vec![false; screens.len()]
+/// NSProcessInfo.processInfo.isLowPowerModeEnabled (macOS 12 and later)
+fn low_power_mode() -> bool {
+    use objc2::{class, sel};
+    unsafe {
+        let info: *mut AnyObject = msg_send![class!(NSProcessInfo), processInfo];
+        if info.is_null() {
+            return false;
+        }
+        let info: &AnyObject = &*info;
+        let has: bool = msg_send![info, respondsToSelector: sel!(isLowPowerModeEnabled)];
+        if !has {
+            return false;
+        }
+        let low: bool = msg_send![info, isLowPowerModeEnabled];
+        low
+    }
+}
+
+/// Per display (physical px and scale, as Tauri reports them): do other
+/// apps' windows hide its desktop? The same test as on Windows: a 12 x 12
+/// grid of points, covered when 95% of them are inside some window.
+pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
+    let windows = app_window_frames();
+    screens
+        .iter()
+        .map(|&(x, y, w, h, scale)| {
+            let s = if scale > 0.0 { scale } else { 1.0 };
+            let (x, y, w, h) = (x as f64 / s, y as f64 / s, w as f64 / s, h as f64 / s);
+            const N: i32 = 12;
+            let mut hit = 0;
+            for i in 0..N {
+                for j in 0..N {
+                    let px = x + (2 * i + 1) as f64 * w / (2 * N) as f64;
+                    let py = y + (2 * j + 1) as f64 * h / (2 * N) as f64;
+                    let inside = |r: &CGRect| px >= r.origin.x && px < r.origin.x + r.size.width && py >= r.origin.y && py < r.origin.y + r.size.height;
+                    if windows.iter().any(inside) {
+                        hit += 1;
+                    }
+                }
+            }
+            hit * 100 >= N * N * 95
+        })
+        .collect()
 }

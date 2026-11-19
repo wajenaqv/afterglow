@@ -4,7 +4,7 @@
 //   restore_desktop()            on quit: repaint the normal wallpaper
 //   fullscreen_app_in_front()    a fullscreen app, game or presentation is up
 //   on_battery()                 running on battery power
-//   covered(screens)             per monitor (x, y, w, h physical px): are app
+//   covered(screens)             per monitor (x, y, w, h physical px, scale): are app
 //                                windows hiding its desktop?
 
 #[cfg(windows)]
@@ -30,7 +30,7 @@ mod other {
     pub fn on_battery() -> bool {
         false
     }
-    pub fn covered(screens: &[(i32, i32, u32, u32)]) -> Vec<bool> {
+    pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
         vec![false; screens.len()]
     }
 }

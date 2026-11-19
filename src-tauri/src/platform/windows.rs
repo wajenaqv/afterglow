@@ -129,14 +129,14 @@ pub fn on_battery() -> bool {
 // click-through overlays (game and recording overlays span the screen but
 // are see-through).
 
-pub fn covered(screens: &[(i32, i32, u32, u32)]) -> Vec<bool> {
+pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
     let mut rects: Vec<RECT> = Vec::new();
     unsafe {
         let _ = EnumWindows(Some(collect_window), LPARAM(&mut rects as *mut Vec<RECT> as isize));
     }
     screens
         .iter()
-        .map(|&(x, y, w, h)| {
+        .map(|&(x, y, w, h, _scale)| {
             const N: i32 = 12;
             let mut hit = 0;
             for i in 0..N {
