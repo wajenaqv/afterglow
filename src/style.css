@@ -1,4 +1,4 @@
-/* The Settings window. Colours come from brand.css only. */
+/* The Settings window: a sidebar of pages. Colours come from brand.css only. */
 @import "./brand.css";
 
 * {
@@ -8,37 +8,93 @@
 html,
 body {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
   background: var(--bg);
   color: var(--fg);
   font: 14px/1.5 "JetBrains Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
   font-variant-ligatures: none;
 }
-
 body {
-  padding: 28px clamp(16px, 4vw, 48px) 32px;
   text-shadow: 0 0 4px rgba(var(--glow), calc(var(--glow-a) * 0.5));
+  overflow: hidden; /* the page scrolls inside main, the sidebar stays */
 }
 
 .dim {
   color: var(--dim);
   text-shadow: none;
 }
+[hidden] {
+  display: none !important;
+}
 
-/* header: the Slant wordmark and a prompt line */
-header {
-  margin-bottom: 28px;
+/* ---- layout: sidebar | page ---- */
+.shell {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  height: 100vh;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px 14px 18px 20px;
+  border-right: 1px solid color-mix(in srgb, var(--dim) 35%, var(--bg));
 }
 .mark {
   margin: 0;
-  font-size: clamp(8px, 1.45vw, 15px);
+  font-size: 12px;
   line-height: 1.15;
   font-weight: 700;
   text-shadow: 0 0 8px rgba(var(--glow), var(--glow-a));
-  overflow: hidden;
+}
+.side ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side a {
+  display: block;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: var(--dim);
+  text-decoration: none;
+  text-shadow: none;
+}
+.side a::before {
+  content: "  ";
+  white-space: pre;
+}
+.side a:hover {
+  color: var(--fg);
+}
+.side a[aria-current="page"] {
+  color: var(--bright);
+  background: color-mix(in srgb, var(--fg) 10%, var(--bg));
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+.side a[aria-current="page"]::before {
+  content: "> ";
+  color: var(--accent);
+}
+.side a:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.side-foot {
+  margin: auto 0 0 8px;
+  font-size: 12px;
+}
+
+main {
+  overflow-y: auto;
+  padding: 22px clamp(18px, 3vw, 40px) 40px;
 }
 .prompt {
-  margin: 10px 0 0;
+  margin: 0 0 18px;
 }
 .ps {
   color: var(--accent);
@@ -57,19 +113,88 @@ header {
 }
 
 h2 {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
-  margin: 0 0 2px;
+  margin: 0 0 4px;
+  color: var(--bright);
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+h2::before {
+  content: "# ";
+  color: var(--dim);
+  text-shadow: none;
+}
+h3.sub {
+  font-size: 13px;
+  color: var(--fg);
+  margin: 26px 0 6px;
+  text-shadow: none;
 }
 .hint {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
+}
+a {
+  color: var(--bright);
 }
 
-/* the wallpaper cards */
+/* ---- controls ---- */
+select,
+button,
+input:not([type]),
+input[type="password"] {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+button {
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  border-color: var(--fg);
+}
+select:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--fg);
+}
+input[type="color"] {
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  background: var(--bg);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+/* a column of checkbox / radio lines */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.list label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+
+/* ---- wallpaper: cards ---- */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
 }
 .card {
   border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
@@ -108,7 +233,7 @@ h2 {
   gap: 8px;
   flex: 1;
 }
-h3 {
+.card h3 {
   margin: 0;
   font-size: 15px;
   color: var(--bright);
@@ -118,11 +243,15 @@ h3 {
   margin: 0;
   font-size: 12.5px;
 }
+.reacts {
+  margin: 0;
+  font-size: 12px;
+}
 .opts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  margin-top: auto; /* options sit together just above the button */
+  margin-top: auto; /* options sit together just above the buttons */
   padding-top: 4px;
 }
 .opts label {
@@ -130,28 +259,14 @@ h3 {
   gap: 6px;
   align-items: center;
 }
-select,
-button {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--dim);
-  border-radius: 6px;
-  padding: 3px 8px;
-}
-select:focus-visible,
-button:focus-visible {
-  outline: 1px solid var(--accent);
-  outline-offset: 2px;
+/* a card's buttons, on the same line in every card */
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 button.use {
-  align-self: flex-start;
-  /* the .actions row sits at the bottom of every card */
-  cursor: pointer;
   color: var(--bright);
-}
-button.use:hover:not(:disabled) {
-  border-color: var(--fg);
 }
 button.use:disabled {
   cursor: default;
@@ -159,37 +274,28 @@ button.use:disabled {
   border-color: transparent;
   padding-left: 0;
 }
-
-h2.section {
-  margin-top: 30px;
+button.still {
+  font-size: 12.5px;
 }
-.perf {
+/* stills render at the screen's real size, off screen */
+.still-frame {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  border: 0;
+  visibility: hidden;
+}
+.rotate-walls {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-left: 26px;
 }
-.perf label {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  cursor: pointer;
-}
-.perf input {
-  accent-color: var(--fg);
-}
-h3.sub {
-  font-size: 13px;
-  color: var(--fg);
-  margin: 18px 0 6px;
-  text-shadow: none;
-}
-.running {
-  margin: 10px 0 0;
-}
-#running.on {
-  color: var(--accent);
+.rotate-walls.off {
+  opacity: 0.5;
 }
 
+/* ---- apps ---- */
 .connectors {
   display: flex;
   flex-direction: column;
@@ -201,9 +307,6 @@ h3.sub {
   align-items: baseline;
   flex-wrap: wrap;
   cursor: pointer;
-}
-.connector input {
-  accent-color: var(--fg);
 }
 .connector .status[data-state="ok"] {
   color: var(--accent);
@@ -220,24 +323,63 @@ h3.sub {
   margin: 0 0 6px 26px;
 }
 .account input {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--dim);
-  border-radius: 6px;
-  padding: 3px 8px;
   min-width: 18ch;
-}
-.account button {
-  cursor: pointer;
 }
 .account .redirect {
   flex-basis: 100%;
   font-size: 12px;
 }
-.reacts {
-  margin: 0;
+
+table.apps {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+  max-width: 760px;
+}
+.apps th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--dim);
+  padding: 0 12px 6px 0;
+  text-shadow: none;
+}
+.apps td {
+  padding: 4px 12px 4px 0;
+  border-top: 1px solid color-mix(in srgb, var(--dim) 20%, var(--bg));
+}
+.apps td.name {
+  white-space: nowrap;
+}
+/* an app following the default: its controls shown, dimmed */
+.apps tr.inherit select,
+.apps tr.inherit input,
+.apps tr.inherit .name > span:not(.dot) {
+  opacity: 0.55;
+}
+.apps .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  border: 1px solid var(--dim);
+  vertical-align: 1px;
+}
+.apps input.src {
+  width: 14ch;
+}
+.apps .waiting {
+  min-width: 3ch;
+}
+.apps .row-actions {
+  white-space: nowrap;
+}
+.apps .row-actions button {
   font-size: 12px;
+  padding: 1px 7px;
+}
+.apps-actions {
+  margin: 10px 0 0;
 }
 .signals {
   display: flex;
@@ -245,29 +387,20 @@ h3.sub {
   gap: 8px;
   align-items: center;
 }
-.signals button,
-.endpoint button {
-  cursor: pointer;
-}
-.signals button:hover,
-.endpoint button:hover {
-  border-color: var(--fg);
-}
-.endpoint {
-  margin-top: 12px;
-}
-.endpoint code {
+
+/* ---- about ---- */
+.endpoint code,
+.fields code {
   color: var(--fg);
   word-break: break-all;
 }
-
-footer {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 6px 20px;
-  margin-top: 28px;
-  font-size: 12.5px;
+.fields {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.fields td {
+  padding: 3px 14px 3px 0;
+  vertical-align: top;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -276,86 +409,21 @@ footer {
   }
 }
 
-/* a card's buttons, on the same line in every card */
-.actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: auto;
+/* the apps table scrolls sideways in a narrow window rather than spilling */
+.scroll-x {
+  overflow-x: auto;
 }
-button.still {
-  cursor: pointer;
-  font-size: 12.5px;
+.fields td:first-child {
+  white-space: nowrap;
 }
-button.still:hover:not(:disabled) {
-  border-color: var(--fg);
-}
-/* stills render at the screen's real size, off screen */
-.still-frame {
-  position: fixed;
-  left: -100000px;
-  top: 0;
-  border: 0;
-  visibility: hidden;
-}
-
-.rotate label {
-  cursor: pointer;
-}
-.rotate-walls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-left: 26px;
-}
-.rotate-walls.off {
-  opacity: 0.5;
-}
-.stills button,
-.rules button {
-  cursor: pointer;
-}
-
-.rules {
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.rules th {
-  text-align: left;
-  font-weight: 400;
-  color: var(--dim);
-  padding: 0 14px 4px 0;
-  text-shadow: none;
-}
-.rules td {
-  padding: 3px 14px 3px 0;
-}
-.rules tbody:empty::after {
-  content: "no rules yet";
-  color: var(--dim);
-}
-.rules input.src {
-  font: inherit;
-  color: var(--fg);
-  background: var(--bg);
-  border: 1px solid var(--dim);
-  border-radius: 6px;
-  padding: 3px 8px;
-  width: 14ch;
-}
-.rules input[type="color"] {
-  width: 32px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--dim);
-  border-radius: 6px;
-  background: var(--bg);
-  vertical-align: middle;
-}
-.rules input[type="checkbox"],
-.rotate input {
-  accent-color: var(--fg);
-}
-.rules-actions {
-  margin: 8px 0 0;
+@media (max-width: 760px) {
+  .shell {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
+  .side {
+    padding: 18px 10px 14px 12px;
+  }
+  .mark {
+    font-size: 10px;
+  }
 }

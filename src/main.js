@@ -1,73 +1,100 @@
-// The Settings window: pick the wallpaper and its options.
+// The Settings window: a sidebar of pages (wallpaper, apps, pausing,
+// performance, about), one shown at a time, chosen by the URL hash.
 //
-// In the app it talks to Rust (src-tauri/src/settings.rs):
-//   get_settings  -> { wallpaper, options: { <id>: { key: value } }, ... }
-//   set_wallpaper(id, options) switches every monitor and saves the choice
+// In the app every change goes straight to Rust (invoke):
+//   settings.rs   get_settings, set_wallpaper, set_fps, set_renderer
+//   extras.rs     set_rotation, save_png, open_stills_folder, open_link
+//   signals.rs    set_rules, send_signal, unread_by_app
+//   tray.rs       set_pausing, autostart_state, set_autostart
+//   connectors/   connectors_state, set_connector, accounts_state, set_client,
+//                 account_sign_in, account_sign_out
 // Opened in a plain browser (bun run dev, localhost:5173), a stand-in keeps
-// the choice in localStorage so the page can be designed there.
+// the settings in localStorage so the page can be designed there.
 
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
-import marks from "../scripts/wordmarks.json";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-const api = IN_APP
-  ? {
-      get: async () => (await import("@tauri-apps/api/core")).invoke("get_settings"),
-      set: async (id, options) => (await import("@tauri-apps/api/core")).invoke("set_wallpaper", { id, options }),
-      setFps: async (fps) => (await import("@tauri-apps/api/core")).invoke("set_fps", { fps }),
-      setRenderer: async (renderer) => (await import("@tauri-apps/api/core")).invoke("set_renderer", { renderer }),
-    }
-  : {
-      get: async () => {
-        try {
-          return JSON.parse(localStorage.getItem("afterglow:settings")) ?? {};
-        } catch {
-          return {};
-        }
-      },
-      set: async (id, options) => {
-        const s = await api.get();
-        s.wallpaper = id;
-        s.options = { ...(s.options ?? {}), [id]: options };
-        try {
-          localStorage.setItem("afterglow:settings", JSON.stringify(s));
-        } catch {}
-      },
-      setFps: async (fps) => {
-        const s = await api.get();
-        s.fps = fps;
-        try {
-          localStorage.setItem("afterglow:settings", JSON.stringify(s));
-        } catch {}
-      },
-      setRenderer: async (renderer) => {
-        const s = await api.get();
-        s.renderer = renderer;
-        try {
-          localStorage.setItem("afterglow:settings", JSON.stringify(s));
-        } catch {}
-      },
-    };
+// ---- talking to Rust (or the browser stand-in) ----
+async function invoke(cmd, args = {}) {
+  if (IN_APP) return (await import("@tauri-apps/api/core")).invoke(cmd, args);
+  return standIn(cmd, args);
+}
+function standIn(cmd, a) {
+  let s = {};
+  try {
+    s = JSON.parse(localStorage.getItem("afterglow:settings")) ?? {};
+  } catch {}
+  const save = () => {
+    try {
+      localStorage.setItem("afterglow:settings", JSON.stringify(s));
+    } catch {}
+  };
+  switch (cmd) {
+    case "get_settings":
+      return s;
+    case "set_wallpaper":
+      s.wallpaper = a.id;
+      s.options = { ...(s.options ?? {}), [a.id]: a.options };
+      return save();
+    case "set_fps":
+      s.fps = a.fps;
+      return save();
+    case "set_renderer":
+      s.renderer = a.renderer;
+      return save();
+    case "set_rotation":
+      s.rotate = { on: a.on, minutes: a.minutes, walls: a.walls };
+      return save();
+    case "set_rules":
+      s.rules = a.rules;
+      return save();
+    case "set_pausing":
+      Object.assign(s, { pause_covered: a.covered, pause_fullscreen: a.fullscreen, pause_on_battery: a.battery, quiet_dnd: a.quietDnd });
+      return save();
+    case "connectors_state":
+    case "accounts_state":
+      return [];
+    case "unread_by_app":
+      return {};
+    case "autostart_state":
+    case "set_autostart":
+      return false;
+    default:
+      throw new Error("open Settings from the AfterGlow tray for this");
+  }
+}
 
-// ---- the wordmark: Slant, white on top fading to green (heywajih's logo fade) ----
-const mark = document.getElementById("mark");
-const lines = marks.Slant;
-lines.forEach((line, i) => {
+// ---- the sidebar: the Slant AG, white on top fading to green ----
+const AG = ["    ___   ______", "   /   | / ____/", "  / /| |/ / __  ", " / ___ / /_/ /  ", "/_/  |_\\____/   "];
+AG.forEach((line, i) => {
   const row = document.createElement("span");
-  row.className = "mark-row";
-  const t = Math.round((i / Math.max(1, lines.length - 1)) * 100);
+  const t = Math.round((i / (AG.length - 1)) * 100);
   row.style.color = `color-mix(in srgb, var(--logo-bottom) ${t}%, var(--logo-top))`;
   row.textContent = line + "\n";
-  mark.append(row);
+  $("#mark").append(row);
 });
 
-// ---- the cards ----
-const cardsEl = document.getElementById("cards");
-let settings = { wallpaper: "jellyfish", options: {} };
+// ---- pages ----
+const PAGES = ["wallpaper", "apps", "pausing", "performance", "about"];
+function show() {
+  const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
+  for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
+  for (const a of $$(".side a")) a.setAttribute("aria-current", a.dataset.page === page ? "page" : "false");
+  $("#cmd").textContent = page;
+  $("main").scrollTop = 0;
+  if (page === "apps") refreshApps();
+}
+addEventListener("hashchange", show);
+
+let settings = { wallpaper: "jellyfish", options: {}, renderer: "auto" };
+
+// =========================== wallpaper ===========================
 const cards = new Map(); // id -> { el, preview, selects, button }
 
 function optionsOf(card) {
@@ -93,7 +120,7 @@ function previewSrc(id, options) {
   return `/wallpapers/${id}.html?preview&hover=0${q ? `&${q}` : ""}`;
 }
 
-function refresh() {
+function markShowing() {
   for (const [id, card] of cards) {
     const on = settings.wallpaper === id;
     card.el.classList.toggle("on", on);
@@ -104,12 +131,11 @@ function refresh() {
 }
 
 async function choose(id) {
-  const card = cards.get(id);
-  const options = optionsOf(card);
-  await api.set(id, options);
+  const options = optionsOf(cards.get(id));
+  await invoke("set_wallpaper", { id, options });
   settings.wallpaper = id;
   settings.options = { ...settings.options, [id]: options };
-  refresh();
+  markShowing();
 }
 
 for (const w of WALLPAPERS) {
@@ -124,7 +150,7 @@ for (const w of WALLPAPERS) {
       <div class="opts"></div>
       <div class="actions"><button type="button" class="use"></button> <button type="button" class="still">save a still</button></div>
     </div>`;
-  const opts = el.querySelector(".opts");
+  const opts = $(".opts", el);
   const selects = new Map();
   for (const o of w.options) {
     const label = document.createElement("label");
@@ -135,194 +161,41 @@ for (const w of WALLPAPERS) {
     opts.append(label);
     selects.set(o.key, sel);
   }
-  const card = { el, preview: el.querySelector("iframe"), selects, button: el.querySelector(".use") };
+  const card = { el, preview: $("iframe", el), selects, button: $(".use", el) };
   cards.set(w.id, card);
-
   for (const sel of selects.values())
     sel.addEventListener("change", () => {
       nameHues(card);
       card.preview.src = previewSrc(w.id, optionsOf(card));
-      // the wallpaper that's showing changes straight away
-      if (settings.wallpaper === w.id) choose(w.id);
+      if (settings.wallpaper === w.id) choose(w.id); // the one showing changes straight away
     });
   card.button.addEventListener("click", () => choose(w.id));
-  cardsEl.append(el);
+  $(".still", el).addEventListener("click", (e) => saveStill(w.id, e.currentTarget));
+  $("#cards").append(el);
 }
 
 // Previews render at 960x540 and are scaled to fit their card
 const fit = new ResizeObserver((entries) => {
   for (const e of entries) e.target.style.setProperty("--k", String(e.contentRect.width / 960));
 });
-document.querySelectorAll(".preview").forEach((p) => fit.observe(p));
+$$(".preview").forEach((p) => fit.observe(p));
 
-// Fill in what's saved, then start the previews
-// ---- connectors (src-tauri/src/connectors) ----
-// One row per connector this computer offers: a switch and a status line
-// saying what it sees, or what it still needs. Refreshed every 2 s.
-const connectorsEl = document.getElementById("connectors");
-async function invoke(cmd, args) {
-  return (await import("@tauri-apps/api/core")).invoke(cmd, args);
-}
-function connectorRow(c) {
-  let row = connectorsEl.querySelector(`[data-id="${c.id}"]`);
-  if (!row) {
-    row = document.createElement("label");
-    row.className = "connector";
-    row.dataset.id = c.id;
-    row.innerHTML = `<input type="checkbox" /> <span class="name"></span> <span class="status dim"></span>`;
-    row.querySelector("input").addEventListener("change", (e) => invoke("set_connector", { id: c.id, on: e.target.checked }).then(refreshConnectors));
-    connectorsEl.append(row);
-  }
-  row.querySelector("input").checked = c.on;
-  row.querySelector(".name").textContent = c.name;
-  const status = row.querySelector(".status");
-  status.textContent = c.on ? (c.status?.text ?? "starting…") : "off";
-  status.dataset.state = c.on ? (c.status?.state ?? "") : "off";
-}
-// Accounts (Gmail, Outlook, Spotify): the app registration and sign-in,
-// shown under the connector's row. Inputs are left alone while focused, so
-// the 2-second refresh doesn't fight your typing.
-function accountPanel(a) {
-  const row = connectorsEl.querySelector(`[data-id="${a.id}"]`);
-  if (!row) return;
-  let panel = connectorsEl.querySelector(`[data-account="${a.id}"]`);
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.className = "account";
-    panel.dataset.account = a.id;
-    const secret = a.id === "gmail" ? `<input class="secret" type="password" placeholder="client secret" autocomplete="off" />` : "";
-    panel.innerHTML = `
-      <input class="client" placeholder="client id" autocomplete="off" spellcheck="false" /> ${secret}
-      <button type="button" class="save">save</button>
-      <button type="button" class="signin"></button>
-      <div class="dim redirect"></div>`;
-    panel.querySelector(".save").addEventListener("click", () =>
-      invoke("set_client", { id: a.id, clientId: panel.querySelector(".client").value, clientSecret: panel.querySelector(".secret")?.value ?? "" }).then(() => {
-        const s = panel.querySelector(".secret");
-        if (s) s.value = "";
-        refreshConnectors();
-      }),
-    );
-    panel.querySelector(".signin").addEventListener("click", (e) => invoke(e.target.dataset.signedIn === "1" ? "account_sign_out" : "account_sign_in", { id: a.id }).then(refreshConnectors));
-    row.after(panel);
-  }
-  const client = panel.querySelector(".client");
-  if (document.activeElement !== client) client.value = a.client_id;
-  const secret = panel.querySelector(".secret");
-  if (secret && document.activeElement !== secret) secret.placeholder = a.has_secret ? "client secret (saved)" : "client secret";
-  const btn = panel.querySelector(".signin");
-  btn.textContent = a.signed_in ? "sign out" : "sign in";
-  btn.dataset.signedIn = a.signed_in ? "1" : "0";
-  btn.disabled = !a.client_id;
-  panel.querySelector(".redirect").textContent = `redirect URI to register: ${a.redirect}`;
-}
-
-async function refreshConnectors() {
-  if (!IN_APP) return (connectorsEl.textContent = "open Settings from the AfterGlow tray to see the connectors");
-  try {
-    const list = await invoke("connectors_state");
-    if (!list.length) connectorsEl.textContent = "none on this computer yet";
-    list.forEach(connectorRow);
-    (await invoke("accounts_state")).forEach(accountPanel);
-  } catch (e) {
-    connectorsEl.textContent = String(e);
-  }
-}
-refreshConnectors();
-setInterval(refreshConnectors, 2000);
-
-// ---- the signal simulator (signals.rs send_signal) ----
-// The "waiting" buttons keep their own count, sent as the "simulator" app's
-// unread count (added to any real apps' counts by the bus)
-let simWaiting = 0;
-const waitingNote = document.getElementById("waiting");
-async function sendSignal(signal) {
-  if (!IN_APP) return (waitingNote.textContent = "open Settings from the AfterGlow tray to send signals");
-  try {
-    await (await import("@tauri-apps/api/core")).invoke("send_signal", { signal });
-  } catch (e) {
-    waitingNote.textContent = String(e);
-  }
-}
-document.querySelectorAll("[data-signal]").forEach((b) => b.addEventListener("click", () => sendSignal(JSON.parse(b.dataset.signal))));
-document.querySelectorAll("[data-waiting]").forEach((b) =>
-  b.addEventListener("click", () => {
-    simWaiting = Number(b.dataset.waiting) === 0 ? 0 : simWaiting + Number(b.dataset.waiting);
-    waitingNote.textContent = simWaiting ? `${simWaiting} waiting` : "";
-    sendSignal(simWaiting ? { source: "simulator", kind: "unread", count: simWaiting } : { source: "simulator", kind: "clear" });
-  }),
-);
-document.getElementById("copy-curl").addEventListener("click", async (e) => {
-  try {
-    await navigator.clipboard.writeText(document.getElementById("curl").textContent);
-    e.target.textContent = "copied";
-    setTimeout(() => (e.target.textContent = "copy"), 1500);
-  } catch {}
-});
-
-// The version, from the app (tauri.conf.json), in the footer
-if (IN_APP)
-  import("@tauri-apps/api/app").then(async ({ getVersion }) => {
-    document.getElementById("version").textContent = `afterglow v${await getVersion()} · MIT`;
-  });
-
-// The frame rate (every wallpaper)
-const fpsInputs = [...document.querySelectorAll('input[name="fps"]')];
-fpsInputs.forEach((input) => input.addEventListener("change", () => input.checked && api.setFps(Number(input.value))));
-
-// Rendering: GPU or CPU, and what that means on this computer
-const renderInputs = [...document.querySelectorAll('input[name="render"]')];
-const running = document.getElementById("running");
-function showRunning(pref) {
-  const { gpu, text } = describe(pref);
-  running.textContent = text;
-  running.className = gpu ? "on" : "";
-}
-renderInputs.forEach((input) =>
-  input.addEventListener("change", () => {
-    if (!input.checked) return;
-    api.setRenderer(input.value);
-    settings.renderer = input.value;
-    showRunning(input.value);
-  }),
-);
-
-api.get().then((saved) => {
-  settings = { wallpaper: saved.wallpaper ?? "jellyfish", options: saved.options ?? {}, renderer: saved.renderer ?? "auto" };
-  showRotation(saved.rotate);
-  (saved.rules ?? []).forEach((r) => ruleRow(r));
-  const fps = String(saved.fps ?? 30);
-  fpsInputs.forEach((input) => (input.checked = input.value === fps));
-  const render = saved.renderer ?? "auto";
-  renderInputs.forEach((input) => (input.checked = input.value === render));
-  showRunning(render);
-  for (const [id, card] of cards) {
-    const mine = settings.options[id] ?? {};
-    for (const [key, sel] of card.selects) sel.value = mine[key] ?? "";
-    nameHues(card);
-    card.preview.src = previewSrc(id, optionsOf(card));
-  }
-  refresh();
-});
-
-// ---- rotation (src-tauri/src/extras.rs set_rotation) ----
-// Change wallpaper every N minutes, through the ticked ones (each keeps its
-// own options). All ticked is sent as "all of them".
-const rotateOn = document.getElementById("rotate-on");
-const rotateMinutes = document.getElementById("rotate-minutes");
-const rotateWalls = document.getElementById("rotate-walls");
-const stillNote = document.getElementById("still-note");
+// ---- rotation: every N minutes, through the ticked wallpapers ----
+const rotateOn = $("#rotate-on");
+const rotateMinutes = $("#rotate-minutes");
+const rotateWalls = $("#rotate-walls");
+const stillNote = $("#still-note");
 for (const w of WALLPAPERS) {
   const label = document.createElement("label");
   label.innerHTML = `<input type="checkbox" value="${w.id}" checked /> ${w.name}`;
   rotateWalls.append(label);
 }
-const wallBoxes = () => [...rotateWalls.querySelectorAll("input")];
+const wallBoxes = () => $$("input", rotateWalls);
 async function saveRotation() {
   const walls = wallBoxes().filter((b) => b.checked).map((b) => b.value);
   rotateWalls.classList.toggle("off", !rotateOn.checked);
-  if (!IN_APP) return;
   try {
+    // all ticked is sent as "all of them" (also any added later)
     await invoke("set_rotation", { on: rotateOn.checked, minutes: Number(rotateMinutes.value), walls: walls.length === WALLPAPERS.length ? [] : walls });
   } catch (e) {
     stillNote.textContent = String(e);
@@ -337,10 +210,8 @@ function showRotation(r = {}) {
   rotateWalls.classList.toggle("off", !rotateOn.checked);
 }
 
-// ---- stills (extras.rs save_png) ----
-// The wallpaper itself, loaded in a hidden iframe at the screen's real size
-// with ?still (one frame at a random moment, sent back as a PNG), saved to
-// Pictures/AfterGlow.
+// ---- stills: the wallpaper rendered once at the screen's real size ----
+// (a hidden iframe with ?still sends one frame back as a PNG)
 let stillN = 0;
 function renderStill(id, options) {
   const w = Math.round(screen.width * devicePixelRatio);
@@ -386,8 +257,7 @@ async function saveStill(id, button) {
     const { blob, w, h } = await renderStill(id, options);
     const name = ["afterglow", id, options.tint, `${w}x${h}`, Date.now().toString(36)].filter(Boolean).join("-");
     if (IN_APP) {
-      const path = await invoke("save_png", { name, data: await toBase64(blob) });
-      stillNote.textContent = `saved ${path}`;
+      stillNote.textContent = `saved ${await invoke("save_png", { name, data: await toBase64(blob) })}`;
     } else {
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -402,67 +272,337 @@ async function saveStill(id, button) {
   button.disabled = false;
   button.textContent = "save a still";
 }
-document.getElementById("open-stills").addEventListener("click", () => IN_APP && invoke("open_stills_folder").catch((e) => (stillNote.textContent = String(e))));
-for (const [id, card] of cards) card.el.querySelector(".still").addEventListener("click", (e) => saveStill(id, e.currentTarget));
+$("#open-stills").addEventListener("click", () => invoke("open_stills_folder").catch((e) => (stillNote.textContent = String(e))));
 
-// ---- rules (signals.rs set_rules) ----
-// One row per app: what a new message does (pulse, flash, nothing), the
-// pulse colour (the app's own, or one you pick) and whether its count brings
-// in jellies. Saved on every change; a bad row says why and isn't saved.
-const rulesBody = document.querySelector("#rules tbody");
-const rulesNote = document.getElementById("rules-note");
-const OWN = { whatsapp: "#25d366", signal: "#3a76f0", telegram: "#29a9eb", slack: "#e01e5a", teams: "#7b83eb", discord: "#5865f2", gmail: "#ea4335", outlook: "#288ee8", mail: "#4aa8ff", spotify: "#1db954" };
-function ruleRow(r = { source: "", on_new: "pulse", colour: "", count: true }) {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td><input class="src" placeholder="whatsapp" spellcheck="false" maxlength="32" aria-label="app" /></td>
-    <td><select class="on" aria-label="new message"><option value="pulse">pulse</option><option value="flash">flash</option><option value="nothing">nothing</option></select></td>
-    <td class="col"><select class="which" aria-label="colour"><option value="">app's own</option><option value="pick">pick</option></select> <input type="color" class="hex" aria-label="pulse colour" /></td>
-    <td><input type="checkbox" class="cnt" aria-label="counts as waiting" /></td>
-    <td><button type="button" class="del" aria-label="remove rule">×</button></td>`;
-  const $ = (s) => tr.querySelector(s);
-  $(".src").value = r.source;
-  $(".on").value = r.on_new;
-  $(".which").value = r.colour ? "pick" : "";
-  $(".hex").value = r.colour || OWN[r.source] || "#33ff99";
-  $(".cnt").checked = r.count;
-  const sync = () => {
-    $(".which").hidden = $(".on").value !== "pulse";
-    $(".hex").hidden = $(".which").hidden || $(".which").value !== "pick";
+// =========================== apps ===========================
+// Two parts: what AfterGlow listens to (connectors and accounts), and one
+// row per app saying what its messages do. The "every app" row is the
+// default (the "*" rule); an app row that hasn't been changed follows it,
+// shown dim. Changing a row gives that app its own rule (signals.rs Rule);
+// "reset" drops it again. Saved on every change.
+
+// ---- listen to: one row per connector, with a status line ----
+const connectorsEl = $("#connectors");
+function connectorRow(c) {
+  let row = $(`[data-id="${c.id}"]`, connectorsEl);
+  if (!row) {
+    row = document.createElement("label");
+    row.className = "connector";
+    row.dataset.id = c.id;
+    row.innerHTML = `<input type="checkbox" /> <span class="name"></span> <span class="status dim"></span>`;
+    $("input", row).addEventListener("change", (e) => invoke("set_connector", { id: c.id, on: e.target.checked }).then(refreshApps));
+    connectorsEl.append(row);
+  }
+  $("input", row).checked = c.on;
+  $(".name", row).textContent = c.name;
+  const status = $(".status", row);
+  status.textContent = c.on ? (c.status?.text ?? "starting…") : "off";
+  status.dataset.state = c.on ? (c.status?.state ?? "") : "off";
+}
+// Accounts (Gmail, Outlook, Spotify): the app registration and sign-in,
+// under the connector's row, only while it's switched on. Inputs are left
+// alone while focused, so the refresh doesn't fight your typing.
+function accountPanel(a) {
+  const row = $(`[data-id="${a.id}"]`, connectorsEl);
+  if (!row) return;
+  let panel = $(`[data-account="${a.id}"]`, connectorsEl);
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "account";
+    panel.dataset.account = a.id;
+    const secret = a.id === "gmail" ? `<input class="secret" type="password" placeholder="client secret" autocomplete="off" aria-label="client secret" />` : "";
+    panel.innerHTML = `
+      <input class="client" placeholder="client id" autocomplete="off" spellcheck="false" aria-label="client id" /> ${secret}
+      <button type="button" class="save">save</button>
+      <button type="button" class="signin"></button>
+      <div class="dim redirect"></div>`;
+    $(".save", panel).addEventListener("click", () =>
+      invoke("set_client", { id: a.id, clientId: $(".client", panel).value, clientSecret: $(".secret", panel)?.value ?? "" }).then(() => {
+        const s = $(".secret", panel);
+        if (s) s.value = "";
+        refreshApps();
+      }),
+    );
+    $(".signin", panel).addEventListener("click", (e) => invoke(e.target.dataset.signedIn === "1" ? "account_sign_out" : "account_sign_in", { id: a.id }).then(refreshApps));
+    row.after(panel);
+  }
+  panel.hidden = !$("input", row).checked;
+  const client = $(".client", panel);
+  if (document.activeElement !== client) client.value = a.client_id;
+  const secret = $(".secret", panel);
+  if (secret && document.activeElement !== secret) secret.placeholder = a.has_secret ? "client secret (saved)" : "client secret";
+  const btn = $(".signin", panel);
+  btn.textContent = a.signed_in ? "sign out" : "sign in";
+  btn.dataset.signedIn = a.signed_in ? "1" : "0";
+  btn.disabled = !a.client_id;
+  $(".redirect", panel).textContent = `register this redirect URI with the app: ${a.redirect}`;
+}
+
+// ---- what each app does ----
+// Known apps and their own colours (signals.rs COLOURS)
+const KNOWN = [
+  ["whatsapp", "WhatsApp", "#25d366"],
+  ["signal", "Signal", "#3a76f0"],
+  ["telegram", "Telegram", "#29a9eb"],
+  ["slack", "Slack", "#e01e5a"],
+  ["teams", "Teams", "#7b83eb"],
+  ["discord", "Discord", "#5865f2"],
+  ["gmail", "Gmail", "#ea4335"],
+  ["outlook", "Outlook", "#288ee8"],
+  ["mail", "Mail", "#4aa8ff"],
+  ["spotify", "Spotify", "#1db954"],
+];
+const BRAND = "#33ff99";
+const ownColour = (source) => KNOWN.find(([id]) => id === source)?.[2] ?? BRAND;
+const DEFAULT_RULE = { on_new: "pulse", colour: "", count: true };
+const appsBody = $("#apps tbody");
+const appsNote = $("#apps-note");
+const rows = new Map(); // source -> { tr, own (has its own rule), custom }
+
+function ruleOf(row) {
+  return {
+    on_new: $(".on", row.tr).value,
+    colour: $(".which", row.tr).value === "pick" ? $(".hex", row.tr).value : "",
+    count: $(".cnt", row.tr).checked,
   };
-  sync();
-  tr.addEventListener("change", () => {
-    sync();
+}
+function setRow(row, rule) {
+  $(".on", row.tr).value = rule.on_new;
+  $(".which", row.tr).value = rule.colour ? "pick" : "";
+  $(".hex", row.tr).value = rule.colour || ownColour(row.source);
+  $(".cnt", row.tr).checked = rule.count;
+  // a colour only matters for a pulse
+  $(".which", row.tr).hidden = rule.on_new !== "pulse";
+  $(".hex", row.tr).hidden = rule.on_new !== "pulse" || !rule.colour;
+  $(".dot", row.tr).style.background = rule.on_new === "pulse" ? rule.colour || ownColour(row.source) : "transparent";
+}
+function defaults() {
+  return rows.has("*") ? ruleOf(rows.get("*")) : DEFAULT_RULE;
+}
+// Rows that follow the default show its values, dimmed
+function followDefault() {
+  const d = defaults();
+  for (const row of rows.values()) {
+    if (row.source === "*") continue;
+    row.tr.classList.toggle("inherit", !row.own);
+    $(".reset", row.tr).hidden = !row.own || row.custom;
+    if (!row.own) setRow(row, d);
+  }
+}
+
+function appRow(source, { name, custom = false, rule = null } = {}) {
+  if (rows.has(source)) return rows.get(source);
+  const tr = document.createElement("tr");
+  const label = source === "*" ? `every app <span class="dim">default</span>` : name ?? source;
+  tr.innerHTML = `
+    <td class="name"><span class="dot" aria-hidden="true"></span> ${custom && !source ? `<input class="src" placeholder="build" spellcheck="false" maxlength="32" aria-label="app name" />` : `<span>${label}</span>`}</td>
+    <td><select class="on" aria-label="new message"><option value="pulse">pulse</option><option value="flash">flash</option><option value="nothing">nothing</option></select></td>
+    <td class="col"><select class="which" aria-label="colour"><option value="">${source === "*" ? "each app's own" : "its own"}</option><option value="pick">pick…</option></select> <input type="color" class="hex" aria-label="pulse colour" /></td>
+    <td><input type="checkbox" class="cnt" aria-label="counts as waiting" /></td>
+    <td class="waiting dim"></td>
+    <td class="row-actions">${source === "*" ? "" : `<button type="button" class="try">try</button>`} <button type="button" class="reset" hidden>reset</button>${custom ? ` <button type="button" class="del" aria-label="remove">×</button>` : ""}</td>`;
+  const row = { tr, source, own: !!rule || custom || source === "*", custom };
+  rows.set(source, row);
+  setRow(row, rule ?? defaults());
+
+  tr.addEventListener("change", (e) => {
+    if (e.target.classList.contains("src")) return;
+    if ($(".which", tr).value === "pick" && e.target.classList.contains("which")) $(".hex", tr).value = ownColour(row.source);
+    row.own = true;
+    setRow(row, ruleOf(row));
+    followDefault();
     saveRules();
   });
-  $(".src").addEventListener("input", () => {
-    if ($(".which").value === "") $(".hex").value = OWN[$(".src").value.trim().toLowerCase()] || "#33ff99";
+  // a new app: named first, then it's a row like any other
+  const src = $(".src", tr);
+  if (src)
+    src.addEventListener("change", () => {
+      const name = src.value.trim().toLowerCase();
+      if (!name || rows.has(name)) return (appsNote.textContent = name ? `${name} is already in the list` : "");
+      rows.delete(row.source);
+      row.source = name;
+      rows.set(name, row);
+      src.replaceWith(Object.assign(document.createElement("span"), { textContent: name }));
+      setRow(row, ruleOf(row));
+      saveRules();
+    });
+  $(".try", tr)?.addEventListener("click", () => sendSignal({ source: row.source || "test", kind: "new" }));
+  $(".reset", tr).addEventListener("click", () => {
+    row.own = false;
+    followDefault();
+    saveRules();
   });
-  $(".del").addEventListener("click", () => {
+  $(".del", tr)?.addEventListener("click", () => {
+    rows.delete(row.source);
     tr.remove();
     saveRules();
   });
-  rulesBody.append(tr);
-  return tr;
+  // "every app" stays last
+  const every = rows.get("*")?.tr;
+  if (every && every !== tr) appsBody.insertBefore(tr, every);
+  else appsBody.append(tr);
+  followDefault();
+  return row;
 }
+
 function readRules() {
-  return [...rulesBody.rows]
-    .map((tr) => ({
-      source: tr.querySelector(".src").value.trim().toLowerCase(),
-      on_new: tr.querySelector(".on").value,
-      colour: tr.querySelector(".which").value === "pick" ? tr.querySelector(".hex").value : "",
-      count: tr.querySelector(".cnt").checked,
-    }))
-    .filter((r) => r.source);
+  const out = [];
+  for (const row of rows.values()) {
+    if (!row.source || !row.own) continue;
+    const r = ruleOf(row);
+    // the default row is only saved when it differs from the built-in one
+    if (row.source === "*" && r.on_new === "pulse" && !r.colour && r.count) continue;
+    out.push({ source: row.source, ...r });
+  }
+  return out;
 }
 async function saveRules() {
-  if (!IN_APP) return (rulesNote.textContent = "open Settings from the AfterGlow tray to save rules");
   try {
     await invoke("set_rules", { rules: readRules() });
-    rulesNote.textContent = "saved";
-    setTimeout(() => rulesNote.textContent === "saved" && (rulesNote.textContent = ""), 1500);
+    appsNote.textContent = "saved";
+    setTimeout(() => appsNote.textContent === "saved" && (appsNote.textContent = ""), 1500);
   } catch (e) {
-    rulesNote.textContent = String(e);
+    appsNote.textContent = String(e);
   }
 }
-document.getElementById("add-rule").addEventListener("click", () => ruleRow().querySelector(".src").focus());
+function showRules(rules = []) {
+  const star = rules.find((r) => r.source === "*");
+  appRow("*", { rule: star ?? DEFAULT_RULE });
+  for (const [id, name] of KNOWN) appRow(id, { name, rule: rules.find((r) => r.source === id) });
+  for (const r of rules) if (r.source !== "*" && !rows.has(r.source)) appRow(r.source, { custom: true, rule: r });
+  followDefault();
+}
+$("#add-app").addEventListener("click", () => {
+  const row = appRow("", { custom: true });
+  $(".src", row.tr)?.focus();
+});
+
+// ---- refreshing what the apps page shows (every 2 s while it's open) ----
+async function refreshApps() {
+  if ($("#page-apps").hidden) return;
+  try {
+    const list = await invoke("connectors_state");
+    if (!list.length) connectorsEl.textContent = IN_APP ? "none on this computer yet" : "open Settings from the AfterGlow tray to see these";
+    list.forEach(connectorRow);
+    (await invoke("accounts_state")).forEach(accountPanel);
+    const waiting = await invoke("unread_by_app");
+    for (const row of rows.values()) $(".waiting", row.tr).textContent = waiting[row.source] ? String(waiting[row.source]) : "";
+    // apps that turned up through a connector but aren't listed yet
+    for (const source of Object.keys(waiting)) if (source !== "simulator" && !rows.has(source)) appRow(source, { custom: true });
+  } catch (e) {
+    connectorsEl.textContent = String(e);
+  }
+}
+setInterval(refreshApps, 2000);
+
+// ---- try it: the simulator (signals.rs send_signal) ----
+// The "waiting" buttons keep their own count, sent as the "simulator" app's
+// unread count (added to any real apps' counts)
+let simWaiting = 0;
+const waitingNote = $("#waiting");
+async function sendSignal(signal) {
+  try {
+    await invoke("send_signal", { signal });
+  } catch (e) {
+    waitingNote.textContent = String(e);
+  }
+}
+$$("[data-signal]").forEach((b) => b.addEventListener("click", () => sendSignal(JSON.parse(b.dataset.signal))));
+$$("[data-waiting]").forEach((b) =>
+  b.addEventListener("click", () => {
+    simWaiting = Number(b.dataset.waiting) === 0 ? 0 : simWaiting + Number(b.dataset.waiting);
+    waitingNote.textContent = simWaiting ? `${simWaiting} waiting` : "";
+    sendSignal(simWaiting ? { source: "simulator", kind: "unread", count: simWaiting } : { source: "simulator", kind: "clear" });
+  }),
+);
+
+// =========================== pausing ===========================
+const pauseBoxes = $$("[data-pause]");
+const pausingNote = $("#pausing-note");
+const pauseBox = (k) => pauseBoxes.find((b) => b.dataset.pause === k).checked;
+pauseBoxes.forEach((b) =>
+  b.addEventListener("change", () =>
+    invoke("set_pausing", { covered: pauseBox("covered"), fullscreen: pauseBox("fullscreen"), battery: pauseBox("battery"), quietDnd: pauseBox("quiet_dnd") }).catch((e) => (pausingNote.textContent = String(e))),
+  ),
+);
+$("#autostart").addEventListener("change", async (e) => {
+  try {
+    e.target.checked = await invoke("set_autostart", { on: e.target.checked });
+  } catch (err) {
+    pausingNote.textContent = String(err);
+  }
+});
+function showPausing(s) {
+  const v = { covered: s.pause_covered, fullscreen: s.pause_fullscreen, battery: s.pause_on_battery, quiet_dnd: s.quiet_dnd };
+  pauseBoxes.forEach((b) => (b.checked = v[b.dataset.pause] ?? true));
+}
+
+// =========================== performance ===========================
+const fpsInputs = $$('input[name="fps"]');
+fpsInputs.forEach((input) => input.addEventListener("change", () => input.checked && invoke("set_fps", { fps: Number(input.value) })));
+const renderInputs = $$('input[name="render"]');
+function showRunning(pref) {
+  const { gpu, text } = describe(pref);
+  $("#running").textContent = text;
+  $("#running").className = gpu ? "on" : "";
+}
+renderInputs.forEach((input) =>
+  input.addEventListener("change", () => {
+    if (!input.checked) return;
+    invoke("set_renderer", { renderer: input.value });
+    settings.renderer = input.value;
+    showRunning(input.value);
+  }),
+);
+
+// =========================== about ===========================
+if (IN_APP)
+  import("@tauri-apps/api/app").then(async ({ getVersion }) => {
+    const v = `AfterGlow v${await getVersion()}`;
+    $("#version").textContent = v.toLowerCase();
+    $("#about-version").textContent = v;
+  });
+$("#copy-curl").addEventListener("click", async (e) => {
+  try {
+    await navigator.clipboard.writeText($("#curl").textContent);
+    e.target.textContent = "copied";
+    setTimeout(() => (e.target.textContent = "copy"), 1500);
+  } catch {}
+});
+$$("a[href^='https://']").forEach((a) =>
+  a.addEventListener("click", (e) => {
+    if (!IN_APP) return;
+    e.preventDefault();
+    invoke("open_link", { url: a.href });
+  }),
+);
+
+// =========================== load ===========================
+// Fill every page from what's saved. Again when the window comes back to
+// the front, so changes made in the tray menu show here too.
+let first = true;
+async function load() {
+  const saved = await invoke("get_settings");
+  settings = { wallpaper: saved.wallpaper ?? "jellyfish", options: saved.options ?? {}, renderer: saved.renderer ?? "auto" };
+  const fps = String(saved.fps ?? 30);
+  fpsInputs.forEach((input) => (input.checked = input.value === fps));
+  renderInputs.forEach((input) => (input.checked = input.value === settings.renderer));
+  showRunning(settings.renderer);
+  showRotation(saved.rotate);
+  showPausing(saved);
+  $("#autostart").checked = await invoke("autostart_state");
+  if (first) {
+    showRules(saved.rules ?? []);
+    for (const [id, card] of cards) {
+      const mine = settings.options[id] ?? {};
+      for (const [key, sel] of card.selects) sel.value = mine[key] ?? "";
+      nameHues(card);
+      card.preview.src = previewSrc(id, optionsOf(card));
+    }
+    first = false;
+  }
+  markShowing();
+}
+addEventListener("focus", () => load().catch(() => {}));
+show();
+load();

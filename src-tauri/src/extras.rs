@@ -106,3 +106,13 @@ pub fn open_stills_folder(app: AppHandle) -> Result<(), String> {
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     open::that(dir).map_err(|e| e.to_string())
 }
+
+/// Settings → about: open the project's page in the browser (only links to
+/// the project, so a page can't open anything else)
+#[tauri::command]
+pub fn open_link(url: String) -> Result<(), String> {
+    if !url.starts_with("https://github.com/wajenaqv/afterglow") {
+        return Err("not a link AfterGlow opens".into());
+    }
+    open::that(url).map_err(|e| e.to_string())
+}

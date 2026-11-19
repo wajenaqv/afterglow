@@ -223,3 +223,9 @@ pub fn wall_log(msg: String) {
 pub fn signal_state(app: AppHandle) -> u32 {
     app.state::<Bus>().total()
 }
+
+/// Settings → apps: how many are waiting, per app
+#[tauri::command]
+pub fn unread_by_app(app: AppHandle) -> BTreeMap<String, u32> {
+    app.state::<Bus>().unread.lock().unwrap().clone()
+}

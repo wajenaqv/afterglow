@@ -32,6 +32,8 @@ pub struct TrayItems {
     walls: Mutex<Vec<(String, CheckMenuItem<Wry>)>>,
     rates: Mutex<Vec<(u32, CheckMenuItem<Wry>)>>,
     rotate: Mutex<Option<CheckMenuItem<Wry>>>,
+    /// pause rules, quiet and start at login, by menu id
+    checks: Mutex<Vec<(&'static str, CheckMenuItem<Wry>)>>,
 }
 
 /// Try a signal ▸: (label, signal). "waiting" adds 3 to the simulator's own
@@ -128,7 +130,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         ],
     )?;
 
-    app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates), rotate: Mutex::new(Some(rotate.clone())) });
+    app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates), rotate: Mutex::new(Some(rotate.clone())),
+        checks: Mutex::new(vec![("pause-covered", covered.clone()), ("pause-fullscreen", fullscreen.clone()), ("pause-battery", battery.clone()), ("quiet-dnd", quiet.clone()), ("autostart", autostart.clone())]),
+    });
 
     let mut tray = TrayIconBuilder::with_id(TRAY_ID).tooltip(tooltip(&saved)).menu(&menu).show_menu_on_left_click(true);
     // The AG logo made for small sizes (scripts/icon.js): green on a black
@@ -228,10 +232,52 @@ pub fn sync(app: &AppHandle) {
         for (fps, item) in items.rates.lock().unwrap().iter() {
             let _ = item.set_checked(*fps == s.fps);
         }
+        for (id, item) in items.checks.lock().unwrap().iter() {
+            let on = match *id {
+                "pause-covered" => s.pause_covered,
+                "pause-fullscreen" => s.pause_fullscreen,
+                "pause-battery" => s.pause_on_battery,
+                "quiet-dnd" => s.quiet_dnd,
+                "autostart" => app.autolaunch().is_enabled().unwrap_or(false),
+                _ => continue,
+            };
+            let _ = item.set_checked(on);
+        }
     }
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
         let _ = tray.set_tooltip(Some(tooltip(&s)));
     }
+}
+
+/// Settings → pausing: the pause rules (the same as the tray's ticks)
+#[tauri::command]
+pub fn set_pausing(app: AppHandle, covered: bool, fullscreen: bool, battery: bool, quiet_dnd: bool) {
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.pause_covered = covered;
+        s.pause_fullscreen = fullscreen;
+        s.pause_on_battery = battery;
+        s.quiet_dnd = quiet_dnd;
+        s.clone()
+    };
+    settings::save(&app, &snapshot);
+    host::apply_pause(&app);
+    sync(&app);
+}
+
+/// Settings → pausing: start at login (read and set)
+#[tauri::command]
+pub fn autostart_state(app: AppHandle) -> bool {
+    app.autolaunch().is_enabled().unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn set_autostart(app: AppHandle, on: bool) -> Result<bool, String> {
+    let result = if on { app.autolaunch().enable() } else { app.autolaunch().disable() };
+    result.map_err(|e| e.to_string())?;
+    sync(&app);
+    Ok(app.autolaunch().is_enabled().unwrap_or(on))
 }
 
 /// Opens the Settings window. It only exists while open: created here and
