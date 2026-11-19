@@ -18,6 +18,13 @@
       <p class="dim hint">Every monitor shows the one you pick. Options apply straight away to the one that's showing.</p>
       <div id="cards" class="cards"></div>
 
+      <h3 class="sub">rotation</h3>
+      <div class="perf rotate">
+        <label><input type="checkbox" id="rotate-on" /> change wallpaper every <select id="rotate-minutes"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">hour</option></select></label>
+        <div class="rotate-walls" id="rotate-walls"></div>
+      </div>
+      <p class="dim hint stills"><span id="still-note">"save a still" on a card saves a PNG at your screen's size to Pictures/AfterGlow</span> <button type="button" id="open-stills">open folder</button></p>
+
       <h2 class="section"><span class="dim">#</span> performance</h2>
       <p class="dim hint">Fewer frames, less CPU. The slow motion stays smooth at 20; at 15 it's a little steppy up close.</p>
       <div class="perf" role="radiogroup" aria-label="frame rate">
@@ -37,6 +44,14 @@
       <h2 class="section"><span class="dim">#</span> connectors</h2>
       <p class="dim hint">Let your apps nudge the wallpaper. AfterGlow only reads which app and how many, never what a message says.</p>
       <div id="connectors" class="connectors"></div>
+
+      <h3 class="sub">rules</h3>
+      <p class="dim hint">What each app's messages do. <code>*</code> is any app without its own rule; apps with no rule pulse in their own colour and count as waiting.</p>
+      <table class="rules" id="rules">
+        <thead><tr><th>app</th><th>new message</th><th>colour</th><th>counts as waiting</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="rules-actions"><button type="button" id="add-rule">+ rule</button> <span class="dim" id="rules-note"></span></p>
 
       <h2 class="section"><span class="dim">#</span> signals</h2>
       <p class="dim hint">Try the reactions without any apps connected. A message pulses one jelly (or sends a cat) in that app's colour; things waiting bring in more jellies.</p>

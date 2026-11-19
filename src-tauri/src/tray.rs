@@ -31,6 +31,7 @@ const TRAY_ID: &str = "afterglow";
 pub struct TrayItems {
     walls: Mutex<Vec<(String, CheckMenuItem<Wry>)>>,
     rates: Mutex<Vec<(u32, CheckMenuItem<Wry>)>>,
+    rotate: Mutex<Option<CheckMenuItem<Wry>>>,
 }
 
 /// Try a signal ▸: (label, signal). "waiting" adds 3 to the simulator's own
@@ -98,6 +99,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let try_menu = Submenu::with_items(app, "Try a signal", true, &try_refs)?;
 
     let pause = CheckMenuItem::with_id(app, "pause", "Pause", true, false, None::<&str>)?;
+    let rotate = CheckMenuItem::with_id(app, "rotate", "Rotate wallpapers", true, saved.rotate.on, None::<&str>)?;
     let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "Pause when an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
     let battery = CheckMenuItem::with_id(app, "pause-battery", "Pause on battery", true, saved.pause_on_battery, None::<&str>)?;
     let covered = CheckMenuItem::with_id(app, "pause-covered", "Pause when hidden by windows", true, saved.pause_covered, None::<&str>)?;
@@ -110,6 +112,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         &[
             &wallpaper_menu,
             &rate_menu,
+            &rotate,
             &try_menu,
             &PredefinedMenuItem::separator(app)?,
             &pause,
@@ -125,7 +128,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         ],
     )?;
 
-    app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates) });
+    app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates), rotate: Mutex::new(Some(rotate.clone())) });
 
     let mut tray = TrayIconBuilder::with_id(TRAY_ID).tooltip(tooltip(&saved)).menu(&menu).show_menu_on_left_click(true);
     // The AG logo made for small sizes (scripts/icon.js): green on a black
@@ -196,6 +199,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 // show what actually happened
                 let _ = autostart.set_checked(app.autolaunch().is_enabled().unwrap_or(on));
             }
+            "rotate" => {
+                let r = app.state::<Host>().settings.lock().unwrap().rotate.clone();
+                if let Err(e) = crate::extras::set_rotation(app.clone(), rotate.is_checked().unwrap_or(false), r.minutes, r.walls) {
+                    eprintln!("afterglow: {e}");
+                }
+            }
             "settings" => show_settings(app),
             "quit" => app.exit(0),
             _ => {}
@@ -212,6 +221,9 @@ pub fn sync(app: &AppHandle) {
     if let Some(items) = app.try_state::<TrayItems>() {
         for (id, item) in items.walls.lock().unwrap().iter() {
             let _ = item.set_checked(*id == s.wallpaper);
+        }
+        if let Some(item) = items.rotate.lock().unwrap().as_ref() {
+            let _ = item.set_checked(s.rotate.on);
         }
         for (fps, item) in items.rates.lock().unwrap().iter() {
             let _ = item.set_checked(*fps == s.fps);

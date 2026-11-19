@@ -42,6 +42,10 @@ pub struct Settings {
     pub connectors: BTreeMap<String, bool>,
     /// App registrations for the account connectors (client id, secret), by id
     pub clients: BTreeMap<String, crate::connectors::oauth::Client>,
+    /// What each app's signals do (signals.rs Rule), first match wins
+    pub rules: Vec<crate::signals::Rule>,
+    /// Rotating through wallpapers (extras.rs)
+    pub rotate: crate::extras::Rotate,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -62,6 +66,8 @@ impl Default for Settings {
             renderer: "auto".into(),
             connectors: BTreeMap::new(),
             clients: BTreeMap::new(),
+            rules: Vec::new(),
+            rotate: Default::default(),
         }
     }
 }

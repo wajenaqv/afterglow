@@ -7,10 +7,12 @@
 //   signals.rs   the signal bus: signals in, reactions out to the wallpapers
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
 //   connectors/  watchers that turn other apps' activity into signals
+//   extras.rs    wallpaper rotation and saving a still as a PNG
 //   platform/    the per-OS part of putting a window behind the desktop icons
 
 mod connectors;
 mod endpoint;
+mod extras;
 mod host;
 mod platform;
 mod settings;
@@ -41,6 +43,10 @@ pub fn run() {
             signals::send_signal,
             signals::signal_state,
             signals::wall_log,
+            signals::set_rules,
+            extras::set_rotation,
+            extras::save_png,
+            extras::open_stills_folder,
             connectors::connectors_state,
             connectors::set_connector,
             connectors::accounts::accounts_state,
@@ -57,6 +63,7 @@ pub fn run() {
             tray::build(app.handle())?;
             endpoint::start(app.handle());
             connectors::start(app.handle());
+            extras::start_rotation(app.handle());
             Ok(())
         })
         .build(tauri::generate_context!())

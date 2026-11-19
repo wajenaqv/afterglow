@@ -122,7 +122,7 @@ for (const w of WALLPAPERS) {
       <p class="dim about">${w.about}</p>
       <p class="dim reacts">reacts to: ${(w.reacts ?? []).join(" · ") || "nothing yet"}</p>
       <div class="opts"></div>
-      <button type="button" class="use"></button>
+      <div class="actions"><button type="button" class="use"></button> <button type="button" class="still">save a still</button></div>
     </div>`;
   const opts = el.querySelector(".opts");
   const selects = new Map();
@@ -282,12 +282,15 @@ renderInputs.forEach((input) =>
   input.addEventListener("change", () => {
     if (!input.checked) return;
     api.setRenderer(input.value);
+    settings.renderer = input.value;
     showRunning(input.value);
   }),
 );
 
 api.get().then((saved) => {
-  settings = { wallpaper: saved.wallpaper ?? "jellyfish", options: saved.options ?? {} };
+  settings = { wallpaper: saved.wallpaper ?? "jellyfish", options: saved.options ?? {}, renderer: saved.renderer ?? "auto" };
+  showRotation(saved.rotate);
+  (saved.rules ?? []).forEach((r) => ruleRow(r));
   const fps = String(saved.fps ?? 30);
   fpsInputs.forEach((input) => (input.checked = input.value === fps));
   const render = saved.renderer ?? "auto";
@@ -301,3 +304,165 @@ api.get().then((saved) => {
   }
   refresh();
 });
+
+// ---- rotation (src-tauri/src/extras.rs set_rotation) ----
+// Change wallpaper every N minutes, through the ticked ones (each keeps its
+// own options). All ticked is sent as "all of them".
+const rotateOn = document.getElementById("rotate-on");
+const rotateMinutes = document.getElementById("rotate-minutes");
+const rotateWalls = document.getElementById("rotate-walls");
+const stillNote = document.getElementById("still-note");
+for (const w of WALLPAPERS) {
+  const label = document.createElement("label");
+  label.innerHTML = `<input type="checkbox" value="${w.id}" checked /> ${w.name}`;
+  rotateWalls.append(label);
+}
+const wallBoxes = () => [...rotateWalls.querySelectorAll("input")];
+async function saveRotation() {
+  const walls = wallBoxes().filter((b) => b.checked).map((b) => b.value);
+  rotateWalls.classList.toggle("off", !rotateOn.checked);
+  if (!IN_APP) return;
+  try {
+    await invoke("set_rotation", { on: rotateOn.checked, minutes: Number(rotateMinutes.value), walls: walls.length === WALLPAPERS.length ? [] : walls });
+  } catch (e) {
+    stillNote.textContent = String(e);
+  }
+}
+[rotateOn, rotateMinutes, ...wallBoxes()].forEach((el) => el.addEventListener("change", saveRotation));
+function showRotation(r = {}) {
+  rotateOn.checked = !!r.on;
+  rotateMinutes.value = String(r.minutes ?? 10);
+  const walls = r.walls ?? [];
+  wallBoxes().forEach((b) => (b.checked = !walls.length || walls.includes(b.value)));
+  rotateWalls.classList.toggle("off", !rotateOn.checked);
+}
+
+// ---- stills (extras.rs save_png) ----
+// The wallpaper itself, loaded in a hidden iframe at the screen's real size
+// with ?still (one frame at a random moment, sent back as a PNG), saved to
+// Pictures/AfterGlow.
+let stillN = 0;
+function renderStill(id, options) {
+  const w = Math.round(screen.width * devicePixelRatio);
+  const h = Math.round(screen.height * devicePixelRatio);
+  const n = String(++stillN);
+  const at = Math.round(40 + Math.random() * 4000);
+  const q = queryFor(options);
+  const frame = document.createElement("iframe");
+  frame.className = "still-frame";
+  frame.style.width = `${w}px`;
+  frame.style.height = `${h}px`;
+  frame.tabIndex = -1;
+  frame.setAttribute("aria-hidden", "true");
+  return new Promise((resolve, reject) => {
+    const done = (fn, v) => {
+      removeEventListener("message", onMessage);
+      clearTimeout(timer);
+      frame.remove();
+      fn(v);
+    };
+    const onMessage = (e) => {
+      if (e.origin !== location.origin || e.data?.still !== n) return;
+      e.data.blob ? done(resolve, { blob: e.data.blob, w, h }) : done(reject, new Error("the wallpaper sent no picture"));
+    };
+    const timer = setTimeout(() => done(reject, new Error("the still took too long")), 30000);
+    addEventListener("message", onMessage);
+    const render = settings.renderer && settings.renderer !== "auto" ? `&render=${settings.renderer}` : "";
+    frame.src = `/wallpapers/${id}.html?still=${n}&at=${at}&hover=0${q ? `&${q}` : ""}${render}`;
+    document.body.append(frame);
+  });
+}
+async function toBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let s = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function saveStill(id, button) {
+  const options = optionsOf(cards.get(id));
+  button.disabled = true;
+  button.textContent = "rendering…";
+  try {
+    const { blob, w, h } = await renderStill(id, options);
+    const name = ["afterglow", id, options.tint, `${w}x${h}`, Date.now().toString(36)].filter(Boolean).join("-");
+    if (IN_APP) {
+      const path = await invoke("save_png", { name, data: await toBase64(blob) });
+      stillNote.textContent = `saved ${path}`;
+    } else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${name}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      stillNote.textContent = `downloaded ${name}.png`;
+    }
+  } catch (e) {
+    stillNote.textContent = `couldn't save a still: ${e.message ?? e}`;
+  }
+  button.disabled = false;
+  button.textContent = "save a still";
+}
+document.getElementById("open-stills").addEventListener("click", () => IN_APP && invoke("open_stills_folder").catch((e) => (stillNote.textContent = String(e))));
+for (const [id, card] of cards) card.el.querySelector(".still").addEventListener("click", (e) => saveStill(id, e.currentTarget));
+
+// ---- rules (signals.rs set_rules) ----
+// One row per app: what a new message does (pulse, flash, nothing), the
+// pulse colour (the app's own, or one you pick) and whether its count brings
+// in jellies. Saved on every change; a bad row says why and isn't saved.
+const rulesBody = document.querySelector("#rules tbody");
+const rulesNote = document.getElementById("rules-note");
+const OWN = { whatsapp: "#25d366", signal: "#3a76f0", telegram: "#29a9eb", slack: "#e01e5a", teams: "#7b83eb", discord: "#5865f2", gmail: "#ea4335", outlook: "#288ee8", mail: "#4aa8ff", spotify: "#1db954" };
+function ruleRow(r = { source: "", on_new: "pulse", colour: "", count: true }) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td><input class="src" placeholder="whatsapp" spellcheck="false" maxlength="32" aria-label="app" /></td>
+    <td><select class="on" aria-label="new message"><option value="pulse">pulse</option><option value="flash">flash</option><option value="nothing">nothing</option></select></td>
+    <td class="col"><select class="which" aria-label="colour"><option value="">app's own</option><option value="pick">pick</option></select> <input type="color" class="hex" aria-label="pulse colour" /></td>
+    <td><input type="checkbox" class="cnt" aria-label="counts as waiting" /></td>
+    <td><button type="button" class="del" aria-label="remove rule">×</button></td>`;
+  const $ = (s) => tr.querySelector(s);
+  $(".src").value = r.source;
+  $(".on").value = r.on_new;
+  $(".which").value = r.colour ? "pick" : "";
+  $(".hex").value = r.colour || OWN[r.source] || "#33ff99";
+  $(".cnt").checked = r.count;
+  const sync = () => {
+    $(".which").hidden = $(".on").value !== "pulse";
+    $(".hex").hidden = $(".which").hidden || $(".which").value !== "pick";
+  };
+  sync();
+  tr.addEventListener("change", () => {
+    sync();
+    saveRules();
+  });
+  $(".src").addEventListener("input", () => {
+    if ($(".which").value === "") $(".hex").value = OWN[$(".src").value.trim().toLowerCase()] || "#33ff99";
+  });
+  $(".del").addEventListener("click", () => {
+    tr.remove();
+    saveRules();
+  });
+  rulesBody.append(tr);
+  return tr;
+}
+function readRules() {
+  return [...rulesBody.rows]
+    .map((tr) => ({
+      source: tr.querySelector(".src").value.trim().toLowerCase(),
+      on_new: tr.querySelector(".on").value,
+      colour: tr.querySelector(".which").value === "pick" ? tr.querySelector(".hex").value : "",
+      count: tr.querySelector(".cnt").checked,
+    }))
+    .filter((r) => r.source);
+}
+async function saveRules() {
+  if (!IN_APP) return (rulesNote.textContent = "open Settings from the AfterGlow tray to save rules");
+  try {
+    await invoke("set_rules", { rules: readRules() });
+    rulesNote.textContent = "saved";
+    setTimeout(() => rulesNote.textContent === "saved" && (rulesNote.textContent = ""), 1500);
+  } catch (e) {
+    rulesNote.textContent = String(e);
+  }
+}
+document.getElementById("add-rule").addEventListener("click", () => ruleRow().querySelector(".src").focus());

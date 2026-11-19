@@ -8,7 +8,8 @@
 //   optional: "colour": "#rrggbb" (else the app's own colour, see COLOURS),
 //             "afterglow": seconds the pulse takes to fade (default 4)
 //
-// Until the rule editor exists, the rules are fixed:
+// Rules (Settings → rules, Rule below) can change what an app's signals do;
+// without one, the defaults:
 //   new    -> pulse in the app's colour
 //   unread -> count: the total waiting across all apps
 //   clear  -> that app's count back to 0
@@ -89,6 +90,61 @@ fn colour_for(source: &str) -> [u8; 3] {
     COLOURS.iter().find(|(name, _)| *name == source).map(|(_, c)| *c).unwrap_or(BRAND)
 }
 
+/// A rule (Settings → rules): what an app's signals do. The first rule whose
+/// source matches wins; "*" matches any app. Apps without one: pulse in
+/// their own colour, count as waiting.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(default)]
+pub struct Rule {
+    /// An app name ("whatsapp", "gmail", "build", …) or "*" for any app
+    pub source: String,
+    /// What a new message does: "pulse", "flash" or "nothing"
+    pub on_new: String,
+    /// "#rrggbb" for the pulse, or "" for the app's own colour
+    pub colour: String,
+    /// Whether its waiting count brings in jellies
+    pub count: bool,
+}
+
+impl Default for Rule {
+    fn default() -> Self {
+        Rule { source: "*".into(), on_new: "pulse".into(), colour: String::new(), count: true }
+    }
+}
+
+fn rule_for(app: &AppHandle, source: &str) -> Option<Rule> {
+    let host = app.state::<host::Host>();
+    let s = host.settings.lock().unwrap();
+    s.rules.iter().find(|r| r.source == source).or_else(|| s.rules.iter().find(|r| r.source == "*")).cloned()
+}
+
+/// Settings → rules: replace the rules (checked and saved)
+#[tauri::command]
+pub fn set_rules(app: AppHandle, rules: Vec<Rule>) -> Result<(), String> {
+    let mut clean = Vec::new();
+    for mut r in rules {
+        r.source = r.source.trim().to_ascii_lowercase();
+        if r.source.is_empty() || r.source.len() > 32 || !(r.source == "*" || r.source.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))) {
+            return Err(format!("rule app name: letters, digits, - _ . or * (got {})", r.source));
+        }
+        if !["pulse", "flash", "nothing"].contains(&r.on_new.as_str()) {
+            return Err("rule: pulse, flash or nothing".into());
+        }
+        if !r.colour.is_empty() && parse_colour(&r.colour).is_none() {
+            return Err(format!("rule colour: #rrggbb (got {})", r.colour));
+        }
+        clean.push(r);
+    }
+    let host = app.state::<host::Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.rules = clean;
+        s.clone()
+    };
+    crate::settings::save(&app, &snapshot);
+    Ok(())
+}
+
 /// Check a signal and turn it into reactions.
 pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
     let source = sig.source.trim().to_ascii_lowercase();
@@ -96,18 +152,36 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         return Err("source: 1-32 letters, digits, - _ .".into());
     }
     let bus = app.state::<Bus>();
+    // The user's rule for this app (Settings → rules), if any
+    let rule = rule_for(app, &source);
     let reaction = match sig.kind.as_str() {
         "new" => {
-            let colour = match &sig.colour {
-                Some(c) => parse_colour(c).ok_or("colour: #rrggbb")?,
-                None => colour_for(&source),
-            };
-            let afterglow = sig.afterglow.unwrap_or(4.0).clamp(0.5, 30.0);
-            Reaction::Pulse { colour, afterglow, source }
+            let on_new = rule.as_ref().map(|r| r.on_new.as_str()).unwrap_or("pulse");
+            match on_new {
+                "nothing" => {
+                    eprintln!("afterglow: signal from {source} ignored by a rule");
+                    return Ok(());
+                }
+                "flash" => Reaction::Flash,
+                _ => {
+                    let colour = match (&sig.colour, rule.as_ref().and_then(|r| parse_colour(&r.colour))) {
+                        (_, Some(ruled)) => ruled,
+                        (Some(c), None) => parse_colour(c).ok_or("colour: #rrggbb")?,
+                        (None, None) => colour_for(&source),
+                    };
+                    let afterglow = sig.afterglow.unwrap_or(4.0).clamp(0.5, 30.0);
+                    Reaction::Pulse { colour, afterglow, source }
+                }
+            }
         }
         "unread" => {
             let n = sig.count.ok_or("unread needs a count")?.min(9999);
-            bus.unread.lock().unwrap().insert(source, n);
+            // a rule can keep an app's count out of "waiting"
+            if rule.as_ref().is_some_and(|r| !r.count) {
+                bus.unread.lock().unwrap().remove(&source);
+            } else {
+                bus.unread.lock().unwrap().insert(source, n);
+            }
             Reaction::Count { n: bus.total() }
         }
         "clear" => {

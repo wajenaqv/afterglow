@@ -146,7 +146,7 @@ button:focus-visible {
 }
 button.use {
   align-self: flex-start;
-  margin-top: auto; /* every card's button sits on the same line */
+  /* the .actions row sits at the bottom of every card */
   cursor: pointer;
   color: var(--bright);
 }
@@ -274,4 +274,88 @@ footer {
   .cursor {
     animation: none;
   }
+}
+
+/* a card's buttons, on the same line in every card */
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: auto;
+}
+button.still {
+  cursor: pointer;
+  font-size: 12.5px;
+}
+button.still:hover:not(:disabled) {
+  border-color: var(--fg);
+}
+/* stills render at the screen's real size, off screen */
+.still-frame {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  border: 0;
+  visibility: hidden;
+}
+
+.rotate label {
+  cursor: pointer;
+}
+.rotate-walls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-left: 26px;
+}
+.rotate-walls.off {
+  opacity: 0.5;
+}
+.stills button,
+.rules button {
+  cursor: pointer;
+}
+
+.rules {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.rules th {
+  text-align: left;
+  font-weight: 400;
+  color: var(--dim);
+  padding: 0 14px 4px 0;
+  text-shadow: none;
+}
+.rules td {
+  padding: 3px 14px 3px 0;
+}
+.rules tbody:empty::after {
+  content: "no rules yet";
+  color: var(--dim);
+}
+.rules input.src {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 3px 8px;
+  width: 14ch;
+}
+.rules input[type="color"] {
+  width: 32px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  background: var(--bg);
+  vertical-align: middle;
+}
+.rules input[type="checkbox"],
+.rotate input {
+  accent-color: var(--fg);
+}
+.rules-actions {
+  margin: 8px 0 0;
 }
