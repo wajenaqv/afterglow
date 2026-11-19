@@ -45,8 +45,125 @@ pub fn attach(window: &tauri::WebviewWindow, _x: i32, _y: i32, _w: u32, _h: u32)
     Ok(())
 }
 
-/// macOS repaints the desktop by itself when our windows close.
-pub fn restore_desktop() {}
+// ---- a black system wallpaper while AfterGlow runs ----
+//
+// Mission Control and the Space-switch slide draw macOS's own copy of the
+// system wallpaper, never desktop-level windows like ours. So while AfterGlow
+// runs, the system wallpaper is plain black, matching the scenes' black.
+//
+// Restoring: the public API (desktopImageURLForScreen:) can't describe the
+// dynamic / Aerial wallpapers of macOS 14+ (it gives a still placeholder), so
+// setting it back that way would turn them into stills. Instead the wallpaper
+// store (~/Library/Application Support/com.apple.wallpaper/Store/Index.plist,
+// undocumented) is copied aside first and put back on quit, then
+// WallpaperAgent is restarted to read it. Tested on macOS 26.6; if a future
+// macOS moves the store, black_desktop does nothing rather than risk losing
+// the owner's wallpaper.
+//
+// The backup stays in AfterGlow's config folder until quit, so after a crash
+// the next launch keeps the original backup instead of backing up "black".
+// (A wallpaper picked in System Settings while AfterGlow runs is replaced by
+// the backup on quit.)
+
+static BACKUP: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+const BLACK_PNG: &[u8] = include_bytes!("../../assets/black.png");
+
+fn wallpaper_store() -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    let path = std::path::Path::new(&home).join("Library/Application Support/com.apple.wallpaper/Store/Index.plist");
+    path.is_file().then_some(path)
+}
+
+/// Back up the system wallpaper (once) and set every display to black.
+/// `dir` is AfterGlow's config folder. Main thread only (NSWorkspace).
+pub fn black_desktop(dir: &std::path::Path) {
+    let Some(store) = wallpaper_store() else {
+        eprintln!("afterglow: no wallpaper store found; leaving the system wallpaper alone");
+        return;
+    };
+    let backup = dir.join("wallpaper-store-backup.plist");
+    if !backup.exists() {
+        if let Err(e) = std::fs::create_dir_all(dir).and_then(|_| std::fs::copy(&store, &backup)) {
+            eprintln!("afterglow: could not back up the wallpaper ({e}); leaving it alone");
+            return;
+        }
+    }
+    let _ = BACKUP.set(backup);
+    let black = dir.join("black.png");
+    if std::fs::write(&black, BLACK_PNG).is_err() {
+        return;
+    }
+    let _ = BLACK.set(black);
+    set_black(false);
+}
+
+static BLACK: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+/// setDesktopImageURL only changes the Space you're on, so the host calls
+/// this about once a second (main thread): a Space that isn't black yet
+/// becomes black when you first switch to it. (All Spaces are in the one
+/// store, so the backup restores them all.)
+pub fn keep_desktop_black() {
+    if BLACK.get().is_some() {
+        set_black(true);
+    }
+}
+
+/// Set the black picture on every display; with `only_if_needed`, only
+/// where the current picture is something else. Main thread only.
+fn set_black(only_if_needed: bool) {
+    use objc2::class;
+    let Some(black) = BLACK.get() else { return };
+    let black_str = black.to_string_lossy().into_owned();
+    unsafe {
+        let path = std::ffi::CString::new(black_str.as_bytes()).unwrap();
+        let ns_path: *mut AnyObject = msg_send![class!(NSString), stringWithUTF8String: path.as_ptr()];
+        let url: *mut AnyObject = msg_send![class!(NSURL), fileURLWithPath: ns_path];
+        let options: *mut AnyObject = msg_send![class!(NSDictionary), dictionary];
+        let workspace: *mut AnyObject = msg_send![class!(NSWorkspace), sharedWorkspace];
+        let screens: *mut AnyObject = msg_send![class!(NSScreen), screens];
+        if url.is_null() || options.is_null() || workspace.is_null() || screens.is_null() {
+            return;
+        }
+        let (workspace, screens) = (&*workspace, &*screens);
+        let n: usize = msg_send![screens, count];
+        for i in 0..n {
+            let screen: *mut AnyObject = msg_send![screens, objectAtIndex: i];
+            if only_if_needed {
+                // the current picture's file path, compared with ours
+                let current: *mut AnyObject = msg_send![workspace, desktopImageURLForScreen: screen];
+                if !current.is_null() {
+                    let p: *mut AnyObject = msg_send![&*current, path];
+                    if !p.is_null() {
+                        let c: *const c_char = msg_send![&*p, UTF8String];
+                        if !c.is_null() && std::ffi::CStr::from_ptr(c).to_string_lossy() == black_str {
+                            continue;
+                        }
+                    }
+                }
+            }
+            let mut error: *mut AnyObject = std::ptr::null_mut();
+            let ok: bool = msg_send![workspace, setDesktopImageURL: url, forScreen: screen, options: options, error: &mut error];
+            if !ok {
+                eprintln!("afterglow: could not set a black wallpaper on display {i}");
+            }
+        }
+    }
+}
+
+/// On quit: put the owner's wallpaper back (see black_desktop).
+pub fn restore_desktop() {
+    let (Some(backup), Some(store)) = (BACKUP.get(), wallpaper_store()) else { return };
+    match std::fs::copy(backup, &store) {
+        Ok(_) => {
+            // WallpaperAgent only reads the store when it starts; launchd
+            // restarts it straight away
+            let _ = std::process::Command::new("/usr/bin/killall").arg("WallpaperAgent").status();
+            let _ = std::fs::remove_file(backup);
+        }
+        Err(e) => eprintln!("afterglow: could not restore the wallpaper ({e}); the backup stays at {}", backup.display()),
+    }
+}
 
 
 // ---- the pause rules (parity with Windows) ----

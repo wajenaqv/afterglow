@@ -219,6 +219,12 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
 
     *host.walls.lock().unwrap() = walls;
     *host.screens.lock().unwrap() = screens;
+    // macOS: a black system wallpaper for Mission Control / Space switches,
+    // also on displays plugged in later (this runs on every rebuild)
+    #[cfg(target_os = "macos")]
+    if let Ok(dir) = app.path().app_config_dir() {
+        platform::black_desktop(&dir);
+    }
     Ok(())
 }
 
@@ -303,8 +309,14 @@ pub fn apply_pause(app: &AppHandle) {
 #[cfg(target_os = "macos")]
 fn fullscreen_loop(app: AppHandle) {
     let mut shown: std::collections::HashMap<String, bool> = Default::default();
+    let mut tick = 0u32;
     loop {
         thread::sleep(Duration::from_millis(250));
+        // about once a second: black system wallpaper on the Space we're on
+        tick += 1;
+        if tick % 4 == 0 {
+            let _ = app.run_on_main_thread(platform::keep_desktop_black);
+        }
         let walls = app.state::<Host>().walls.lock().unwrap().clone();
         for wall in walls {
             let rects: Vec<(i32, i32, u32, u32, f64)> = wall.screens.iter().map(|s| (s.x, s.y, s.w, s.h, s.scale)).collect();
