@@ -14,8 +14,16 @@
 use objc2::msg_send;
 use objc2::runtime::AnyObject;
 
-// CGWindowLevelForKey(kCGDesktopWindowLevelKey) = kCGMinimumWindowLevel + 20
-const DESKTOP_WINDOW_LEVEL: isize = (i32::MIN + 20) as isize;
+// Ask macOS for the desktop window level instead of hard-coding it: the
+// number moves between releases. On macOS 26 the system wallpaper (drawn by
+// the Dock) sits at INT32_MIN + 24 and the desktop level is INT32_MIN + 25;
+// the old header value (INT32_MIN + 20) put us under the wallpaper, invisible.
+const DESKTOP_WINDOW_LEVEL_KEY: i32 = 2; // kCGDesktopWindowLevelKey
+
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    fn CGWindowLevelForKey(key: i32) -> i32;
+}
 // NSWindowCollectionBehavior bits
 const CAN_JOIN_ALL_SPACES: usize = 1 << 0;
 const STATIONARY: usize = 1 << 4;
@@ -28,7 +36,9 @@ pub fn attach(window: &tauri::WebviewWindow, _x: i32, _y: i32, _w: u32, _h: u32)
     }
     unsafe {
         let ns_window: &AnyObject = &*ns_window;
-        let _: () = msg_send![ns_window, setLevel: DESKTOP_WINDOW_LEVEL];
+        // NSWindowLevel is an NSInteger (isize); CG gives an i32
+        let level = CGWindowLevelForKey(DESKTOP_WINDOW_LEVEL_KEY) as isize;
+        let _: () = msg_send![ns_window, setLevel: level];
         let _: () = msg_send![ns_window, setCollectionBehavior: CAN_JOIN_ALL_SPACES | STATIONARY | IGNORES_CYCLE];
         let _: () = msg_send![ns_window, setIgnoresMouseEvents: true];
     }
