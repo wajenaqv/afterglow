@@ -136,7 +136,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     // menu bar for light and dark mode
     #[cfg(target_os = "macos")]
     {
-        tray = tray.icon(Image::from_bytes(include_bytes!("../icons/tray/mac/44x44.png"))?).icon_as_template(true);
+        tray = tray.icon(Image::from_bytes(include_bytes!("../icons/tray/mac/tray.png"))?).icon_as_template(true);
     }
     #[cfg(not(target_os = "macos"))]
     {

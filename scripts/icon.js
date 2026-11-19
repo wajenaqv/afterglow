@@ -96,8 +96,26 @@ function trayIcon({ colour, plate }) {
 `;
 }
 
+// macOS menu bar: the menu bar draws status icons 18 pt tall and keeps the
+// aspect ratio (tray-icon crate), so the AG is cropped to its own bounds (a
+// wide icon, no square padding) and drawn for exactly 36 px = 18 pt at 2x.
+// A square icon left the AG at half height with 1 px strokes: thin, blurry;
+// filling all 36 px looked too big next to the system icons, so the AG is
+// ART px tall (~13 pt, like Wi-Fi / battery) centred in the 36 px canvas.
+function trayIconMac() {
+  const H = 36, ART = 26;
+  const sw = 0.55; // stroke width in cells
+  const unit = ART / (ROWS * 2 + sw);
+  const W = Math.ceil((COLS + sw) * unit) + 2;
+  const ox = (W - COLS * unit) / 2, oy = (H - ROWS * 2 * unit) / 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+  <path d="${path(unit, ox, oy)}" fill="none" stroke="#000000" stroke-width="${(unit * sw).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+`;
+}
+
 mkdirSync("assets/icon", { recursive: true });
 writeFileSync("assets/icon/app.svg", appIcon());
 writeFileSync("assets/icon/tray.svg", trayIcon({ colour: FG, plate: true }));
-writeFileSync("assets/icon/tray-mac.svg", trayIcon({ colour: "#000000", plate: false }));
+writeFileSync("assets/icon/tray-mac.svg", trayIconMac());
 console.log("wrote assets/icon/app.svg, tray.svg, tray-mac.svg");
