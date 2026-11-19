@@ -179,12 +179,51 @@ function connectorRow(c) {
   status.textContent = c.on ? (c.status?.text ?? "starting…") : "off";
   status.dataset.state = c.on ? (c.status?.state ?? "") : "off";
 }
+// Accounts (Gmail, Outlook, Spotify): the app registration and sign-in,
+// shown under the connector's row. Inputs are left alone while focused, so
+// the 2-second refresh doesn't fight your typing.
+function accountPanel(a) {
+  const row = connectorsEl.querySelector(`[data-id="${a.id}"]`);
+  if (!row) return;
+  let panel = connectorsEl.querySelector(`[data-account="${a.id}"]`);
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "account";
+    panel.dataset.account = a.id;
+    const secret = a.id === "gmail" ? `<input class="secret" type="password" placeholder="client secret" autocomplete="off" />` : "";
+    panel.innerHTML = `
+      <input class="client" placeholder="client id" autocomplete="off" spellcheck="false" /> ${secret}
+      <button type="button" class="save">save</button>
+      <button type="button" class="signin"></button>
+      <div class="dim redirect"></div>`;
+    panel.querySelector(".save").addEventListener("click", () =>
+      invoke("set_client", { id: a.id, clientId: panel.querySelector(".client").value, clientSecret: panel.querySelector(".secret")?.value ?? "" }).then(() => {
+        const s = panel.querySelector(".secret");
+        if (s) s.value = "";
+        refreshConnectors();
+      }),
+    );
+    panel.querySelector(".signin").addEventListener("click", (e) => invoke(e.target.dataset.signedIn === "1" ? "account_sign_out" : "account_sign_in", { id: a.id }).then(refreshConnectors));
+    row.after(panel);
+  }
+  const client = panel.querySelector(".client");
+  if (document.activeElement !== client) client.value = a.client_id;
+  const secret = panel.querySelector(".secret");
+  if (secret && document.activeElement !== secret) secret.placeholder = a.has_secret ? "client secret (saved)" : "client secret";
+  const btn = panel.querySelector(".signin");
+  btn.textContent = a.signed_in ? "sign out" : "sign in";
+  btn.dataset.signedIn = a.signed_in ? "1" : "0";
+  btn.disabled = !a.client_id;
+  panel.querySelector(".redirect").textContent = `redirect URI to register: ${a.redirect}`;
+}
+
 async function refreshConnectors() {
   if (!IN_APP) return (connectorsEl.textContent = "open Settings from the AfterGlow tray to see the connectors");
   try {
     const list = await invoke("connectors_state");
     if (!list.length) connectorsEl.textContent = "none on this computer yet";
     list.forEach(connectorRow);
+    (await invoke("accounts_state")).forEach(accountPanel);
   } catch (e) {
     connectorsEl.textContent = String(e);
   }

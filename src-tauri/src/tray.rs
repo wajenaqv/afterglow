@@ -101,6 +101,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "Pause when an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
     let battery = CheckMenuItem::with_id(app, "pause-battery", "Pause on battery", true, saved.pause_on_battery, None::<&str>)?;
     let covered = CheckMenuItem::with_id(app, "pause-covered", "Pause when hidden by windows", true, saved.pause_covered, None::<&str>)?;
+    let quiet = CheckMenuItem::with_id(app, "quiet-dnd", "Quiet during Do Not Disturb", true, saved.quiet_dnd, None::<&str>)?;
     let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, autostart_on, None::<&str>)?;
     let open_settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit AfterGlow", true, None::<&str>)?;
@@ -116,6 +117,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             &covered,
             &fullscreen,
             &battery,
+            &quiet,
             &autostart,
             &PredefinedMenuItem::separator(app)?,
             &open_settings,
@@ -172,13 +174,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 app.state::<Host>().user_paused.store(pause.is_checked().unwrap_or(false), Ordering::Relaxed);
                 host::apply_pause(app);
             }
-            "pause-covered" | "pause-fullscreen" | "pause-battery" => {
+            "pause-covered" | "pause-fullscreen" | "pause-battery" | "quiet-dnd" => {
                 let host = app.state::<Host>();
                 let snapshot = {
                     let mut s = host.settings.lock().unwrap();
                     s.pause_fullscreen = fullscreen.is_checked().unwrap_or(true);
                     s.pause_on_battery = battery.is_checked().unwrap_or(true);
                     s.pause_covered = covered.is_checked().unwrap_or(true);
+                    s.quiet_dnd = quiet.is_checked().unwrap_or(true);
                     s.clone()
                 };
                 settings::save(app, &snapshot);

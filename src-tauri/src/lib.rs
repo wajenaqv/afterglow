@@ -43,6 +43,10 @@ pub fn run() {
             signals::wall_log,
             connectors::connectors_state,
             connectors::set_connector,
+            connectors::accounts::accounts_state,
+            connectors::accounts::set_client,
+            connectors::accounts::account_sign_in,
+            connectors::accounts::account_sign_out,
         ])
         .setup(|app| {
             // No Dock icon on macOS: AfterGlow lives in the menu bar

@@ -6,6 +6,7 @@
 //   pause_fullscreen  the tray's pause rules
 //   pause_on_battery
 //   pause_covered     pause a monitor's wallpaper while app windows hide it
+//   quiet_dnd         no pulses or flashes during Do Not Disturb
 //   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //
 // Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps, set_renderer).
@@ -32,11 +33,15 @@ pub struct Settings {
     pub pause_fullscreen: bool,
     pub pause_on_battery: bool,
     pub pause_covered: bool,
+    /// No pulses or flashes while the OS is in Do Not Disturb (counts still update)
+    pub quiet_dnd: bool,
     pub fps: u32,
     /// "auto" (GPU when it works, else CPU), "gpu" or "cpu"
     pub renderer: String,
     /// Connectors switched on (connectors/mod.rs), by id
     pub connectors: BTreeMap<String, bool>,
+    /// App registrations for the account connectors (client id, secret), by id
+    pub clients: BTreeMap<String, crate::connectors::oauth::Client>,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -52,9 +57,11 @@ impl Default for Settings {
             pause_fullscreen: true,
             pause_on_battery: true,
             pause_covered: true,
+            quiet_dnd: true,
             fps: 30,
             renderer: "auto".into(),
             connectors: BTreeMap::new(),
+            clients: BTreeMap::new(),
         }
     }
 }

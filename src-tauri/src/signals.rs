@@ -117,6 +117,14 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         "flash" => Reaction::Flash,
         other => return Err(format!("kind: new, unread, clear or flash (got {other})")),
     };
+    // Do Not Disturb: no pulses or flashes (counts still update)
+    if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash)
+        && app.state::<host::Host>().settings.lock().unwrap().quiet_dnd
+        && crate::platform::do_not_disturb()
+    {
+        eprintln!("afterglow: signal -> {reaction:?} held back: Do Not Disturb");
+        return Ok(());
+    }
     eprintln!("afterglow: signal -> {reaction:?}");
     host::emit_to_walls(app, "reaction", reaction);
     Ok(())

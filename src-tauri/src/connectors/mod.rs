@@ -13,6 +13,7 @@
 //                  centre, per app (notifications.rs). Reads which app, never
 //                  the text. Needs AfterGlow registered as a package
 //                  (scripts/windows/) and the user's OK.
+//   gmail, outlook, spotify   any platform: accounts.rs, signed in with oauth.rs
 //   dock           macOS: the badge numbers on Dock icons (platform/macos.rs
 //                  dock_badges). Needs the Accessibility permission.
 //
@@ -21,6 +22,8 @@
 
 #[cfg(windows)]
 pub mod notifications;
+pub mod accounts;
+pub mod oauth;
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
@@ -40,6 +43,7 @@ pub fn available() -> Vec<(&'static str, &'static str)> {
     v.push(("notifications", "Windows notifications"));
     #[cfg(target_os = "macos")]
     v.push(("dock", "Dock badges"));
+    v.extend(accounts::IDS.iter().copied());
     v
 }
 
@@ -58,7 +62,7 @@ pub struct Status {
     pub text: String,
 }
 
-fn set_status(app: &AppHandle, id: &str, state: &str, text: impl Into<String>) {
+pub(crate) fn set_status(app: &AppHandle, id: &str, state: &str, text: impl Into<String>) {
     let status = Status { state: state.into(), text: text.into() };
     let before = app.state::<Connectors>().status.lock().unwrap().insert(id.into(), status.clone());
     if before.map(|b| b.state != status.state || (b.state != "ok" && b.text != status.text)).unwrap_or(true) {
@@ -185,10 +189,8 @@ fn poll(app: &AppHandle, id: &str) -> Duration {
             }
             Duration::from_secs(2)
         }
-        _ => {
-            let _ = app;
-            Duration::from_secs(60)
-        }
+        "gmail" | "outlook" | "spotify" => accounts::poll(app, id),
+        _ => Duration::from_secs(60),
     }
 }
 

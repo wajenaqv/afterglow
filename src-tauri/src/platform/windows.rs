@@ -189,3 +189,30 @@ unsafe extern "system" fn collect_window(hwnd: HWND, out: LPARAM) -> BOOL {
     }
     true.into()
 }
+
+// ---- Do Not Disturb ----
+
+/// Windows' Do Not Disturb (Focus assist on Windows 10): notifications are
+/// held back. Read from the setting Windows itself flips
+/// (Notifications\Settings NOC_GLOBAL_SETTING_TOASTS_ENABLED = 0), or the
+/// shell's "quiet time" state.
+pub fn do_not_disturb() -> bool {
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    use windows::Win32::UI::Shell::QUNS_QUIET_TIME;
+    let mut value: u32 = 1;
+    let mut size = std::mem::size_of::<u32>() as u32;
+    let toasts_off = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            w!(r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings"),
+            w!("NOC_GLOBAL_SETTING_TOASTS_ENABLED"),
+            RRF_RT_REG_DWORD,
+            None,
+            Some(&mut value as *mut u32 as *mut c_void),
+            Some(&mut size),
+        )
+        .is_ok()
+            && value == 0
+    };
+    toasts_off || matches!(unsafe { SHQueryUserNotificationState() }, Ok(s) if s == QUNS_QUIET_TIME)
+}

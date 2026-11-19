@@ -212,6 +212,29 @@ h3.sub {
 .connector .status[data-state="error"] {
   color: var(--bright);
 }
+.account {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 6px 26px;
+}
+.account input {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--dim);
+  border-radius: 6px;
+  padding: 3px 8px;
+  min-width: 18ch;
+}
+.account button {
+  cursor: pointer;
+}
+.account .redirect {
+  flex-basis: 100%;
+  font-size: 12px;
+}
 .reacts {
   margin: 0;
   font-size: 12px;

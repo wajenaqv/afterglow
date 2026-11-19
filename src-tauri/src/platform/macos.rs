@@ -429,3 +429,9 @@ pub fn dock_badges() -> Result<Vec<(String, u32)>, String> {
     }
     Ok(out)
 }
+
+/// macOS has no public way to read Focus / Do Not Disturb, so the "quiet
+/// during Do Not Disturb" rule does nothing on Mac for now.
+pub fn do_not_disturb() -> bool {
+    false
+}
