@@ -115,7 +115,7 @@ Sign-in tokens are kept in Windows Credential Manager or the macOS Keychain.
 
 - [x] App scaffold, CI on Windows and macOS, Windows installer releases
 - [x] Wallpaper host on Windows: behind the icons, every monitor, pause rules, hover effects
-- [ ] Wallpaper host tested on macOS, with its pause rules
+- [x] Wallpaper host tested on macOS, with its pause rules
 - [x] The jellyfish wallpaper
 - [x] More wallpapers (big jellyfish, cat paws) and a Settings window to pick one, remembered across restarts
 - [x] Pauses a monitor's wallpaper while windows cover it (Windows), and a frame-rate setting

@@ -6,7 +6,7 @@ For a Claude Code agent running **on the owner's Mac**. Read `CLAUDE.md` first: 
 
 - AfterGlow is a Tauri v2 (Rust + vanilla JS/Vite, Bun) app that puts ASCII live wallpapers behind the desktop icons and makes them react to app activity (signals → pulse / count / flash).
 - On `main`: the wallpaper host, three wallpapers (jellyfish, big jellyfish, paws) with GPU (WebGL2) and CPU renderers, Settings, tray/menu bar, pause rules, signals + local endpoint (127.0.0.1:47811), connectors (Windows notifications, macOS Dock badges), accounts (Gmail, Outlook, Spotify via OAuth PKCE on port 47812), rules, rotation, save-a-still.
-- Everything was built and tested on **Windows**. The macOS code has **only ever been compiled by CI** (macos-latest, green). It has never run. Expect bugs; that's what this pass is for.
+- Everything was first built and tested on **Windows**. Status: this handover has been run once (2026-11-19, branch `mac-fixes`, merged): see CLAUDE.md "What exists" for what was verified and fixed. Still to try on the Mac: rules (item 9), rotation (in item 6) and accounts (item 10). Use this doc again for a fresh Mac pass.
 
 macOS-specific code to suspect first:
 
