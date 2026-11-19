@@ -211,7 +211,10 @@ pub fn fullscreen_app_in_front() -> bool {
 /// ones included, and would show through the strip beside the notch, so the
 /// host hides it there (set_visible).
 pub fn fullscreen_on(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
-    let windows = app_window_frames();
+    fullscreen_on_by(screens, &app_window_frames())
+}
+
+fn fullscreen_on_by(screens: &[(i32, i32, u32, u32, f64)], windows: &[CGRect]) -> Vec<bool> {
     screens
         .iter()
         .map(|&(x, y, w, h, scale)| {
@@ -279,16 +282,105 @@ fn low_power_mode() -> bool {
     }
 }
 
+// ---- each display's visible area (NSScreen.visibleFrame) ----
+//
+// AppKit wants NSScreen read on the main thread, and the pause loop runs on
+// its own thread, so the read hops to the main thread with libdispatch
+// (dispatch_sync_f, part of libSystem: no extra crate). The tray calls
+// apply_pause on the main thread itself, where a dispatch_sync to the main
+// queue would wait for itself forever, so there it reads directly.
+
+// Let msg_send! return these structs (it checks the Objective-C type
+// encoding); the field encodings say "two doubles", as on 64-bit macOS.
+unsafe impl objc2::Encode for CGPoint {
+    const ENCODING: objc2::Encoding = objc2::Encoding::Struct("CGPoint", &[f64::ENCODING, f64::ENCODING]);
+}
+unsafe impl objc2::Encode for CGSize {
+    const ENCODING: objc2::Encoding = objc2::Encoding::Struct("CGSize", &[f64::ENCODING, f64::ENCODING]);
+}
+unsafe impl objc2::Encode for CGRect {
+    const ENCODING: objc2::Encoding = objc2::Encoding::Struct("CGRect", &[CGPoint::ENCODING, CGSize::ENCODING]);
+}
+
+unsafe extern "C" {
+    static _dispatch_main_q: c_void; // what the dispatch_get_main_queue() macro returns
+    fn dispatch_sync_f(queue: *const c_void, context: *mut c_void, work: extern "C" fn(*mut c_void));
+    fn pthread_main_np() -> i32;
+}
+
+/// (frame, visible frame) of every display, in CoreGraphics points (top-left
+/// origin, y down; AppKit's are bottom-left, y up, so they're flipped here)
+fn visible_frames() -> Vec<(CGRect, CGRect)> {
+    extern "C" fn work(out: *mut c_void) {
+        let out = unsafe { &mut *(out as *mut Vec<(CGRect, CGRect)>) };
+        *out = visible_frames_here();
+    }
+    let mut out: Vec<(CGRect, CGRect)> = Vec::new();
+    unsafe {
+        if pthread_main_np() != 0 {
+            return visible_frames_here();
+        }
+        dispatch_sync_f(&_dispatch_main_q, &mut out as *mut _ as *mut c_void, work);
+    }
+    out
+}
+
+/// visible_frames' body; main thread only
+fn visible_frames_here() -> Vec<(CGRect, CGRect)> {
+    use objc2::class;
+    let mut out = Vec::new();
+    unsafe {
+        let screens: *mut AnyObject = msg_send![class!(NSScreen), screens];
+        if screens.is_null() {
+            return out;
+        }
+        let screens: &AnyObject = &*screens;
+        let n: usize = msg_send![screens, count];
+        // AppKit's y is measured up from the bottom of the primary display
+        // (the first screen); CoreGraphics' y down from its top
+        let mut primary_h = 0.0;
+        for i in 0..n {
+            let screen: *mut AnyObject = msg_send![screens, objectAtIndex: i];
+            let screen: &AnyObject = &*screen;
+            let frame: CGRect = msg_send![screen, frame];
+            let visible: CGRect = msg_send![screen, visibleFrame];
+            if i == 0 {
+                primary_h = frame.size.height;
+            }
+            let flip = |r: CGRect| CGRect {
+                origin: CGPoint { x: r.origin.x, y: primary_h - (r.origin.y + r.size.height) },
+                size: r.size,
+            };
+            out.push((flip(frame), flip(visible)));
+        }
+    }
+    out
+}
+
 /// Per display (physical px and scale, as Tauri reports them): do other
 /// apps' windows hide its desktop? The same test as on Windows: a 12 x 12
 /// grid of points, covered when 95% of them are inside some window.
+///
+/// The grid covers the display's *visible* area (without the menu bar and
+/// the Dock, NSScreen.visibleFrame): a zoomed window stops at the Dock, which
+/// on a MacBook is ~6% of the height, so measured over the whole display a
+/// zoomed window never reached 95%.
 pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
-    let windows = app_window_frames();
+    covered_by(screens, &app_window_frames(), &visible_frames())
+}
+
+fn covered_by(screens: &[(i32, i32, u32, u32, f64)], windows: &[CGRect], visible: &[(CGRect, CGRect)]) -> Vec<bool> {
     screens
         .iter()
         .map(|&(x, y, w, h, scale)| {
             let s = if scale > 0.0 { scale } else { 1.0 };
             let (x, y, w, h) = (x as f64 / s, y as f64 / s, w as f64 / s, h as f64 / s);
+            // this display's visible area, if NSScreen knows it
+            let same = |f: &CGRect| (f.origin.x - x).abs() < 1.0 && (f.origin.y - y).abs() < 1.0 && (f.size.width - w).abs() < 1.0 && (f.size.height - h).abs() < 1.0;
+            let (x, y, w, h) = match visible.iter().find(|(frame, _)| same(frame)) {
+                Some((_, v)) => (v.origin.x, v.origin.y, v.size.width, v.size.height),
+                None => (x, y, w, h),
+            };
             const N: i32 = 12;
             let mut hit = 0;
             for i in 0..N {
@@ -485,4 +577,71 @@ pub fn dock_badges() -> Result<Vec<(String, u32)>, String> {
 /// during Do Not Disturb" rule does nothing on Mac for now.
 pub fn do_not_disturb() -> bool {
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rect(x: f64, y: f64, w: f64, h: f64) -> CGRect {
+        CGRect { origin: CGPoint { x, y }, size: CGSize { width: w, height: h } }
+    }
+
+    // The owner's MacBook: 1920 x 1243 pt at 2x, notch strip 38 pt tall
+    const BUILT_IN: (i32, i32, u32, u32, f64) = (0, 0, 3840, 2486, 2.0);
+    // An external display to the left, 1x, at a negative origin
+    const LEFT: (i32, i32, u32, u32, f64) = (-2560, 0, 2560, 1440, 1.0);
+
+    #[test]
+    fn fullscreen_under_the_notch() {
+        let app = rect(0.0, 38.0, 1920.0, 1205.0); // as measured on the owner's Mac
+        assert_eq!(fullscreen_on_by(&[BUILT_IN, LEFT], &[app]), vec![true, false]);
+    }
+
+    #[test]
+    fn fullscreen_without_a_notch() {
+        let app = rect(-2560.0, 0.0, 2560.0, 1440.0);
+        assert_eq!(fullscreen_on_by(&[BUILT_IN, LEFT], &[app]), vec![false, true]);
+    }
+
+    #[test]
+    fn ordinary_windows_are_not_fullscreen() {
+        let half = rect(0.0, 38.0, 960.0, 1205.0); // tiled left half
+        let above_dock = rect(0.0, 38.0, 1920.0, 1100.0); // zoomed, Dock showing
+        let small = rect(200.0, 200.0, 800.0, 600.0);
+        assert_eq!(fullscreen_on_by(&[BUILT_IN], &[half, above_dock, small]), vec![false]);
+    }
+
+    #[test]
+    fn covered_per_display() {
+        // 38 pt menu bar and a default-size Dock (~80 pt; the owner's is a
+        // small 38 pt one, which happened to stay under the old 95% limit)
+        let visible = [
+            (rect(0.0, 0.0, 1920.0, 1243.0), rect(0.0, 38.0, 1920.0, 1125.0)),
+            (rect(-2560.0, 0.0, 2560.0, 1440.0), rect(-2560.0, 25.0, 2560.0, 1415.0)),
+        ];
+        let zoomed = rect(0.0, 38.0, 1920.0, 1125.0); // stops at the Dock
+        assert_eq!(covered_by(&[BUILT_IN, LEFT], &[zoomed], &visible), vec![true, false]);
+        // the bug this fixes: measured over the whole display it never counted
+        assert_eq!(covered_by(&[BUILT_IN], &[zoomed], &[]), vec![false]);
+        let small = rect(200.0, 200.0, 800.0, 600.0);
+        assert_eq!(covered_by(&[BUILT_IN, LEFT], &[small], &visible), vec![false, false]);
+        let halves = [rect(0.0, 38.0, 960.0, 1125.0), rect(960.0, 38.0, 960.0, 1125.0)];
+        assert_eq!(covered_by(&[BUILT_IN], &halves, &visible), vec![true]);
+    }
+
+    /// Live values from this Mac: `cargo test live_power -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_power() {
+        println!("on_battery (incl. Low Power Mode): {}", on_battery());
+        println!("low_power_mode: {}", low_power_mode());
+        println!("fullscreen_app_in_front: {}", fullscreen_app_in_front());
+        println!("accessibility_trusted: {}", accessibility_trusted(false));
+        // visible_frames() would wait for the main thread, which cargo test
+        // doesn't run a loop on; read directly (fine for a one-off check)
+        for (f, v) in visible_frames_here() {
+            println!("display {:?} visible {:?}", (f.origin.x, f.origin.y, f.size.width, f.size.height), (v.origin.x, v.origin.y, v.size.width, v.size.height));
+        }
+    }
 }
