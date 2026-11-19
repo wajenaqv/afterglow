@@ -254,3 +254,178 @@ pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
         })
         .collect()
 }
+
+// ---- Dock badges (the "dock" connector, connectors/mod.rs) ----
+//
+// The red badges on Dock icons ("3", or a dot for apps that don't count),
+// read through the Accessibility API: the Dock is an app like any other, and
+// its icons are elements with a title (the app's name) and a status label
+// (the badge). Needs the Accessibility permission (System Settings →
+// Privacy & Security → Accessibility). macOS ties that permission to the
+// app's code signature, so unsigned test builds need it again after each
+// update.
+
+type AXUIElementRef = *const c_void;
+
+#[link(name = "ApplicationServices", kind = "framework")]
+unsafe extern "C" {
+    fn AXIsProcessTrusted() -> bool;
+    fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
+    fn AXUIElementCreateApplication(pid: i32) -> AXUIElementRef;
+    fn AXUIElementCopyAttributeValue(element: AXUIElementRef, attribute: CFStringRef, value: *mut CFTypeRef) -> i32;
+    static kAXTrustedCheckOptionPrompt: CFStringRef;
+}
+
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    fn CFStringCreateWithCString(alloc: *const c_void, c_str: *const c_char, encoding: u32) -> CFStringRef;
+    fn CFDictionaryCreate(
+        alloc: *const c_void,
+        keys: *const *const c_void,
+        values: *const *const c_void,
+        count: isize,
+        key_callbacks: *const c_void,
+        value_callbacks: *const c_void,
+    ) -> CFDictionaryRef;
+    fn CFGetTypeID(cf: CFTypeRef) -> usize;
+    fn CFStringGetTypeID() -> usize;
+    fn CFArrayGetTypeID() -> usize;
+    static kCFBooleanTrue: CFTypeRef;
+    static kCFTypeDictionaryKeyCallBacks: [u8; 0];
+    static kCFTypeDictionaryValueCallBacks: [u8; 0];
+}
+
+/// Is AfterGlow allowed to use Accessibility? With prompt = true, macOS
+/// shows its "allow in System Settings" prompt if not (once per launch).
+pub fn accessibility_trusted(prompt: bool) -> bool {
+    unsafe {
+        if !prompt {
+            return AXIsProcessTrusted();
+        }
+        let keys = [kAXTrustedCheckOptionPrompt];
+        let values = [kCFBooleanTrue];
+        let opts = CFDictionaryCreate(
+            std::ptr::null(),
+            keys.as_ptr(),
+            values.as_ptr(),
+            1,
+            &kCFTypeDictionaryKeyCallBacks as *const [u8; 0] as *const c_void,
+            &kCFTypeDictionaryValueCallBacks as *const [u8; 0] as *const c_void,
+        );
+        let ok = AXIsProcessTrustedWithOptions(opts);
+        if !opts.is_null() {
+            CFRelease(opts);
+        }
+        ok
+    }
+}
+
+/// A CFString we own, released when dropped
+struct CfStr(CFStringRef);
+impl CfStr {
+    fn new(s: &str) -> Self {
+        let c = std::ffi::CString::new(s).unwrap();
+        CfStr(unsafe { CFStringCreateWithCString(std::ptr::null(), c.as_ptr(), UTF8) })
+    }
+}
+impl Drop for CfStr {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe { CFRelease(self.0) }
+        }
+    }
+}
+
+/// An attribute of an Accessibility element; the caller releases it
+unsafe fn ax_attr(el: AXUIElementRef, name: &str) -> Option<CFTypeRef> {
+    let key = CfStr::new(name);
+    let mut v: CFTypeRef = std::ptr::null();
+    unsafe {
+        if AXUIElementCopyAttributeValue(el, key.0, &mut v) == 0 && !v.is_null() { Some(v) } else { None }
+    }
+}
+
+/// A string attribute as a Rust String (None if missing or not a string)
+unsafe fn ax_string(el: AXUIElementRef, name: &str) -> Option<String> {
+    unsafe {
+        let v = ax_attr(el, name)?;
+        let out = if CFGetTypeID(v) == CFStringGetTypeID() {
+            let mut buf = [0 as c_char; 256];
+            if CFStringGetCString(v, buf.as_mut_ptr(), buf.len() as isize, UTF8) {
+                Some(std::ffi::CStr::from_ptr(buf.as_ptr()).to_string_lossy().into_owned())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        CFRelease(v);
+        out
+    }
+}
+
+/// The Dock's process id (via NSRunningApplication)
+fn dock_pid() -> Option<i32> {
+    use objc2::class;
+    unsafe {
+        let id = std::ffi::CString::new("com.apple.dock").unwrap();
+        let ns_id: *mut AnyObject = msg_send![class!(NSString), stringWithUTF8String: id.as_ptr()];
+        if ns_id.is_null() {
+            return None;
+        }
+        let apps: *mut AnyObject = msg_send![class!(NSRunningApplication), runningApplicationsWithBundleIdentifier: ns_id];
+        if apps.is_null() {
+            return None;
+        }
+        let apps: &AnyObject = &*apps;
+        let first: *mut AnyObject = msg_send![apps, firstObject];
+        if first.is_null() {
+            return None;
+        }
+        let first: &AnyObject = &*first;
+        let pid: i32 = msg_send![first, processIdentifier];
+        Some(pid)
+    }
+}
+
+/// Every Dock icon with a badge: (app name, count). A badge that isn't a
+/// number (a dot) counts as 1.
+pub fn dock_badges() -> Result<Vec<(String, u32)>, String> {
+    let pid = dock_pid().ok_or("the Dock isn't running")?;
+    let mut out = Vec::new();
+    unsafe {
+        let dock = AXUIElementCreateApplication(pid);
+        if dock.is_null() {
+            return Err("couldn't reach the Dock".into());
+        }
+        // Dock app -> its list (AXList) -> the icons in it
+        if let Some(lists) = ax_attr(dock, "AXChildren") {
+            if CFGetTypeID(lists) == CFArrayGetTypeID() {
+                for i in 0..CFArrayGetCount(lists) {
+                    let list = CFArrayGetValueAtIndex(lists, i);
+                    if ax_string(list, "AXRole").as_deref() != Some("AXList") {
+                        continue;
+                    }
+                    let Some(items) = ax_attr(list, "AXChildren") else { continue };
+                    if CFGetTypeID(items) == CFArrayGetTypeID() {
+                        for k in 0..CFArrayGetCount(items) {
+                            let item = CFArrayGetValueAtIndex(items, k);
+                            let Some(badge) = ax_string(item, "AXStatusLabel") else { continue };
+                            let badge = badge.trim();
+                            if badge.is_empty() {
+                                continue;
+                            }
+                            let name = ax_string(item, "AXTitle").unwrap_or_else(|| "app".into());
+                            let n = badge.trim_end_matches('+').parse::<u32>().unwrap_or(1).max(1);
+                            out.push((name, n));
+                        }
+                    }
+                    CFRelease(items);
+                }
+            }
+            CFRelease(lists);
+        }
+        CFRelease(dock);
+    }
+    Ok(out)
+}

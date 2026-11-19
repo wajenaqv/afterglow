@@ -6,8 +6,10 @@
 //   settings.rs  the saved choices (settings.json) and the Settings window's commands
 //   signals.rs   the signal bus: signals in, reactions out to the wallpapers
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
+//   connectors/  watchers that turn other apps' activity into signals
 //   platform/    the per-OS part of putting a window behind the desktop icons
 
+mod connectors;
 mod endpoint;
 mod host;
 mod platform;
@@ -29,6 +31,7 @@ pub fn run() {
         ))
         .manage(host::Host::default())
         .manage(signals::Bus::default())
+        .manage(connectors::Connectors::default())
         // what the Settings window and the wallpapers call
         .invoke_handler(tauri::generate_handler![
             settings::get_settings,
@@ -38,6 +41,8 @@ pub fn run() {
             signals::send_signal,
             signals::signal_state,
             signals::wall_log,
+            connectors::connectors_state,
+            connectors::set_connector,
         ])
         .setup(|app| {
             // No Dock icon on macOS: AfterGlow lives in the menu bar
@@ -47,6 +52,7 @@ pub fn run() {
             host::start(app.handle())?;
             tray::build(app.handle())?;
             endpoint::start(app.handle());
+            connectors::start(app.handle());
             Ok(())
         })
         .build(tauri::generate_context!())

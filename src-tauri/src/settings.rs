@@ -35,6 +35,8 @@ pub struct Settings {
     pub fps: u32,
     /// "auto" (GPU when it works, else CPU), "gpu" or "cpu"
     pub renderer: String,
+    /// Connectors switched on (connectors/mod.rs), by id
+    pub connectors: BTreeMap<String, bool>,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -52,6 +54,7 @@ impl Default for Settings {
             pause_covered: true,
             fps: 30,
             renderer: "auto".into(),
+            connectors: BTreeMap::new(),
         }
     }
 }

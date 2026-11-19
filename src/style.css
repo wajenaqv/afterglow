@@ -190,6 +190,28 @@ h3.sub {
   color: var(--accent);
 }
 
+.connectors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.connector {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+.connector input {
+  accent-color: var(--fg);
+}
+.connector .status[data-state="ok"] {
+  color: var(--accent);
+}
+.connector .status[data-state="setup"],
+.connector .status[data-state="error"] {
+  color: var(--bright);
+}
 .reacts {
   margin: 0;
   font-size: 12px;

@@ -156,6 +156,42 @@ const fit = new ResizeObserver((entries) => {
 document.querySelectorAll(".preview").forEach((p) => fit.observe(p));
 
 // Fill in what's saved, then start the previews
+// ---- connectors (src-tauri/src/connectors) ----
+// One row per connector this computer offers: a switch and a status line
+// saying what it sees, or what it still needs. Refreshed every 2 s.
+const connectorsEl = document.getElementById("connectors");
+async function invoke(cmd, args) {
+  return (await import("@tauri-apps/api/core")).invoke(cmd, args);
+}
+function connectorRow(c) {
+  let row = connectorsEl.querySelector(`[data-id="${c.id}"]`);
+  if (!row) {
+    row = document.createElement("label");
+    row.className = "connector";
+    row.dataset.id = c.id;
+    row.innerHTML = `<input type="checkbox" /> <span class="name"></span> <span class="status dim"></span>`;
+    row.querySelector("input").addEventListener("change", (e) => invoke("set_connector", { id: c.id, on: e.target.checked }).then(refreshConnectors));
+    connectorsEl.append(row);
+  }
+  row.querySelector("input").checked = c.on;
+  row.querySelector(".name").textContent = c.name;
+  const status = row.querySelector(".status");
+  status.textContent = c.on ? (c.status?.text ?? "starting…") : "off";
+  status.dataset.state = c.on ? (c.status?.state ?? "") : "off";
+}
+async function refreshConnectors() {
+  if (!IN_APP) return (connectorsEl.textContent = "open Settings from the AfterGlow tray to see the connectors");
+  try {
+    const list = await invoke("connectors_state");
+    if (!list.length) connectorsEl.textContent = "none on this computer yet";
+    list.forEach(connectorRow);
+  } catch (e) {
+    connectorsEl.textContent = String(e);
+  }
+}
+refreshConnectors();
+setInterval(refreshConnectors, 2000);
+
 // ---- the signal simulator (signals.rs send_signal) ----
 // The "waiting" buttons keep their own count, sent as the "simulator" app's
 // unread count (added to any real apps' counts by the bus)
