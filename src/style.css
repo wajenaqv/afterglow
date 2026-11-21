@@ -532,3 +532,12 @@ table.apps {
 .clock-opts {
   margin-top: 0;
 }
+
+/* the clock page: its options fade while the clock is set to never */
+#page-clock.clock-off .clock-styles,
+#page-clock.clock-off .clock-opts {
+  opacity: 0.45;
+}
+.clock-style.lcd pre {
+  font: 700 8px/1 "JetBrains Mono", ui-monospace, Consolas, monospace;
+}

@@ -51,7 +51,7 @@ function standIn(cmd, a) {
       s.renderer = a.renderer;
       return save();
     case "set_clock":
-      s.clock = { on: a.on, always: a.always, style: a.style, corner: a.corner, colour: a.colour };
+      s.clock = { on: a.on, always: a.always, style: a.style, corner: a.corner, colour: a.colour, fill: a.fill };
       return save();
     case "set_rotation":
       s.rotate = { on: a.on, minutes: a.minutes, walls: a.walls };
@@ -96,7 +96,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "apps", "pausing", "performance", "about"];
+const PAGES = ["wallpaper", "clock", "apps", "pausing", "performance", "about"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -217,13 +217,17 @@ async function saveRotation() {
   }
 }
 [rotateOn, rotateMinutes, ...wallBoxes()].forEach((el) => el.addEventListener("change", saveRotation));
-// ---- the hover clock (extras.rs set_clock, src/wallpapers/hoverclock.js) ----
-// The four styles as small previews you click to pick
+// ---- clock page (extras.rs set_clock, src/wallpapers/hoverclock.js) ----
+// Show it (hover / always / never), the four styles as small previews you
+// click to pick, and corner, colour and fill. Saved on every change; the
+// wallpapers update straight away.
 const CLOCK_STYLES = ["slant", "density", "lcd", "plain"];
-const clockShow = $("#clock-show"); // hover, always or never
+const clockShowInputs = $$('input[name="clock-show"]');
 const clockCorner = $("#clock-corner");
 const clockColour = $("#clock-colour");
+const clockFill = $("#clock-fill");
 let clockStyle = "slant";
+const clockShow = () => clockShowInputs.find((i) => i.checked)?.value ?? "hover";
 for (const id of CLOCK_STYLES) {
   const b = document.createElement("button");
   b.type = "button";
@@ -240,23 +244,28 @@ for (const id of CLOCK_STYLES) {
   $("#clock-styles").append(b);
 }
 function markClock() {
-  for (const b of document.querySelectorAll(".clock-style")) {
+  for (const b of $$(".clock-style")) {
     const on = b.dataset.style === clockStyle;
     b.classList.toggle("on", on);
     b.setAttribute("aria-checked", String(on));
   }
-  $("#clock-styles").classList.toggle("off", clockShow.value === "never");
+  $("#page-clock").classList.toggle("clock-off", clockShow() === "never");
 }
 function saveClock() {
   markClock();
-  invoke("set_clock", { on: clockShow.value !== "never", always: clockShow.value === "always", style: clockStyle, corner: clockCorner.value, colour: clockColour.value }).catch((e) => (stillNote.textContent = String(e)));
+  const show = clockShow();
+  invoke("set_clock", { on: show !== "never", always: show === "always", style: clockStyle, corner: clockCorner.value, colour: clockColour.value, fill: clockFill.value })
+    .then(() => ($("#clock-note").textContent = ""))
+    .catch((e) => ($("#clock-note").textContent = String(e)));
 }
-[clockShow, clockCorner, clockColour].forEach((el) => el.addEventListener("change", saveClock));
+[...clockShowInputs, clockCorner, clockColour, clockFill].forEach((el) => el.addEventListener("change", saveClock));
 function showClock(c = {}) {
-  clockShow.value = c.on === false ? "never" : c.always ? "always" : "hover";
+  const show = c.on === false ? "never" : c.always ? "always" : "hover";
+  clockShowInputs.forEach((i) => (i.checked = i.value === show));
   clockStyle = c.style ?? "slant";
   clockCorner.value = c.corner ?? "top-right";
   clockColour.value = c.colour ?? "wallpaper";
+  clockFill.value = c.fill ?? "gradient";
   markClock();
 }
 

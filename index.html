@@ -15,6 +15,7 @@
         <pre id="mark" class="mark" aria-label="AfterGlow"></pre>
         <ul>
           <li><a href="#wallpaper" data-page="wallpaper">wallpaper</a></li>
+          <li><a href="#clock" data-page="clock">clock</a></li>
           <li><a href="#apps" data-page="apps">apps</a></li>
           <li><a href="#pausing" data-page="pausing">pausing</a></li>
           <li><a href="#performance" data-page="performance">performance</a></li>
@@ -38,19 +39,32 @@
             <div class="rotate-walls" id="rotate-walls"></div>
           </div>
 
-          <h3 class="sub">clock</h3>
-          <p class="dim hint">The time in a corner of the screen: always, or fading in when you rest the cursor there.</p>
-          <div class="list">
-            <label><span class="dim">show it</span> <select id="clock-show"><option value="hover">when I hover the corner</option><option value="always">always</option><option value="never">never</option></select></label>
+          <h3 class="sub">stills</h3>
+          <p class="dim hint stills"><span id="still-note">"save a still" on a card saves a PNG at your screen's size to Pictures/AfterGlow.</span> <button type="button" id="open-stills">open folder</button></p>
+        </section>
+
+        <!-- clock -->
+        <section id="page-clock" data-page="clock" hidden>
+          <h2>clock</h2>
+          <p class="dim hint">The time in a corner of the screen, drawn in the wallpaper's own glow: always there, or fading in when you rest the cursor in the corner.</p>
+
+          <h3 class="sub">show it</h3>
+          <div class="list" role="radiogroup" aria-label="show the clock">
+            <label><input type="radio" name="clock-show" value="hover" /> when I hover the corner <span class="dim">half a second in the corner; it fades out when you leave</span></label>
+            <label><input type="radio" name="clock-show" value="always" /> always</label>
+            <label><input type="radio" name="clock-show" value="never" /> never</label>
           </div>
+
+          <h3 class="sub">style</h3>
           <div class="clock-styles" id="clock-styles" role="radiogroup" aria-label="clock style"></div>
+
+          <h3 class="sub">where and how</h3>
           <div class="opts clock-opts">
             <label><span class="dim">corner</span> <select id="clock-corner"><option value="top-right">top right</option><option value="top-left">top left</option><option value="bottom-right">bottom right</option><option value="bottom-left">bottom left</option></select></label>
             <label><span class="dim">colour</span> <select id="clock-colour"><option value="wallpaper">match the wallpaper</option><option value="brand">AfterGlow green</option></select></label>
+            <label><span class="dim">fill</span> <select id="clock-fill"><option value="gradient">gradient</option><option value="solid">solid</option></select></label>
           </div>
-
-          <h3 class="sub">stills</h3>
-          <p class="dim hint stills"><span id="still-note">"save a still" on a card saves a PNG at your screen's size to Pictures/AfterGlow.</span> <button type="button" id="open-stills">open folder</button></p>
+          <p class="dim hint clock-note" id="clock-note"></p>
         </section>
 
         <!-- apps -->

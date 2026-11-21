@@ -13,6 +13,7 @@
 //           lcd      seven segments drawn with _ and |
 //           plain    the time in a large, thin mono font
 //   corner  top-right (default), top-left, bottom-right, bottom-left
+//   fill    gradient (light at the top into the colour) or solid
 //   colour  wallpaper: the palette of what's showing (?tint=); brand: the
 //           logo's white-to-green fade
 
@@ -57,35 +58,46 @@ const PIXELS = {
 // Seven segments for "lcd": a top, b top-right, c bottom-right, d bottom,
 // e bottom-left, f top-left, g middle
 const SEGMENTS = { 0: "abcdef", 1: "bc", 2: "abdeg", 3: "abcdg", 4: "bcfg", 5: "acdfg", 6: "acdefg", 7: "abc", 8: "abcdefg", 9: "abcdfg" };
+// Five rows tall, each digit five characters wide:
+//    ___       a
+//   |   |    f   b
+//   |___|      g
+//   |   |    e   c
+//   |___|      d
 function lcd(text) {
-  const rows = ["", "", ""];
+  const rows = ["", "", "", "", ""];
   for (const ch of text) {
     if (ch === ":") {
-      rows[0] += "  ";
-      rows[1] += ". ";
-      rows[2] += ". ";
+      ["   ", "   ", " o ", " o ", "   "].forEach((c, i) => (rows[i] += c));
       continue;
     }
     const s = SEGMENTS[ch];
-    const on = (k, c) => (s.includes(k) ? c : " ");
-    rows[0] += ` ${on("a", "_")}  `;
-    rows[1] += `${on("f", "|")}${on("g", "_")}${on("b", "|")} `;
-    rows[2] += `${on("e", "|")}${on("d", "_")}${on("c", "|")} `;
+    const on = (k, c) => (s.includes(k) ? c : " ".repeat(c.length));
+    rows[0] += ` ${on("a", "___")}  `;
+    rows[1] += `${on("f", "|")}   ${on("b", "|")} `;
+    rows[2] += `${on("f", "|")}${on("g", "___")}${on("b", "|")} `;
+    rows[3] += `${on("e", "|")}   ${on("c", "|")} `;
+    rows[4] += `${on("e", "|")}${on("d", "___")}${on("c", "|")} `;
   }
   return rows;
 }
 
+// Pixel digits drawn with ASCII density characters from AfterGlow's own font
+// (like heywajih's logo): "@@" inside a stroke and "%%" at its ends.
+// (A faint ".." beside the strokes looked messy inside the digits. Shading blocks
+// ░▒▓ aren't in JetBrains Mono's subset: the browser drew them from another
+// font, a different size, and the digits came out broken.)
 function density(text) {
   return [0, 1, 2, 3, 4].map((r) =>
     [...text]
       .map((ch) => {
         const g = PIXELS[ch];
+        const at = (rr, cc) => g[rr]?.[cc] === "#";
         return [...g[r]]
           .map((p, c) => {
+            const n = [at(r - 1, c), at(r + 1, c), at(r, c - 1), at(r, c + 1)].filter(Boolean).length;
             if (p !== "#") return "  ";
-            // ends of strokes (one neighbour or none) are softer
-            const n = [g[r - 1]?.[c], g[r + 1]?.[c], g[r][c - 1], g[r][c + 1]].filter((q) => q === "#").length;
-            return n <= 1 ? "▒▒" : "▓▓";
+            return n <= 1 ? "%%" : "@@";
           })
           .join("");
       })
@@ -136,7 +148,7 @@ function css() {
     .hover-clock .under { margin-top: 10px; font: 400 13px/1.2 "JetBrains Mono", ui-monospace, monospace; text-shadow: none; }
     .hover-clock.slant pre { font: 700 14px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.density pre { font: 700 12px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.lcd pre { font: 400 24px/0.95 "JetBrains Mono", ui-monospace, Consolas, monospace; }
+    .hover-clock.lcd pre { font: 700 15px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.plain pre { font: 300 52px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; }
     @media (prefers-reduced-motion: reduce) { .hover-clock { transition: none; } }`;
   document.head.append(style);
@@ -149,7 +161,7 @@ function css() {
  */
 export function hoverClock(frames, config = {}, tint = "") {
   css();
-  let cfg = { on: true, always: false, style: "slant", corner: "top-right", colour: "wallpaper", ...config };
+  let cfg = { on: true, always: false, style: "slant", corner: "top-right", colour: "wallpaper", fill: "gradient", ...config };
   let palette = tint || "natural";
 
   const clocks = frames.map((fr) => {
@@ -173,7 +185,8 @@ export function hoverClock(frames, config = {}, tint = "") {
     pre.textContent = "";
     rows.forEach((row, i) => {
       const line = document.createElement("span");
-      const t = rows.length > 1 ? Math.round((i / (rows.length - 1)) * 100) : 55;
+      // gradient: light at the top into the hue at the bottom; solid: the hue (a touch lighter, so it still glows)
+      const t = cfg.fill === "solid" ? 85 : rows.length > 1 ? Math.round((i / (rows.length - 1)) * 100) : 55;
       line.style.color = `color-mix(in srgb, ${low} ${t}%, ${top})`;
       line.textContent = row + (i < rows.length - 1 ? "\n" : "");
       pre.append(line);

@@ -147,11 +147,13 @@ pub struct Clock {
     pub corner: String,
     /// "wallpaper" (the palette of what's showing) or "brand" (white to green)
     pub colour: String,
+    /// "gradient" (light at the top into the colour) or "solid"
+    pub fill: String,
 }
 
 impl Default for Clock {
     fn default() -> Self {
-        Clock { on: true, always: false, style: "slant".into(), corner: "top-right".into(), colour: "wallpaper".into() }
+        Clock { on: true, always: false, style: "slant".into(), corner: "top-right".into(), colour: "wallpaper".into(), fill: "gradient".into() }
     }
 }
 
@@ -160,11 +162,15 @@ pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-
 
 /// Save the clock's settings and tell the wallpapers straight away
 #[tauri::command]
-pub fn set_clock(app: AppHandle, on: bool, always: bool, style: String, corner: String, colour: String) -> Result<(), String> {
-    if !CLOCK_STYLES.contains(&style.as_str()) || !CORNERS.contains(&corner.as_str()) || !["wallpaper", "brand"].contains(&colour.as_str()) {
-        return Err("unknown clock style, corner or colour".into());
+pub fn set_clock(app: AppHandle, on: bool, always: bool, style: String, corner: String, colour: String, fill: String) -> Result<(), String> {
+    if !CLOCK_STYLES.contains(&style.as_str())
+        || !CORNERS.contains(&corner.as_str())
+        || !["wallpaper", "brand"].contains(&colour.as_str())
+        || !["gradient", "solid"].contains(&fill.as_str())
+    {
+        return Err("unknown clock style, corner, colour or fill".into());
     }
-    let clock = Clock { on, always, style, corner, colour };
+    let clock = Clock { on, always, style, corner, colour, fill };
     let host = app.state::<Host>();
     let snapshot = {
         let mut s = host.settings.lock().unwrap();
