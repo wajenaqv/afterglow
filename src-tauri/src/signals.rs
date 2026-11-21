@@ -216,9 +216,19 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             };
             // no count from this app (a script, the simulator): its lantern
             // stays lit until it's seen or cleared
-            if sig.linger != Some(false) && bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0) == 0 {
+            let unread = bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0);
+            if sig.linger != Some(false) && unread == 0 {
                 bus.pending.lock().unwrap().insert(source.clone());
                 bus.seen.lock().unwrap().remove(&source);
+            } else if sig.linger != Some(false) {
+                // something new from an app whose waiting ones were all seen
+                // (a notification replaced by a new one keeps the count the
+                // same): its lantern lights again
+                if let Some(seen) = bus.seen.lock().unwrap().get_mut(&source) {
+                    if *seen >= unread {
+                        *seen = unread - 1;
+                    }
+                }
             }
             reaction
         }
