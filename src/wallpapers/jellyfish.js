@@ -434,16 +434,17 @@ function reactionsTick(dt) {
 }
 
 // Hover (both renderers): the characters of the jelly under the cursor
-// scramble a little into glitch glyphs, densest at the cursor (SCRAMBLE,
-// from j.stir, which eases in and settles over about a second). No light
-// and no change to its path: light on the wallpaper only ever means
-// something is waiting. (A tentacle sway was tried first: too subtle.)
+// dissolve into shading blocks ░▒▓ (by brightness, like heywajih's logo),
+// densest at the cursor (SCRAMBLE, from j.stir, which eases in and settles
+// over about a second). No light and no change to its path: light on the
+// wallpaper only ever means something is waiting. (Tried first: a tentacle
+// sway, too subtle; glitch symbols / \ < > [ ] ..., owner preferred blocks.)
 // Resting the cursor on a lantern for 0.8 s marks it seen; its colour
 // drains away meanwhile (j.drain), and comes back if you move off.
 // (j.excite is now only the flash reaction's contraction and glow.)
 const SEEN_MS = 800;
-// glitch glyphs for the scramble (also in jellyfish-gl.js GLYPHS, slots 19+)
-const GLITCH = "/\\<>[]{}?$&~^";
+// the scramble's glyphs, faint to bright (also jellyfish-gl.js GLYPHS, slots 19-21)
+const SHADES = "░▒▓";
 const SCRAMBLE = { amt: 0, x: 0, y: 0, r: 1, bucket: 0 };
 function hoverTick(dt) {
   let top = null;
@@ -689,15 +690,16 @@ const lagTab = new Float64Array(4096);
 // ---- frame ----
 const RAMP = " .:-=+*oO#%@";
 const STROKES = "|!:;";
-// Hover scramble (CPU): a glitch glyph for cell (x, y), or null. Same rule as
-// the GPU's glyph shader: inside the circle, with a chance that's
-// SCRAMBLE.amt at the cursor and falls off towards the edge, re-rolled
-// every 90 ms.
-function scrambled(x, y) {
+// Hover scramble (CPU): a shading block for cell (x, y) of brightness L, or
+// null. Same rule as the GPU's glyph shader: inside the circle, with a
+// chance that's SCRAMBLE.amt at the cursor and falls off towards the edge,
+// re-rolled every 90 ms; ░▒▓ by brightness, with a little jitter.
+function scrambled(x, y, L) {
   if (SCRAMBLE.amt <= 0) return null;
   const d = Math.hypot((x + 0.5) * cw - SCRAMBLE.x, (y + 0.5) * ch - SCRAMBLE.y) / SCRAMBLE.r;
   if (d >= 1 || hash(x, y, SCRAMBLE.bucket) >= SCRAMBLE.amt * (1 - d * d)) return null;
-  return GLITCH[Math.floor(hash(x + 7, y + 3, SCRAMBLE.bucket) * GLITCH.length)];
+  const i = Math.floor(L * 3 + (hash(x + 7, y + 3, SCRAMBLE.bucket) - 0.5) * 0.8);
+  return SHADES[Math.max(0, Math.min(2, i))];
 }
 const styles = new Map();
 function style(r, g, b) {
@@ -819,7 +821,7 @@ function render(now, dt) {
       own < a * 0.35 ? HALO[Math.min(HALO.length - 1, Math.floor(L * 2 * HALO.length))]
       : tent[k] > own * 0.6 ? STROKES[Math.min(STROKES.length - 1, Math.floor((1 - L) * STROKES.length))]
       : RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(L * (RAMP.length - 1))))];
-    const chr = scrambled(k % cols, Math.floor(k / cols)) ?? chr0;
+    const chr = scrambled(k % cols, Math.floor(k / cols), L) ?? chr0;
     const s = style(BG[0] + (r - BG[0]), BG[1] + (g - BG[1]), BG[2] + (b - BG[2]));
     let list = groups.get(s);
     if (!list) groups.set(s, (list = []));

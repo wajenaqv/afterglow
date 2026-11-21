@@ -58,4 +58,15 @@ export const GUIDES = {
       ["Open the app's ", { b: "Settings" }, ", copy the ", { b: "Client ID" }, " into the box below, click ", { b: "save" }, ", then ", { b: "sign in" }, ". No secret needed."],
     ],
   },
+  steam: {
+    intro: "Chat messages light a lantern in Steam blue until you've seen it. Friends coming online or starting a game give a pulse. Pick which below; chat needs nothing else, friends need your free Steam Web API key (about 2 minutes, once).",
+    time: "about 2 minutes",
+    steps: [
+      ["Chat messages (Windows): in Steam, ", { b: "Settings → Friends & Chat" }, ", keep ", { b: "Flash window when I receive a chat message" }, " on. AfterGlow notices the flash; it never reads the chat."],
+      ["For friends: open ", { link: "Steam Web API key", url: "https://steamcommunity.com/dev/apikey" }, " and sign in. Domain name ", { copy: "localhost" }, ", agree, ", { b: "Register" }, ", and copy the ", { b: "Key" }, "."],
+      ["Your profile: in Steam, open your profile, right-click the page and ", { b: "Copy Page URL" }, ". The link, the 17-digit Steam ID or your custom profile name all work."],
+      ["Steam only shares your friends with your own key if your friends list is visible: ", { link: "Privacy Settings", url: "https://steamcommunity.com/my/edit/settings" }, " → ", { b: "Friends List" }, ": ", { b: "Public" }, "."],
+      ["Paste the key and your profile below, tick what you want and click ", { b: "save" }, ". The key goes into your system's keychain."],
+    ],
+  },
 };

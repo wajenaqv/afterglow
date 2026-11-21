@@ -116,6 +116,8 @@ const LINKS: &[&str] = &[
     "https://console.cloud.google.com/",
     "https://entra.microsoft.com/",
     "https://developer.spotify.com/dashboard",
+    "https://steamcommunity.com/dev/apikey",
+    "https://steamcommunity.com/my/edit/settings",
     "ms-settings:privacy-notifications",
     "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
 ];

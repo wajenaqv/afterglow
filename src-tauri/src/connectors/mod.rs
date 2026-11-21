@@ -14,6 +14,9 @@
 //                  the text. Needs AfterGlow registered as a package
 //                  (scripts/windows/) and the user's OK.
 //   gmail, outlook, spotify   any platform: accounts.rs, signed in with oauth.rs
+//   steam          chat messages (Windows: Steam flashing its taskbar button)
+//                  and friends coming online or starting a game (Web API);
+//                  steam.rs
 //   dock           macOS: the badge numbers on Dock icons (platform/macos.rs
 //                  dock_badges). Needs the Accessibility permission.
 //
@@ -24,6 +27,7 @@
 pub mod notifications;
 pub mod accounts;
 pub mod oauth;
+pub mod steam;
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
@@ -44,6 +48,7 @@ pub fn available() -> Vec<(&'static str, &'static str)> {
     #[cfg(target_os = "macos")]
     v.push(("dock", "Dock badges"));
     v.extend(accounts::IDS.iter().copied());
+    v.push(("steam", "Steam"));
     v
 }
 
@@ -101,7 +106,7 @@ pub fn forget(app: &AppHandle, connector: &str) {
 }
 
 fn send(app: &AppHandle, source: &str, kind: &str, count: Option<u32>) {
-    let sig = Signal { source: source.to_string(), kind: kind.to_string(), count, colour: None, afterglow: None };
+    let sig = Signal { source: source.to_string(), kind: kind.to_string(), count, colour: None, afterglow: None, linger: None };
     if let Err(e) = signals::handle(app, sig) {
         crate::alog!("afterglow: connector signal for {source}: {e}");
     }
@@ -122,6 +127,9 @@ pub fn source_name(display: &str) -> String {
 }
 
 pub fn start(app: &AppHandle) {
+    // Steam chat: Windows taskbar flashes (steam.rs), heard as they happen
+    #[cfg(windows)]
+    steam::start_flash_watch(app);
     let app = app.clone();
     thread::spawn(move || {
         let mut due: HashMap<&'static str, Instant> = HashMap::new();
@@ -190,6 +198,7 @@ fn poll(app: &AppHandle, id: &str) -> Duration {
             Duration::from_secs(2)
         }
         "gmail" | "outlook" | "spotify" => accounts::poll(app, id),
+        "steam" => steam::poll(app),
         _ => Duration::from_secs(60),
     }
 }

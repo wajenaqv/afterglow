@@ -75,7 +75,7 @@ pub fn poll(app: &AppHandle, id: &str) -> Duration {
                     set_status(app, id, "ok", format!("playing {name}"));
                     let mut last = LAST.lock().unwrap();
                     if last.as_deref().is_some_and(|l| l != track) && !track.is_empty() {
-                        let sig = Signal { source: "spotify".into(), kind: "new".into(), count: None, colour: None, afterglow: Some(6.0) };
+                        let sig = Signal { source: "spotify".into(), kind: "new".into(), count: None, colour: None, afterglow: Some(6.0), linger: Some(false) };
                         let _ = signals::handle(app, sig);
                     }
                     *last = Some(track);

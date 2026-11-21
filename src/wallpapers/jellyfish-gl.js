@@ -226,17 +226,18 @@ void main() {
   if (own < a * 0.35) g = min(3.0, floor(L * 2.0 * 4.0));
   else if (tent > own * 0.6) g = 4.0 + min(3.0, floor((1.0 - L) * 4.0));
   else g = 8.0 + clamp(floor(L * 11.0 + 0.5), 1.0, 11.0) - 1.0;
-  // hover: a few characters near the cursor scramble into glitch glyphs (19+)
+  // hover: cells near the cursor dissolve into shading blocks (19-21: ░▒▓),
+  // picked by brightness with a little jitter (jellyfish.js scrambled())
   if (uScr.w > 0.0) {
     float d = length((vec2(cell) + 0.5) * uCell - uScr.xy) / uScr.z;
     if (d < 1.0 && hash21(vec2(cell) + uScrT * 0.618) < uScr.w * (1.0 - d * d))
-      g = 19.0 + floor(hash21(vec2(cell) * 1.37 + uScrT * 0.31) * 13.0);
+      g = 19.0 + clamp(floor(L * 3.0 + (hash21(vec2(cell) * 1.37 + uScrT * 0.31) - 0.5) * 0.8), 0.0, 2.0);
   }
   vec2 local = (css - vec2(cell) * uCell) * uDpr;
   o = vec4(mix(bg, c / 255.0, glyphInk(g, c, local)), 1.0);
 }`;
 
-const GLYPHS = ".'`:" + "|!:;" + ".:-=+*oO#%@" + "/\\<>[]{}?$&~^"; // the last 13: hover scramble (jellyfish.js GLITCH)
+const GLYPHS = ".'`:" + "|!:;" + ".:-=+*oO#%@" + "░▒▓"; // the last 3: hover scramble (jellyfish.js SHADES)
 
 // Returns null when WebGL2 or float render targets aren't available, or the
 // shaders don't compile: the caller then uses the CPU renderer.

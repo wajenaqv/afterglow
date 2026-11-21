@@ -46,6 +46,8 @@ pub struct Settings {
     pub rules: Vec<crate::signals::Rule>,
     /// Rotating through wallpapers (extras.rs)
     pub rotate: crate::extras::Rotate,
+    /// Steam connector parts and Steam ID (connectors/steam.rs; the key is in the keychain)
+    pub steam: crate::connectors::steam::SteamPrefs,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -68,6 +70,7 @@ impl Default for Settings {
             clients: BTreeMap::new(),
             rules: Vec::new(),
             rotate: Default::default(),
+            steam: Default::default(),
         }
     }
 }
@@ -106,10 +109,22 @@ fn path(app: &AppHandle) -> Option<PathBuf> {
 }
 
 pub fn load(app: &AppHandle) -> Settings {
-    let mut s: Settings = path(app)
-        .and_then(|p| fs::read_to_string(p).ok())
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default();
+    // A file that can't be read must not be lost: the next save would write
+    // defaults over it. So a byte-order mark (some editors add one) is
+    // ignored, and a file that still doesn't parse is copied aside to
+    // settings.unreadable.json and logged before starting from defaults.
+    let mut s: Settings = match path(app).and_then(|p| fs::read_to_string(&p).ok().map(|t| (p, t))) {
+        None => Settings::default(),
+        Some((p, text)) => match serde_json::from_str(text.trim_start_matches('\u{feff}')) {
+            Ok(s) => s,
+            Err(e) => {
+                let aside = p.with_file_name("settings.unreadable.json");
+                let _ = fs::copy(&p, &aside);
+                crate::alog!("afterglow: settings.json couldn't be read ({e}); kept a copy at {}; starting from defaults", aside.display());
+                Settings::default()
+            }
+        },
+    };
     if !is_known(&s.wallpaper) {
         s.wallpaper = Settings::default().wallpaper;
     }

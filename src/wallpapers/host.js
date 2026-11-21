@@ -26,6 +26,8 @@ function pageFor(wall, query) {
   return `/wallpapers/${name}.html${q}`;
 }
 
+// the hover clock in each monitor's top-right corner (hoverclock.js)
+import { hoverClock } from "./hoverclock.js";
 const frames = screens.map(([x, y, w, h]) => {
   const f = document.createElement("iframe");
   Object.assign(f.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
@@ -34,6 +36,8 @@ const frames = screens.map(([x, y, w, h]) => {
   document.body.append(f);
   return { f, x, y, w, h };
 });
+
+const clockCursor = hoverClock(frames);
 
 // Settings or the tray picked another wallpaper: swap every frame's page
 function show({ wall, query }) {
@@ -51,6 +55,7 @@ function cursor(p) {
   if (under && under !== hit) send(under, { type: "cursor", at: null });
   if (hit) send(hit, { type: "cursor", at: { x: p.x - hit.x, y: p.y - hit.y } });
   under = hit ?? null;
+  clockCursor(p);
 }
 
 // Pause: the app sends one flag per frame (a monitor hidden behind app

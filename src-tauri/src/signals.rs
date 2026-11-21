@@ -55,6 +55,7 @@ const COLOURS: &[(&str, [u8; 3])] = &[
     ("outlook", [0x28, 0x8e, 0xe8]),
     ("mail", [0x4a, 0xa8, 0xff]),
     ("spotify", [0x1d, 0xb9, 0x54]),
+    ("steam", [0x66, 0xc0, 0xf4]),
 ];
 const BRAND: [u8; 3] = [0x33, 0xff, 0x99];
 
@@ -68,6 +69,10 @@ pub struct Signal {
     pub colour: Option<String>,
     #[serde(default)]
     pub afterglow: Option<f32>,
+    /// "new" only: false = a pulse and nothing more (no lantern left lit),
+    /// for things that aren't waiting for you (a song change, a friend online)
+    #[serde(default)]
+    pub linger: Option<bool>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -211,7 +216,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             };
             // no count from this app (a script, the simulator): its lantern
             // stays lit until it's seen or cleared
-            if bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0) == 0 {
+            if sig.linger != Some(false) && bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0) == 0 {
                 bus.pending.lock().unwrap().insert(source.clone());
                 bus.seen.lock().unwrap().remove(&source);
             }

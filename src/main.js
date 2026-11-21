@@ -65,9 +65,12 @@ function standIn(cmd, a) {
         { id: "gmail", name: "Gmail", on: true, status: { state: "setup", text: "needs your Google app (see the guide)" } },
         { id: "outlook", name: "Outlook", on: false },
         { id: "spotify", name: "Spotify (a pulse when the song changes)", on: false },
+        { id: "steam", name: "Steam", on: true, status: { state: "setup", text: "friends need your Steam Web API key and Steam ID (see the guide)" } },
       ];
     case "accounts_state":
       return ["gmail", "outlook", "spotify"].map((id) => ({ id, client_id: "", has_secret: false, signed_in: false }));
+    case "steam_state":
+      return { messages: true, online: true, playing: false, steamid: "", has_key: false, can_messages: true };
     case "unread_by_app":
       return {};
     case "autostart_state":
@@ -400,6 +403,58 @@ function accountFields(a) {
   showGuide(block);
 }
 
+// Steam: its three parts, the Steam ID and the Web API key, at the end of
+// its guide (connectors/steam.rs set_steam). The key field is never filled
+// back in (it's in the keychain); "saved" shows when there is one.
+function steamFields(st) {
+  const block = $('[data-id="steam"]', connectorsEl);
+  if (!block) return;
+  let fields = $(".steam", block);
+  if (!fields) {
+    fields = document.createElement("div");
+    fields.className = "account steam";
+    fields.innerHTML = `
+      <label><input type="checkbox" class="st-messages" /> chat messages</label>
+      <label><input type="checkbox" class="st-online" /> friends coming online</label>
+      <label><input type="checkbox" class="st-playing" /> friends starting a game</label>
+      <div class="break"></div>
+      <input class="st-id" placeholder="profile link or Steam ID" autocomplete="off" spellcheck="false" aria-label="Steam profile" />
+      <input class="st-key" type="password" placeholder="Steam Web API key" autocomplete="off" aria-label="Steam Web API key" />
+      <button type="button" class="save">save</button>
+      <span class="note dim"></span>`;
+    $(".save", fields).addEventListener("click", () => {
+      const note = $(".note", fields);
+      note.textContent = "saving…";
+      invoke("set_steam", {
+        messages: $(".st-messages", fields).checked,
+        online: $(".st-online", fields).checked,
+        playing: $(".st-playing", fields).checked,
+        steamid: $(".st-id", fields).value,
+        apiKey: $(".st-key", fields).value,
+      })
+        .then((id) => {
+          $(".st-key", fields).value = "";
+          note.textContent = id ? `saved (Steam ID ${id})` : "saved";
+          fields.dataset.loaded = "";
+          refreshApps();
+        })
+        .catch((e) => (note.textContent = String(e)));
+    });
+    $(".guide", block).append(fields);
+  }
+  // fill in from the app once (and after each save), so typing isn't overwritten
+  if (!fields.dataset.loaded) {
+    fields.dataset.loaded = "1";
+    $(".st-messages", fields).checked = st.messages;
+    $(".st-online", fields).checked = st.online;
+    $(".st-playing", fields).checked = st.playing;
+    $(".st-id", fields).value = st.steamid;
+  }
+  $(".st-messages", fields).disabled = !st.can_messages;
+  $(".st-messages", fields).parentElement.title = st.can_messages ? "" : "Windows only for now";
+  $(".st-key", fields).placeholder = st.has_key ? "Steam Web API key (saved)" : "Steam Web API key";
+}
+
 // Guide links open in the browser (or OS settings); copy buttons copy
 connectorsEl.addEventListener("click", async (e) => {
   const link = e.target.closest("[data-open]");
@@ -432,6 +487,7 @@ const KNOWN = [
   ["outlook", "Outlook", "#288ee8"],
   ["mail", "Mail", "#4aa8ff"],
   ["spotify", "Spotify", "#1db954"],
+  ["steam", "Steam", "#66c0f4"],
 ];
 const BRAND = "#33ff99";
 const ownColour = (source) => KNOWN.find(([id]) => id === source)?.[2] ?? BRAND;
@@ -566,6 +622,7 @@ async function refreshApps() {
     if (!list.length) connectorsEl.textContent = IN_APP ? "none on this computer yet" : "open Settings from the AfterGlow tray to see these";
     list.forEach(connectorBlock);
     (await invoke("accounts_state")).forEach(accountFields);
+    if ($('[data-id="steam"]', connectorsEl)) steamFields(await invoke("steam_state"));
     const waiting = await invoke("unread_by_app");
     for (const row of rows.values()) $(".waiting", row.tr).textContent = waiting[row.source] ? String(waiting[row.source]) : "";
     // apps that turned up through a connector but aren't listed yet
