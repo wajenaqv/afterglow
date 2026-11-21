@@ -107,11 +107,24 @@ pub fn open_stills_folder(app: AppHandle) -> Result<(), String> {
     open::that(dir).map_err(|e| e.to_string())
 }
 
-/// Settings → about: open the project's page in the browser (only links to
-/// the project, so a page can't open anything else)
+/// Pages Settings may open: the project, the developer consoles the apps
+/// page's setup guides point to, and the OS settings pages for notification
+/// access (Windows) and Accessibility (macOS). Anything else is refused, so
+/// a page can't open arbitrary links or programs.
+const LINKS: &[&str] = &[
+    "https://github.com/wajenaqv/afterglow",
+    "https://console.cloud.google.com/",
+    "https://entra.microsoft.com/",
+    "https://developer.spotify.com/dashboard",
+    "ms-settings:privacy-notifications",
+    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+];
+
+/// Open one of LINKS in the browser (or the OS settings page)
 #[tauri::command]
 pub fn open_link(url: String) -> Result<(), String> {
-    if !url.starts_with("https://github.com/wajenaqv/afterglow") {
+    let ok = LINKS.iter().any(|l| if l.starts_with("https://") { url.starts_with(l) } else { url == *l });
+    if !ok {
         return Err("not a link AfterGlow opens".into());
     }
     open::that(url).map_err(|e| e.to_string())

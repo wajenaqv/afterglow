@@ -299,13 +299,19 @@ button.still {
 .connectors {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  max-width: 820px;
 }
-.connector {
+.connector .head {
+  display: flex;
+  gap: 8px 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.connector .head label {
   display: flex;
   gap: 8px;
   align-items: baseline;
-  flex-wrap: wrap;
   cursor: pointer;
 }
 .connector .status[data-state="ok"] {
@@ -315,19 +321,57 @@ button.still {
 .connector .status[data-state="error"] {
   color: var(--bright);
 }
+.connector .how {
+  font-size: 12px;
+  padding: 1px 8px;
+  margin-left: auto;
+}
+/* the setup guide, under its connector */
+.guide {
+  margin: 8px 0 4px 6px;
+  padding: 2px 0 6px 18px;
+  border-left: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+  font-size: 13px;
+}
+.guide > p {
+  margin: 4px 0 8px;
+}
+.guide ol {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.guide li::marker {
+  color: var(--accent);
+}
+.guide b {
+  color: var(--bright);
+  font-weight: 700;
+}
+.guide code {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--fg) 8%, var(--bg));
+  border-radius: 4px;
+  padding: 0 5px;
+  overflow-wrap: anywhere;
+}
+.guide button.copy {
+  font-size: 11px;
+  padding: 0 6px;
+  margin: 0 2px 0 6px;
+  vertical-align: 1px;
+}
 .account {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  margin: 0 0 6px 26px;
+  margin: 12px 0 2px 22px;
 }
 .account input {
-  min-width: 18ch;
-}
-.account .redirect {
-  flex-basis: 100%;
-  font-size: 12px;
+  min-width: 22ch;
 }
 
 table.apps {

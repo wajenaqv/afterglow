@@ -101,7 +101,7 @@ Switch connectors on in **Settings → connectors**:
 | Outlook | [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps): account type *any organizational directory and personal Microsoft accounts*, platform *Mobile and desktop applications* | `http://localhost:47812/callback` | `Mail.ReadBasic` |
 | Spotify | [Spotify developer dashboard](https://developer.spotify.com/dashboard) | `http://127.0.0.1:47812/callback` | `user-read-currently-playing` |
 
-Sign-in tokens are kept in Windows Credential Manager or the macOS Keychain.
+Settings → apps walks you through each one step by step, with links to the right pages and copy buttons for the values to paste. Sign-in tokens are kept in Windows Credential Manager or the macOS Keychain.
 
 **Rules** (Settings → connectors → rules) change what an app does: pulse, flash or nothing on a new message, a colour of your own, and whether its count brings in more jellies. **Do Not Disturb** quiets pulses and flashes on Windows (tray → Quiet during Do Not Disturb). **Rotation** and **save a still** (a PNG at your screen's size, into Pictures/AfterGlow) are in Settings → wallpaper.
 

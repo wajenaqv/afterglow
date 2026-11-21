@@ -15,6 +15,7 @@ import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
+import { GUIDES } from "./guides.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -57,9 +58,16 @@ function standIn(cmd, a) {
     case "set_pausing":
       Object.assign(s, { pause_covered: a.covered, pause_fullscreen: a.fullscreen, pause_on_battery: a.battery, quiet_dnd: a.quietDnd });
       return save();
+    // sample connectors, so the apps page and its guides can be designed here
     case "connectors_state":
+      return [
+        { id: "notifications", name: "Windows notifications", on: false },
+        { id: "gmail", name: "Gmail", on: true, status: { state: "setup", text: "needs your Google app (see the guide)" } },
+        { id: "outlook", name: "Outlook", on: false },
+        { id: "spotify", name: "Spotify (a pulse when the song changes)", on: false },
+      ];
     case "accounts_state":
-      return [];
+      return ["gmail", "outlook", "spotify"].map((id) => ({ id, client_id: "", has_secret: false, signed_in: false }));
     case "unread_by_app":
       return {};
     case "autostart_state":
@@ -281,62 +289,135 @@ $("#open-stills").addEventListener("click", () => invoke("open_stills_folder").c
 // shown dim. Changing a row gives that app its own rule (signals.rs Rule);
 // "reset" drops it again. Saved on every change.
 
-// ---- listen to: one row per connector, with a status line ----
+// ---- listen to: one block per connector ----
+// A switch, a status line and a "how to set it up" guide (src/guides.js).
+// The guide opens by itself while a switched-on connector still needs
+// something from you (access, keys, sign-in); the button toggles it any time.
+// Accounts (Gmail, Outlook, Spotify) get their key fields at the end of the
+// guide. Inputs are left alone while focused, so the 2-second refresh
+// doesn't fight your typing.
 const connectorsEl = $("#connectors");
-function connectorRow(c) {
-  let row = $(`[data-id="${c.id}"]`, connectorsEl);
-  if (!row) {
-    row = document.createElement("label");
-    row.className = "connector";
-    row.dataset.id = c.id;
-    row.innerHTML = `<input type="checkbox" /> <span class="name"></span> <span class="status dim"></span>`;
-    $("input", row).addEventListener("change", (e) => invoke("set_connector", { id: c.id, on: e.target.checked }).then(refreshApps));
-    connectorsEl.append(row);
+const guideOpen = new Map(); // id -> true/false once you've toggled it yourself
+
+function guideHTML(id) {
+  const g = GUIDES[id];
+  if (!g) return "";
+  const part = (p) => {
+    if (typeof p === "string") return esc(p);
+    if (p.b) return `<b>${esc(p.b)}</b>`;
+    if (p.link) return `<a href="${esc(p.url)}" data-open="${esc(p.url)}">${esc(p.link)} ↗</a>`;
+    if (p.copy) return `<code>${esc(p.copy)}</code><button type="button" class="copy" data-copy="${esc(p.copy)}">copy</button>`;
+    return "";
+  };
+  return `<p class="dim">${esc(g.intro)}</p>
+    <ol>${g.steps.map((s) => `<li>${s.map(part).join("")}</li>`).join("")}</ol>`;
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function connectorBlock(c) {
+  let block = $(`[data-id="${c.id}"]`, connectorsEl);
+  if (!block) {
+    block = document.createElement("div");
+    block.className = "connector";
+    block.dataset.id = c.id;
+    block.innerHTML = `
+      <div class="head">
+        <label><input type="checkbox" /> <span class="name"></span></label>
+        <span class="status dim"></span>
+        ${GUIDES[c.id] ? `<button type="button" class="how">how to set it up</button>` : ""}
+      </div>
+      <div class="guide" hidden>${guideHTML(c.id)}</div>`;
+    $("input", block).addEventListener("change", (e) => invoke("set_connector", { id: c.id, on: e.target.checked }).then(refreshApps));
+    $(".how", block)?.addEventListener("click", () => {
+      guideOpen.set(c.id, $(".guide", block).hidden);
+      refreshApps();
+    });
+    connectorsEl.append(block);
   }
-  $("input", row).checked = c.on;
-  $(".name", row).textContent = c.name;
-  const status = $(".status", row);
+  $("input", block).checked = c.on;
+  $(".name", block).textContent = c.name;
+  const status = $(".status", block);
   status.textContent = c.on ? (c.status?.text ?? "starting…") : "off";
   status.dataset.state = c.on ? (c.status?.state ?? "") : "off";
+  // needs you: switched on but not working yet
+  block.needsYou = c.on && c.status?.state !== "ok";
+  showGuide(block);
 }
-// Accounts (Gmail, Outlook, Spotify): the app registration and sign-in,
-// under the connector's row, only while it's switched on. Inputs are left
-// alone while focused, so the refresh doesn't fight your typing.
-function accountPanel(a) {
-  const row = $(`[data-id="${a.id}"]`, connectorsEl);
-  if (!row) return;
-  let panel = $(`[data-account="${a.id}"]`, connectorsEl);
-  if (!panel) {
-    panel = document.createElement("div");
-    panel.className = "account";
-    panel.dataset.account = a.id;
+function showGuide(block) {
+  const open = guideOpen.get(block.dataset.id) ?? !!block.needsYou;
+  $(".guide", block).hidden = !open;
+  const how = $(".how", block);
+  if (how) how.textContent = open ? "hide the guide" : "how to set it up";
+}
+
+// The account's key fields, at the end of its guide
+function accountFields(a) {
+  const block = $(`[data-id="${a.id}"]`, connectorsEl);
+  if (!block) return;
+  let fields = $(".account", block);
+  if (!fields) {
+    fields = document.createElement("div");
+    fields.className = "account";
     const secret = a.id === "gmail" ? `<input class="secret" type="password" placeholder="client secret" autocomplete="off" aria-label="client secret" />` : "";
-    panel.innerHTML = `
+    fields.innerHTML = `
       <input class="client" placeholder="client id" autocomplete="off" spellcheck="false" aria-label="client id" /> ${secret}
       <button type="button" class="save">save</button>
       <button type="button" class="signin"></button>
-      <div class="dim redirect"></div>`;
-    $(".save", panel).addEventListener("click", () =>
-      invoke("set_client", { id: a.id, clientId: $(".client", panel).value, clientSecret: $(".secret", panel)?.value ?? "" }).then(() => {
-        const s = $(".secret", panel);
-        if (s) s.value = "";
-        refreshApps();
-      }),
+      <span class="note dim"></span>`;
+    const note = $(".note", fields);
+    $(".save", fields).addEventListener("click", () =>
+      invoke("set_client", { id: a.id, clientId: $(".client", fields).value.trim(), clientSecret: ($(".secret", fields)?.value ?? "").trim() })
+        .then(() => {
+          const s = $(".secret", fields);
+          if (s) s.value = "";
+          note.textContent = "saved: now sign in";
+          refreshApps();
+        })
+        .catch((e) => (note.textContent = String(e))),
     );
-    $(".signin", panel).addEventListener("click", (e) => invoke(e.target.dataset.signedIn === "1" ? "account_sign_out" : "account_sign_in", { id: a.id }).then(refreshApps));
-    row.after(panel);
+    $(".signin", fields).addEventListener("click", (e) => {
+      const out = e.target.dataset.signedIn === "1";
+      note.textContent = out ? "" : "finish signing in in your browser…";
+      invoke(out ? "account_sign_out" : "account_sign_in", { id: a.id })
+        .then(refreshApps)
+        .catch((err) => (note.textContent = String(err)));
+    });
+    $(".guide", block).append(fields);
   }
-  panel.hidden = !$("input", row).checked;
-  const client = $(".client", panel);
+  const client = $(".client", fields);
   if (document.activeElement !== client) client.value = a.client_id;
-  const secret = $(".secret", panel);
+  const secret = $(".secret", fields);
   if (secret && document.activeElement !== secret) secret.placeholder = a.has_secret ? "client secret (saved)" : "client secret";
-  const btn = $(".signin", panel);
+  const btn = $(".signin", fields);
   btn.textContent = a.signed_in ? "sign out" : "sign in";
   btn.dataset.signedIn = a.signed_in ? "1" : "0";
   btn.disabled = !a.client_id;
-  $(".redirect", panel).textContent = `register this redirect URI with the app: ${a.redirect}`;
+  if (a.signed_in && $(".note", fields).textContent.startsWith("finish")) $(".note", fields).textContent = "signed in";
+  // an account counts as needing you until it's signed in
+  block.needsYou = $("input", block).checked && !a.signed_in;
+  showGuide(block);
 }
+
+// Guide links open in the browser (or OS settings); copy buttons copy
+connectorsEl.addEventListener("click", async (e) => {
+  const link = e.target.closest("[data-open]");
+  if (link) {
+    e.preventDefault();
+    if (IN_APP) invoke("open_link", { url: link.dataset.open }).catch(() => {});
+    else window.open(link.dataset.open, "_blank", "noopener");
+    return;
+  }
+  const copy = e.target.closest("[data-copy]");
+  if (copy) {
+    try {
+      await navigator.clipboard.writeText(copy.dataset.copy);
+      copy.textContent = "copied";
+      setTimeout(() => (copy.textContent = "copy"), 1500);
+    } catch {}
+  }
+});
 
 // ---- what each app does ----
 // Known apps and their own colours (signals.rs COLOURS)
@@ -483,8 +564,8 @@ async function refreshApps() {
   try {
     const list = await invoke("connectors_state");
     if (!list.length) connectorsEl.textContent = IN_APP ? "none on this computer yet" : "open Settings from the AfterGlow tray to see these";
-    list.forEach(connectorRow);
-    (await invoke("accounts_state")).forEach(accountPanel);
+    list.forEach(connectorBlock);
+    (await invoke("accounts_state")).forEach(accountFields);
     const waiting = await invoke("unread_by_app");
     for (const row of rows.values()) $(".waiting", row.tr).textContent = waiting[row.source] ? String(waiting[row.source]) : "";
     // apps that turned up through a connector but aren't listed yet
