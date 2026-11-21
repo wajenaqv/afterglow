@@ -106,7 +106,7 @@ pub struct Host {
     /// Paused from the tray menu (not saved: AfterGlow always starts running)
     pub user_paused: AtomicBool,
     /// What each window was last told (to log changes)
-    last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
+    pub(crate) last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
     /// Bumped on every rebuild, so new windows get fresh labels (a label
     /// can't be reused while its old window is still closing)
     generation: AtomicUsize,
@@ -337,6 +337,7 @@ fn fullscreen_loop(app: AppHandle) {
 fn pause_loop(app: AppHandle) {
     loop {
         apply_pause(&app);
+        crate::signals::replay_missed(&app);
         thread::sleep(Duration::from_secs(1));
     }
 }

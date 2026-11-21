@@ -49,6 +49,8 @@ pub fn run() {
             tray::autostart_state,
             tray::set_autostart,
             signals::unread_by_app,
+            signals::dismiss_lantern,
+            signals::lantern_state,
             extras::save_png,
             extras::open_stills_folder,
             extras::open_link,

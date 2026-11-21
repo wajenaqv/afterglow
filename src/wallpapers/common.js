@@ -80,6 +80,8 @@ function setPaused(p) {
 // { type: "pulse", colour: [r, g, b] (0..255), afterglow: seconds, source }
 // { type: "count", n }   how many things are waiting, across all apps
 // { type: "flash" }
+// { type: "lanterns", items: [{ source, colour }] }   every app with something
+//   waiting that you haven't seen: the whole list, on every change
 // A wallpaper handles the ones it can (catalog.js lists which).
 const reactionHandlers = [];
 export const onReaction = (fn) => reactionHandlers.push(fn);
@@ -88,6 +90,16 @@ function react(r) {
   reactionHandlers.forEach((fn) => fn(r));
   // tell the host page it arrived (it logs to the app; see host.js)
   if (FRAMED) parent.postMessage({ type: "reacted", reaction: r.type, handlers: reactionHandlers.length, page: location.pathname }, location.origin);
+}
+// You rested the cursor on an app's lantern: tell the app it's been seen
+// (host.js -> signals.rs dismiss_lantern; the app sends the new list back)
+let testLanterns = []; // in a browser, the L / K keys' lanterns
+export function seenLantern(source) {
+  if (FRAMED) parent.postMessage({ type: "seen", source }, location.origin);
+  else {
+    testLanterns = testLanterns.filter((l) => l.source !== source);
+    react({ type: "lanterns", items: testLanterns });
+  }
 }
 
 if (FRAMED) {
@@ -106,10 +118,25 @@ if (FRAMED) {
   // Opened directly in a browser: keys fire reactions, for tuning them
   //   P pulse (brand green), G pulse (another colour), F flash,
   //   C or + three more waiting, - three fewer, X none waiting
+  //   L light another app's lantern (and pulse it), K all lanterns out
   let count = 0;
+  const TEST_APPS = [
+    ["whatsapp", [37, 211, 102]],
+    ["gmail", [234, 67, 53]],
+    ["slack", [224, 30, 90]],
+    ["discord", [88, 101, 242]],
+    ["spotify", [29, 185, 84]],
+  ];
   addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
-    if (k === "p") react({ type: "pulse", colour: [51, 255, 153], afterglow: 4, source: "test" });
+    if (k === "l") {
+      const next = TEST_APPS.find(([s]) => !testLanterns.some((l) => l.source === s));
+      if (!next) return;
+      testLanterns = [...testLanterns, { source: next[0], colour: next[1] }];
+      react({ type: "lanterns", items: testLanterns });
+      react({ type: "pulse", colour: next[1], afterglow: 4, source: next[0] });
+    } else if (k === "k") react({ type: "lanterns", items: (testLanterns = []) });
+    else if (k === "p") react({ type: "pulse", colour: [51, 255, 153], afterglow: 4, source: "test" });
     else if (k === "g") react({ type: "pulse", colour: [234, 67, 53], afterglow: 4, source: "test" });
     else if (k === "f") react({ type: "flash" });
     else if (k === "c" || k === "+" || k === "=") react({ type: "count", n: (count += 3) });

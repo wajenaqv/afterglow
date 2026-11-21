@@ -34,7 +34,7 @@
 //          ?hue=1-6: the big jelly's colour in the palette (default: the
 //          moment's for stills, random live)
 
-import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction } from "./common.js";
+import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createJellyGL } from "./jellyfish-gl.js";
 
@@ -274,6 +274,8 @@ if (HERO) {
 }
 // Marine snow: x as a fraction of the visible width, so it fills wide screens too
 const SNOW = Array.from({ length: 600 }, () => [random() * 2 - 1, random() * 20 - 10, random() * 16 - 8, random()]);
+// ?specks=0: no marine snow, the jellies on plain black (Settings: background)
+const SPECKS = params.get("specks") !== "0";
 let HALF_W = 10; // half the visible width in world units (10 = half the height)
 
 // ---- reactions (AfterGlow; common.js onReaction, signals.rs) ----
@@ -308,25 +310,87 @@ const EXTRAS = HERO
 JELLIES.push(...EXTRAS);
 let extrasWanted = 0;
 let pulseClock = 0; // orders pulses, so they take turns
+let clock = 0; // seconds, for the lanterns' slow breathing
 
-// A jelly's colours, tinted towards a pulse's colour while it glows
+// ---- lanterns: something is waiting (signals.rs) ----
+// Each app with something waiting lights one jelly in its colour, breathing
+// softly, until the app has nothing waiting or you rest the cursor on that
+// jelly ("seen": seenLantern tells the app). A lantern keeps to a jelly
+// that's on screen: it goes to a jelly low on the screen (jellies rise, so
+// that one stays longest), and only when its jelly is leaving at the top
+// does it move to another (one fades out as the other fades in). More
+// lanterns than jellies (the big jellyfish has one): a jelly holds several
+// and its colour steps through them every few seconds.
+const lanternOf = new Map(); // source -> jelly
+const LANTERN = 1; // how strongly a lantern tints its jelly (as much as a pulse, but breathing)
+const visible = (j) => (j.presence ?? 1) > 0.5 && j.screen && j.screen.x > 0 && j.screen.x < W && j.screen.y > H * 0.1 && j.screen.y < H * 0.9;
+const leaving = (j) => (j.presence ?? 1) <= 0.5 || !j.screen || j.screen.x < 0 || j.screen.x > W || j.screen.y < H * 0.04 || j.screen.y > H;
+function lanternJelly(skip) {
+  const free = JELLIES.filter((j) => j !== skip && visible(j) && !(j.lanterns?.length));
+  const low = free.filter((j) => j.screen.y > H * 0.45);
+  const pool = low.length ? low : free;
+  if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+  // none free: share the visible jelly with the fewest
+  const shared = JELLIES.filter((j) => j !== skip && visible(j)).sort((a, b) => (a.lanterns?.length ?? 0) - (b.lanterns?.length ?? 0));
+  return shared[0] ?? JELLIES.find((j) => j !== skip && (j.presence ?? 1) > 0.5) ?? JELLIES[0];
+}
+function giveLantern(j, item) {
+  j.lanterns = (j.lanterns ?? []).filter((l) => l.source !== item.source);
+  j.lanterns.push({ source: item.source, rgb: item.colour.map((v) => Math.max(0, Math.min(255, v))) });
+  j.lanternAmt ??= 0;
+  lanternOf.set(item.source, j);
+}
+function takeLantern(source) {
+  const j = lanternOf.get(source);
+  if (j) j.lanterns = j.lanterns.filter((l) => l.source !== source);
+  lanternOf.delete(source);
+}
+function showLanterns(items) {
+  const want = new Map(items.map((i) => [i.source, i]));
+  for (const source of [...lanternOf.keys()]) if (!want.has(source)) takeLantern(source);
+  for (const item of items) {
+    const j = lanternOf.get(item.source);
+    if (j) giveLantern(j, item); // keeps its jelly (the colour may have changed)
+    else giveLantern(lanternJelly(), item);
+  }
+}
+// The lantern colour a jelly shows now (several: one after another)
+function lanternRGB(j) {
+  const ls = j.lanterns;
+  if (!ls?.length) return j.lastLanternRGB;
+  return (j.lastLanternRGB = ls[Math.floor(clock / 4) % ls.length].rgb);
+}
+// How lit a jelly is: a pulse, or its lantern (breathing slowly)
+function litAmt(j) {
+  const lantern = (j.lanternAmt || 0) * LANTERN * (0.86 + 0.14 * Math.sin(clock * 1.3 + (j.phase || 0)));
+  return Math.max(j.glowAmt || 0, lantern);
+}
+
+// A jelly's colours, tinted towards a pulse's or its lantern's colour
 function colOf(j) {
   const base = HUES[j.hue % HUES.length];
-  const a = j.glowAmt || 0;
+  const pulse = j.glowAmt || 0;
+  const a = litAmt(j);
   if (a < 0.01) return base;
-  const tint = (c, k) => c.map((v, i) => v + (j.glowRGB[i] - v) * k);
+  const rgb = pulse >= a - 1e-6 ? j.glowRGB : lanternRGB(j);
+  if (!rgb) return base;
+  const tint = (c, k) => c.map((v, i) => v + (rgb[i] - v) * k);
   return { bell: tint(base.bell, a * 0.85), glow: tint(base.glow, Math.min(1, a)), tent: tint(base.tent, a * 0.7) };
 }
 
 onReaction((r) => {
   if (r.type === "pulse") {
-    // on screen, and pulsed longest ago (ties: any of them, so pulses land all
-    // over rather than always near the middle)
-    const onScreen = JELLIES.filter((j) => (j.presence ?? 1) > 0.5 && j.screen && j.screen.x > 0 && j.screen.x < W && j.screen.y > 0 && j.screen.y < H);
-    const pool = onScreen.length ? onScreen : JELLIES.filter((j) => (j.presence ?? 1) > 0.5);
-    const order = new Map(pool.map((j) => [j, Math.random()]));
-    pool.sort((a, b) => (a.pulsedAt ?? -1) - (b.pulsedAt ?? -1) || order.get(a) - order.get(b));
-    const j = pool[0];
+    // the app's lantern jelly if it has one, so the arrival and what's left
+    // waiting are the same jelly; else on screen, and pulsed longest ago
+    // (ties: any of them, so pulses land all over, not always mid-screen)
+    let j = lanternOf.get(r.source);
+    if (!j || !visible(j)) {
+      const onScreen = JELLIES.filter((j) => (j.presence ?? 1) > 0.5 && j.screen && j.screen.x > 0 && j.screen.x < W && j.screen.y > 0 && j.screen.y < H);
+      const pool = onScreen.length ? onScreen : JELLIES.filter((j) => (j.presence ?? 1) > 0.5);
+      const order = new Map(pool.map((j) => [j, Math.random()]));
+      pool.sort((a, b) => (a.pulsedAt ?? -1) - (b.pulsedAt ?? -1) || order.get(a) - order.get(b));
+      j = pool[0];
+    }
     if (!j) return;
     j.glowRGB = r.colour.map((v) => Math.max(0, Math.min(255, v)));
     j.glowAmt = 1;
@@ -337,16 +401,52 @@ onReaction((r) => {
     extrasWanted = Math.min(EXTRAS.length, Math.ceil(Math.max(0, r.n) / 3));
   } else if (r.type === "flash") {
     for (const j of JELLIES) j.excite = 1;
+  } else if (r.type === "lanterns") {
+    showLanterns(Array.isArray(r.items) ? r.items : []);
   }
 });
 
-// Once per frame: pulses fade, extras drift in or out
+// Once per frame: pulses fade, extras drift in or out, lanterns fade in and
+// out (about 1.5 s) and move off jellies that are leaving the screen
+let lanternCheck = 0;
 function reactionsTick(dt) {
+  clock += dt;
+  if ((lanternCheck += dt) > 1) {
+    lanternCheck = 0;
+    for (const [source, j] of [...lanternOf]) {
+      if (!leaving(j)) continue;
+      const next = lanternJelly(j);
+      if (next === j || !visible(next)) continue;
+      const item = j.lanterns.find((l) => l.source === source);
+      takeLantern(source);
+      giveLantern(next, { source, colour: item.rgb });
+    }
+  }
   for (const j of JELLIES) {
     if (j.glowAmt) j.glowAmt = j.glowAmt * Math.exp(-dt / j.glowTau);
+    const want = j.lanterns?.length ? 1 : 0;
+    if (j.lanternAmt !== undefined) j.lanternAmt += Math.max(-dt / 1.5, Math.min(dt / 1.5, want - j.lanternAmt));
     if (j.extra) {
       const want = EXTRAS.indexOf(j) < extrasWanted ? 1 : 0;
       j.presence += Math.max(-dt / 3, Math.min(dt / 3, want - j.presence));
+    }
+  }
+}
+
+// Hover (both renderers): the jelly under the cursor flashes; resting the
+// cursor on a lantern for a moment marks it seen
+function hoverTick(dt) {
+  for (const j of JELLIES) {
+    j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);
+    const sc = j.screen;
+    const over = HOVER && pointer.on && sc && Math.hypot((pointer.x - sc.x) / (sc.r * 1.3), (pointer.y - sc.y) / (sc.r * 1.1)) < 1;
+    if (over) j.excite = Math.min(1, j.excite + dt * 6);
+    // real time, not frames (the frame rate can be 15)
+    const now = performance.now();
+    j.overSince = over ? (j.overSince ?? now) : null;
+    if (j.overSince !== null && now - j.overSince > 800 && j.lanterns?.length) {
+      for (const l of j.lanterns) seenLantern(l.source);
+      for (const l of [...j.lanterns]) takeLantern(l.source); // fade now; the app confirms
     }
   }
 }
@@ -394,7 +494,7 @@ function jellyState(j, t) {
   const cz = j.z + Math.cos(t * 0.05 + j.seed) * 0.6 * sway;
   const R = j.r * SIZE * (1 - 0.18 * p);
   const Hb = j.r * SIZE * (0.5 + 0.25 * p);
-  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)) * (1 + 0.8 * (j.glowAmt || 0));
+  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)) * (1 + 0.8 * litAmt(j));
   const [bx, by, bz] = project(cx, y + Hb * 0.4, cz);
   j.screen = { x: bx, y: by, r: (R * focal) / bz };
   return { p, push, y, fade, cx, cz, R, Hb, flash, jr: j.r * SIZE, ct: Math.cos(j.tilt), st: Math.sin(j.tilt), col: colOf(j) };
@@ -461,7 +561,7 @@ function drawJelly(j, t) {
   const BELL_AREA = BELL_STEP * R * ((Math.PI * 2) / BELL_RING); // one bell sample's patch of membrane
   const ARM_AREA = LINE_STEP * 0.07 * j.r * SIZE;
   const TENT_AREA = LINE_STEP * 0.05;
-  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)) * (1 + 0.8 * (j.glowAmt || 0)); // each contraction, a touch and a pulse make the bell glow brighter
+  const flash = (0.8 + 0.55 * p) * (1 + 1.4 * (j.excite || 0)) * (1 + 0.8 * litAmt(j)); // each contraction, a touch and a pulse make the bell glow brighter
   // remember where the bell is on screen, for the hover check
   const [bx, by, bz] = project(cx, y + Hb * 0.4, cz);
   j.screen = { x: bx, y: by, r: (R * focal) / bz };
@@ -632,11 +732,7 @@ function render(now, dt) {
   reactionsTick(dt);
   if (GLR) {
     // GPU: hover bookkeeping and per-jelly state here, everything else in shaders
-    for (const j of JELLIES) {
-      j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);
-      const sc = j.screen;
-      if (HOVER && pointer.on && sc && Math.hypot((pointer.x - sc.x) / (sc.r * 1.3), (pointer.y - sc.y) / (sc.r * 1.1)) < 1) j.excite = Math.min(1, j.excite + dt * 6);
-    }
+    hoverTick(dt);
     const jellies = [];
     for (const j of JELLIES) {
       const s = jellyState(j, t);
@@ -656,17 +752,14 @@ function render(now, dt) {
   sb.fill(0);
   tent.fill(0);
 
-  // Marine snow, drifting slowly down
-  for (const [xf, y0, z, m] of SNOW) {
-    const y = ((((y0 - t * (0.08 + m * 0.06)) + 10) % 20) + 20) % 20 - 10;
-    glow(xf * HALF_W * 1.05 + Math.sin(t * 0.2 + m * 9) * 0.3, y, z, 0.06 + 0.1 * m, SNOW_COL, false);
-  }
+  // Marine snow, drifting slowly down (off with ?specks=0: plain black water)
+  if (SPECKS)
+    for (const [xf, y0, z, m] of SNOW) {
+      const y = ((((y0 - t * (0.08 + m * 0.06)) + 10) % 20) + 20) % 20 - 10;
+      glow(xf * HALF_W * 1.05 + Math.sin(t * 0.2 + m * 9) * 0.3, y, z, 0.06 + 0.1 * m, SNOW_COL, false);
+    }
   // Hover: a jelly under the cursor lights up; the glow fades over ~1.5 s
-  for (const j of JELLIES) {
-    j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);
-    const sc = j.screen;
-    if (HOVER && pointer.on && sc && Math.hypot((pointer.x - sc.x) / (sc.r * 1.3), (pointer.y - sc.y) / (sc.r * 1.1)) < 1) j.excite = Math.min(1, j.excite + dt * 6);
-  }
+  hoverTick(dt);
   for (const j of JELLIES) drawJelly(j, t);
 
   // Glow: a blurred copy of all the light, added back faintly around it
@@ -733,7 +826,7 @@ setPalette();
 // once; if it can't start, or its context is lost later (driver update, GPU
 // reset), the page carries on with the CPU renderer on a fresh canvas.
 if (wantGPU()) {
-  GLR = createJellyGL(canvas, { still: STILL, jellies: JELLIES, templateFor, snow: new Float32Array(SNOW.flatMap(([xf, y0, z, m]) => [xf, y0, z, m, 3])) });
+  GLR = createJellyGL(canvas, { still: STILL, jellies: JELLIES, templateFor, snow: new Float32Array(SPECKS ? SNOW.flatMap(([xf, y0, z, m]) => [xf, y0, z, m, 3]) : []) });
   if (GLR) {
     document.documentElement.dataset.renderer = "gpu";
     canvas.addEventListener("webglcontextlost", (e) => {

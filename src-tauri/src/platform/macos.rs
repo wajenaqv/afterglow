@@ -762,3 +762,17 @@ mod tests {
         }
     }
 }
+
+// ---- away ----
+
+#[link(name = "CoreGraphics", kind = "framework")]
+unsafe extern "C" {
+    fn CGEventSourceSecondsSinceLastEventType(state: i32, event_type: u32) -> f64;
+}
+
+/// Seconds since the last keyboard or mouse input (signals.rs uses it to
+/// tell whether you're at the computer)
+pub fn idle_seconds() -> f64 {
+    // kCGEventSourceStateCombinedSessionState, kCGAnyInputEventType
+    unsafe { CGEventSourceSecondsSinceLastEventType(0, u32::MAX) }
+}

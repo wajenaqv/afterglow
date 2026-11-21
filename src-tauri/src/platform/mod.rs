@@ -34,6 +34,9 @@ mod other {
     pub fn do_not_disturb() -> bool {
         false
     }
+    pub fn idle_seconds() -> f64 {
+        0.0
+    }
     pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
         vec![false; screens.len()]
     }

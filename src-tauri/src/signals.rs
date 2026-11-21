@@ -15,14 +15,27 @@
 //   clear  -> that app's count back to 0
 //   flash  -> flash
 // Reactions go to every wallpaper window as a "reaction" event
-// ({ "type": "pulse" | "count" | "flash", ... }); each wallpaper does what it
-// can with them (src/wallpapers/catalog.js lists which).
+// ({ "type": "pulse" | "count" | "flash" | "lanterns", ... }); each wallpaper
+// does what it can with them (src/wallpapers/catalog.js lists which).
 //
-// Signals come from the Settings window's simulator (send_signal) and the
-// local endpoint (endpoint.rs). Real app connectors come next.
+// Lanterns: so nothing is missed when you weren't looking. Every app with
+// something waiting gets a lantern: a jelly that stays lit in its colour
+// until the count goes back to 0, or until you rest the cursor on it
+// ("seen", dismiss_lantern). An app that only says "new" (a script) keeps
+// its lantern until it's seen or cleared. Sent as the whole list on every
+// change ({ "type": "lanterns", items: [{ source, colour }] }).
+//
+// Away: pulses and flashes that arrive while you can't see them (every
+// monitor's wallpaper paused or hidden, or no input for AWAY_SECS) are held
+// and replayed one after another when you're back (replay_missed, called
+// each second by the host's pause loop).
+//
+// Signals come from the Settings window's simulator (send_signal), the
+// local endpoint (endpoint.rs) and the connectors.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
@@ -63,12 +76,35 @@ pub enum Reaction {
     Pulse { colour: [u8; 3], afterglow: f32, source: String },
     Count { n: u32 },
     Flash,
+    Lanterns { items: Vec<Lantern> },
 }
 
-/// Unread counts per app (Tauri's `manage`)
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct Lantern {
+    pub source: String,
+    pub colour: [u8; 3],
+}
+
+/// No keyboard or mouse input for this long counts as away (the
+/// AFTERGLOW_AWAY_SECS environment variable overrides it, for testing)
+const AWAY_SECS: f64 = 120.0;
+fn away_secs() -> f64 {
+    std::env::var("AFTERGLOW_AWAY_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(AWAY_SECS)
+}
+/// At most this many held reactions are replayed
+const MISSED_MAX: usize = 12;
+
+/// Unread counts per app, lanterns and held reactions (Tauri's `manage`)
 #[derive(Default)]
 pub struct Bus {
     unread: Mutex<BTreeMap<String, u32>>,
+    /// apps that said "new" without a count: lit until seen or cleared
+    pending: Mutex<BTreeSet<String>>,
+    /// the count an app had when its lantern was seen (hovered); it lights
+    /// again only when the count goes above that
+    seen: Mutex<BTreeMap<String, u32>>,
+    /// pulses and flashes that arrived while you were away
+    missed: Mutex<Vec<Reaction>>,
 }
 
 impl Bus {
@@ -157,7 +193,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
     let reaction = match sig.kind.as_str() {
         "new" => {
             let on_new = rule.as_ref().map(|r| r.on_new.as_str()).unwrap_or("pulse");
-            match on_new {
+            let reaction = match on_new {
                 "nothing" => {
                     eprintln!("afterglow: signal from {source} ignored by a rule");
                     return Ok(());
@@ -170,9 +206,16 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
                         (None, None) => colour_for(&source),
                     };
                     let afterglow = sig.afterglow.unwrap_or(4.0).clamp(0.5, 30.0);
-                    Reaction::Pulse { colour, afterglow, source }
+                    Reaction::Pulse { colour, afterglow, source: source.clone() }
                 }
+            };
+            // no count from this app (a script, the simulator): its lantern
+            // stays lit until it's seen or cleared
+            if bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0) == 0 {
+                bus.pending.lock().unwrap().insert(source.clone());
+                bus.seen.lock().unwrap().remove(&source);
             }
+            reaction
         }
         "unread" => {
             let n = sig.count.ok_or("unread needs a count")?.min(9999);
@@ -180,18 +223,30 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             if rule.as_ref().is_some_and(|r| !r.count) {
                 bus.unread.lock().unwrap().remove(&source);
             } else {
-                bus.unread.lock().unwrap().insert(source, n);
+                bus.unread.lock().unwrap().insert(source.clone(), n);
+            }
+            // read down below what was seen: the next rise lights it again
+            if let Some(s) = bus.seen.lock().unwrap().get_mut(&source) {
+                *s = (*s).min(n);
+            }
+            if n == 0 {
+                bus.pending.lock().unwrap().remove(&source);
             }
             Reaction::Count { n: bus.total() }
         }
         "clear" => {
             bus.unread.lock().unwrap().remove(&source);
+            bus.pending.lock().unwrap().remove(&source);
+            bus.seen.lock().unwrap().remove(&source);
             Reaction::Count { n: bus.total() }
         }
         "flash" => Reaction::Flash,
         other => return Err(format!("kind: new, unread, clear or flash (got {other})")),
     };
-    // Do Not Disturb: no pulses or flashes (counts still update)
+    if sig.kind != "flash" {
+        emit_lanterns(app);
+    }
+    // Do Not Disturb: no pulses or flashes (counts and lanterns still update)
     if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash)
         && app.state::<host::Host>().settings.lock().unwrap().quiet_dnd
         && crate::platform::do_not_disturb()
@@ -199,9 +254,94 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         eprintln!("afterglow: signal -> {reaction:?} held back: Do Not Disturb");
         return Ok(());
     }
+    // Away: held, and replayed when you're back
+    if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash) && !watching(app) {
+        let mut missed = bus.missed.lock().unwrap();
+        if missed.len() < MISSED_MAX {
+            missed.push(reaction.clone());
+        }
+        eprintln!("afterglow: signal -> {reaction:?} held: you're away ({} held)", missed.len());
+        return Ok(());
+    }
     eprintln!("afterglow: signal -> {reaction:?}");
     host::emit_to_walls(app, "reaction", reaction);
     Ok(())
+}
+
+// ---- lanterns ----
+
+/// Every app with something waiting that hasn't been seen, in its colour.
+/// An app whose rule says "nothing" gets none.
+pub fn lanterns(app: &AppHandle) -> Vec<Lantern> {
+    let bus = app.state::<Bus>();
+    let unread = bus.unread.lock().unwrap().clone();
+    let pending = bus.pending.lock().unwrap().clone();
+    let seen = bus.seen.lock().unwrap().clone();
+    let mut sources: BTreeSet<String> = unread.iter().filter(|(s, n)| **n > seen.get(*s).copied().unwrap_or(0)).map(|(s, _)| s.clone()).collect();
+    sources.extend(pending);
+    sources
+        .into_iter()
+        .filter_map(|source| {
+            let rule = rule_for(app, &source);
+            if rule.as_ref().is_some_and(|r| r.on_new == "nothing") {
+                return None;
+            }
+            let colour = rule.and_then(|r| parse_colour(&r.colour)).unwrap_or_else(|| colour_for(&source));
+            Some(Lantern { source, colour })
+        })
+        .collect()
+}
+
+fn emit_lanterns(app: &AppHandle) {
+    host::emit_to_walls(app, "reaction", Reaction::Lanterns { items: lanterns(app) });
+}
+
+/// A wallpaper: you rested the cursor on this app's lantern
+#[tauri::command]
+pub fn dismiss_lantern(app: AppHandle, source: String) {
+    let bus = app.state::<Bus>();
+    bus.pending.lock().unwrap().remove(&source);
+    let n = bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0);
+    bus.seen.lock().unwrap().insert(source.clone(), n);
+    eprintln!("afterglow: lantern {source} seen");
+    emit_lanterns(&app);
+}
+
+/// The lanterns now (for a wallpaper that just loaded)
+#[tauri::command]
+pub fn lantern_state(app: AppHandle) -> Vec<Lantern> {
+    lanterns(&app)
+}
+
+// ---- away ----
+
+/// Can you see the wallpaper? Some monitor's wallpaper is showing (not
+/// paused or hidden behind windows) and you've touched the keyboard or
+/// mouse in the last AWAY_SECS.
+pub fn watching(app: &AppHandle) -> bool {
+    let host = app.state::<host::Host>();
+    let flags = host.last_paused.lock().unwrap();
+    let showing = flags.is_empty() || flags.values().any(|f| f.iter().any(|p| !p));
+    showing && crate::platform::idle_seconds() < away_secs()
+}
+
+/// Each second (host's pause loop): once you're back, replay what you
+/// missed, one after another, so the first thing you see is what happened
+pub fn replay_missed(app: &AppHandle) {
+    let bus = app.state::<Bus>();
+    if bus.missed.lock().unwrap().is_empty() || !watching(app) {
+        return;
+    }
+    let held: Vec<Reaction> = std::mem::take(&mut *bus.missed.lock().unwrap());
+    eprintln!("afterglow: you're back: replaying {} missed", held.len());
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(800));
+        for r in held {
+            host::emit_to_walls(&app, "reaction", r);
+            std::thread::sleep(Duration::from_millis(1400));
+        }
+    });
 }
 
 /// The Settings window's simulator

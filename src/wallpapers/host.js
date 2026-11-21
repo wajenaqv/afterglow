@@ -63,12 +63,14 @@ function pause(p) {
     send(fr, { type: "paused", value });
   });
 }
-// Reactions (pulse, count, flash) go to every frame. The latest count is
-// kept, so a frame that loads later (another wallpaper, a new monitor)
-// starts with it.
+// Reactions (pulse, count, flash, lanterns) go to every frame. The latest
+// count and lanterns are kept, so a frame that loads later (another
+// wallpaper, a new monitor) starts with them.
 let count = null;
+let lanterns = null;
 function reaction(r) {
   if (r?.type === "count") count = r;
+  if (r?.type === "lanterns") lanterns = r;
   frames.forEach((fr) => send(fr, { type: "reaction", reaction: r }));
 }
 window.__afterglowReact = reaction; // dev aid: fire a reaction from the console
@@ -78,7 +80,12 @@ window.__afterglowReact = reaction; // dev aid: fire a reaction from the console
 let log = () => {};
 if ("__TAURI_INTERNALS__" in window)
   import("@tauri-apps/api/core").then(({ invoke }) => (log = (msg) => invoke("wall_log", { msg }).catch(() => {})));
+// A frame says you've seen an app's lantern (rested the cursor on it)
+let seen = () => {};
+if ("__TAURI_INTERNALS__" in window)
+  import("@tauri-apps/api/core").then(({ invoke }) => (seen = (source) => invoke("dismiss_lantern", { source }).catch(() => {})));
 addEventListener("message", (e) => {
+  if (e.origin === location.origin && e.data?.type === "seen" && typeof e.data.source === "string") seen(e.data.source.slice(0, 32));
   if (e.origin === location.origin && e.data?.type === "reacted") log(`frame ${e.data.page} handled ${e.data.reaction} (${e.data.handlers} handler)`);
 });
 
@@ -87,6 +94,7 @@ frames.forEach((fr) =>
   fr.f.addEventListener("load", () => {
     send(fr, { type: "paused", value: !!fr.paused });
     if (count) send(fr, { type: "reaction", reaction: count });
+    if (lanterns) send(fr, { type: "reaction", reaction: lanterns });
   }),
 );
 
@@ -105,6 +113,11 @@ if ("__TAURI_INTERNALS__" in window) {
   import("@tauri-apps/api/core")
     .then(({ invoke }) => invoke("signal_state"))
     .then((n) => n > 0 && reaction({ type: "count", n }))
+    .catch(() => {});
+  // and the lanterns
+  import("@tauri-apps/api/core")
+    .then(({ invoke }) => invoke("lantern_state"))
+    .then((items) => items?.length && reaction({ type: "lanterns", items }))
     .catch(() => {});
 } else {
   // in a browser: the real mouse

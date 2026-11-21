@@ -310,7 +310,7 @@ export function createJellyGL(canvas, opts) {
     gl.uniform1f(u.uBellRing, f.bellRing);
     gl.uniform1f(u.uLineStep, f.lineStep);
     gl.bindVertexArray(snowVao.vao);
-    gl.drawArrays(gl.POINTS, 0, snowVao.count);
+    if (snowVao.count) gl.drawArrays(gl.POINTS, 0, snowVao.count);
     for (const { j, s } of f.jellies) {
       gl.uniform3f(u.uC, s.cx, s.y, s.cz);
       gl.uniform2f(u.uTilt, s.ct, s.st);
