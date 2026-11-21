@@ -189,7 +189,7 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     let screens = current_screens(app);
     let walls = plan_walls(&screens, generation);
     let showing = Showing::from(&host.settings.lock().unwrap());
-    eprintln!("afterglow: {} monitor(s) {:?} -> {} wallpaper window(s)", screens.len(), screens, walls.len());
+    crate::alog!("afterglow: {} monitor(s) {:?} -> {} wallpaper window(s)", screens.len(), screens, walls.len());
 
     for (label, window) in app.webview_windows() {
         if label.starts_with("wall-") {
@@ -212,7 +212,7 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
         window.set_position(PhysicalPosition::new(wall.x, wall.y))?;
         window.set_size(PhysicalSize::new(wall.w, wall.h))?;
         if let Err(e) = platform::attach(&window, wall.x, wall.y, wall.w, wall.h) {
-            eprintln!("afterglow: could not put {} behind the desktop icons: {e}", wall.label);
+            crate::alog!("afterglow: could not put {} behind the desktop icons: {e}", wall.label);
         }
         window.show()?;
     }
@@ -294,7 +294,7 @@ pub fn apply_pause(app: &AppHandle) {
         {
             let mut last = host.last_paused.lock().unwrap();
             if last.get(&wall.label) != Some(&flags) {
-                eprintln!("afterglow: {} paused per monitor: {:?}", wall.label, flags);
+                crate::alog!("afterglow: {} paused per monitor: {:?}", wall.label, flags);
                 last.insert(wall.label.clone(), flags.clone());
             }
         }
@@ -352,7 +352,7 @@ fn monitor_loop(app: AppHandle) {
             let a = app.clone();
             let _ = app.run_on_main_thread(move || {
                 if let Err(e) = build_walls(&a) {
-                    eprintln!("afterglow: rebuilding wallpapers failed: {e}");
+                    crate::alog!("afterglow: rebuilding wallpapers failed: {e}");
                 }
             });
         }

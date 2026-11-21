@@ -433,14 +433,23 @@ function reactionsTick(dt) {
   }
 }
 
-// Hover (both renderers): the tentacles of the jelly under the cursor stir
-// a little (j.stir: a quicker ripple down them; no light, no change to its
-// path: light on the wallpaper only ever means something is waiting).
+// Hover (both renderers): the characters of the jelly under the cursor
+// scramble a little into glitch glyphs, densest at the cursor (SCRAMBLE,
+// from j.stir, which eases in and settles over about a second). No light
+// and no change to its path: light on the wallpaper only ever means
+// something is waiting. (A tentacle sway was tried first: too subtle.)
 // Resting the cursor on a lantern for 0.8 s marks it seen; its colour
 // drains away meanwhile (j.drain), and comes back if you move off.
 // (j.excite is now only the flash reaction's contraction and glow.)
 const SEEN_MS = 800;
+// glitch glyphs for the scramble (also in jellyfish-gl.js GLYPHS, slots 19+)
+const GLITCH = "/\\<>[]{}?$&~^";
+const SCRAMBLE = { amt: 0, x: 0, y: 0, r: 1, bucket: 0 };
 function hoverTick(dt) {
+  let top = null;
+  for (const j of JELLIES) if (j.stir > 0.01 && j.screen && (!top || j.stir > top.stir)) top = j;
+  SCRAMBLE.amt = top ? top.stir * 0.4 : 0;
+  if (top) Object.assign(SCRAMBLE, { x: pointer.x, y: pointer.y, r: Math.max(20, top.screen.r * 1.0), bucket: Math.floor(performance.now() / 90) % 10000 });
   for (const j of JELLIES) {
     j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);
     const sc = j.screen;
@@ -661,10 +670,8 @@ function drawJelly(j, t) {
     for (let s = 0; s < len; s += LINE_STEP, si++) {
       // Waves travel down each tentacle, growing towards the tip
       const k = s / len;
-      // hover: a quicker, small ripple on top (j.stir)
-      const st = (j.stir || 0) * 0.15 * (0.25 + 0.75 * k);
-      const wave1 = Math.sin(s * 1.1 - t * 1.5 + i * 1.7) * 0.35 * k + Math.sin(s * 1.5 - t * 3.2 + i * 2.1) * st;
-      const wave2 = Math.cos(s * 0.8 - t * 1.1 + i) * 0.25 * k + Math.cos(s * 1.3 - t * 2.9 + i * 1.3) * st;
+      const wave1 = Math.sin(s * 1.1 - t * 1.5 + i * 1.7) * 0.35 * k;
+      const wave2 = Math.cos(s * 0.8 - t * 1.1 + i) * 0.25 * k;
       // lower down, it follows the bell's width and push from a moment ago
       const pl = plTab[si];
       const follow = (1 - 0.18 * pl) / follow0; // the bell's width then, against now
@@ -682,6 +689,16 @@ const lagTab = new Float64Array(4096);
 // ---- frame ----
 const RAMP = " .:-=+*oO#%@";
 const STROKES = "|!:;";
+// Hover scramble (CPU): a glitch glyph for cell (x, y), or null. Same rule as
+// the GPU's glyph shader: inside the circle, with a chance that's
+// SCRAMBLE.amt at the cursor and falls off towards the edge, re-rolled
+// every 90 ms.
+function scrambled(x, y) {
+  if (SCRAMBLE.amt <= 0) return null;
+  const d = Math.hypot((x + 0.5) * cw - SCRAMBLE.x, (y + 0.5) * ch - SCRAMBLE.y) / SCRAMBLE.r;
+  if (d >= 1 || hash(x, y, SCRAMBLE.bucket) >= SCRAMBLE.amt * (1 - d * d)) return null;
+  return GLITCH[Math.floor(hash(x + 7, y + 3, SCRAMBLE.bucket) * GLITCH.length)];
+}
 const styles = new Map();
 function style(r, g, b) {
   const q = (v) => Math.max(0, Math.min(255, Math.round(v / 6) * 6));
@@ -746,7 +763,7 @@ function render(now, dt) {
       const s = jellyState(j, t);
       if (s) jellies.push({ j, s });
     }
-    GLR.draw({ t, W, H, camDist, focal, cam: [cy, sy, cp, sp], halfW: HALF_W, deep: DEEP, snowCol: SNOW_COL, bg: BG, reduced, bellStep: BELL_STEP, bellRing: BELL_RING, lineStep: LINE_STEP, jellies });
+    GLR.draw({ t, W, H, camDist, focal, cam: [cy, sy, cp, sp], halfW: HALF_W, deep: DEEP, snowCol: SNOW_COL, bg: BG, reduced, bellStep: BELL_STEP, bellRing: BELL_RING, lineStep: LINE_STEP, jellies, scramble: SCRAMBLE });
     if (PERF && ++PERF.n === 60) {
       console.log(`perf gpu ${cols}x${rows} cells: cpu side ${((performance.now() - p0)).toFixed(2)} ms (last frame)`);
       PERF.n = 0;
@@ -798,10 +815,11 @@ function render(now, dt) {
     const b = b0 * f + (255 - b0 * f) * hot * 0.6;
     // Cells lit only by the glow get faint specks; the jellies themselves get
     // the ramp, or stroke characters where tentacles dominate
-    const chr =
+    const chr0 =
       own < a * 0.35 ? HALO[Math.min(HALO.length - 1, Math.floor(L * 2 * HALO.length))]
       : tent[k] > own * 0.6 ? STROKES[Math.min(STROKES.length - 1, Math.floor((1 - L) * STROKES.length))]
       : RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(L * (RAMP.length - 1))))];
+    const chr = scrambled(k % cols, Math.floor(k / cols)) ?? chr0;
     const s = style(BG[0] + (r - BG[0]), BG[1] + (g - BG[1]), BG[2] + (b - BG[2]));
     let list = groups.get(s);
     if (!list) groups.set(s, (list = []));

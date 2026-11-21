@@ -195,7 +195,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             let on_new = rule.as_ref().map(|r| r.on_new.as_str()).unwrap_or("pulse");
             let reaction = match on_new {
                 "nothing" => {
-                    eprintln!("afterglow: signal from {source} ignored by a rule");
+                    crate::alog!("afterglow: signal from {source} ignored by a rule");
                     return Ok(());
                 }
                 "flash" => Reaction::Flash,
@@ -251,7 +251,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         && app.state::<host::Host>().settings.lock().unwrap().quiet_dnd
         && crate::platform::do_not_disturb()
     {
-        eprintln!("afterglow: signal -> {reaction:?} held back: Do Not Disturb");
+        crate::alog!("afterglow: signal -> {reaction:?} held back: Do Not Disturb");
         return Ok(());
     }
     // Away: held, and replayed when you're back
@@ -260,10 +260,10 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         if missed.len() < MISSED_MAX {
             missed.push(reaction.clone());
         }
-        eprintln!("afterglow: signal -> {reaction:?} held: you're away ({} held)", missed.len());
+        crate::alog!("afterglow: signal -> {reaction:?} held: you're away ({} held)", missed.len());
         return Ok(());
     }
-    eprintln!("afterglow: signal -> {reaction:?}");
+    crate::alog!("afterglow: signal -> {reaction:?}");
     host::emit_to_walls(app, "reaction", reaction);
     Ok(())
 }
@@ -303,7 +303,7 @@ pub fn dismiss_lantern(app: AppHandle, source: String) {
     bus.pending.lock().unwrap().remove(&source);
     let n = bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0);
     bus.seen.lock().unwrap().insert(source.clone(), n);
-    eprintln!("afterglow: lantern {source} seen");
+    crate::alog!("afterglow: lantern {source} seen");
     emit_lanterns(&app);
 }
 
@@ -333,7 +333,7 @@ pub fn replay_missed(app: &AppHandle) {
         return;
     }
     let held: Vec<Reaction> = std::mem::take(&mut *bus.missed.lock().unwrap());
-    eprintln!("afterglow: you're back: replaying {} missed", held.len());
+    crate::alog!("afterglow: you're back: replaying {} missed", held.len());
     let app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(800));
@@ -355,7 +355,7 @@ pub fn send_signal(app: AppHandle, signal: Signal) -> Result<(), String> {
 /// app's log
 #[tauri::command]
 pub fn wall_log(msg: String) {
-    eprintln!("afterglow: wall: {}", msg.chars().take(200).collect::<String>());
+    crate::alog!("afterglow: wall: {}", msg.chars().take(200).collect::<String>());
 }
 
 /// What a wallpaper that just loaded needs to know (the current count)

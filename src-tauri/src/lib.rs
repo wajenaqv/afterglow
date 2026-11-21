@@ -9,7 +9,10 @@
 //   connectors/  watchers that turn other apps' activity into signals
 //   extras.rs    wallpaper rotation and saving a still as a PNG
 //   platform/    the per-OS part of putting a window behind the desktop icons
+//   logfile.rs   the log (afterglow.log in the settings folder) and the alog! macro
 
+#[macro_use]
+pub mod logfile;
 mod connectors;
 mod endpoint;
 mod extras;
@@ -21,6 +24,7 @@ mod tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    logfile::init(env!("CARGO_PKG_VERSION"));
     tauri::Builder::default()
         // A second launch just opens the settings window of the running one,
         // instead of stacking a second set of wallpapers
@@ -54,6 +58,7 @@ pub fn run() {
             extras::save_png,
             extras::open_stills_folder,
             extras::open_link,
+            logfile::open_log,
             connectors::connectors_state,
             connectors::set_connector,
             connectors::accounts::accounts_state,
@@ -81,7 +86,10 @@ pub fn run() {
             // (that one comes with an exit code)
             tauri::RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
             // Leave the normal desktop wallpaper behind when quitting
-            tauri::RunEvent::Exit => host::stop(app),
+            tauri::RunEvent::Exit => {
+                crate::alog!("afterglow: exiting");
+                host::stop(app)
+            }
             _ => {}
         });
 }

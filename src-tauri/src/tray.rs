@@ -151,7 +151,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         // Wallpaper ▸ <one>: switch, keeping that wallpaper's saved options
         if let Some(wall) = id.strip_prefix("wall:") {
             if let Err(e) = settings::choose(app, wall, None) {
-                eprintln!("afterglow: {e}");
+                crate::alog!("afterglow: {e}");
             }
             sync(app); // also re-ticks the item if it was clicked while already ticked
             return;
@@ -161,7 +161,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             if let Some((_, json)) = TRIES.get(i) {
                 if let Some(sig) = try_signal(app, json) {
                     if let Err(e) = signals::handle(app, sig) {
-                        eprintln!("afterglow: {e}");
+                        crate::alog!("afterglow: {e}");
                     }
                 }
             }
@@ -170,7 +170,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         // Frame rate ▸ <one>
         if let Some(fps) = id.strip_prefix("fps:").and_then(|n| n.parse::<u32>().ok()) {
             if let Err(e) = settings::set_fps(app.clone(), fps) {
-                eprintln!("afterglow: {e}");
+                crate::alog!("afterglow: {e}");
             }
             sync(app);
             return;
@@ -198,7 +198,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 let on = autostart.is_checked().unwrap_or(false);
                 let result = if on { app.autolaunch().enable() } else { app.autolaunch().disable() };
                 if let Err(e) = result {
-                    eprintln!("afterglow: start at login: {e}");
+                    crate::alog!("afterglow: start at login: {e}");
                 }
                 // show what actually happened
                 let _ = autostart.set_checked(app.autolaunch().is_enabled().unwrap_or(on));
@@ -206,11 +206,14 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             "rotate" => {
                 let r = app.state::<Host>().settings.lock().unwrap().rotate.clone();
                 if let Err(e) = crate::extras::set_rotation(app.clone(), rotate.is_checked().unwrap_or(false), r.minutes, r.walls) {
-                    eprintln!("afterglow: {e}");
+                    crate::alog!("afterglow: {e}");
                 }
             }
             "settings" => show_settings(app),
-            "quit" => app.exit(0),
+            "quit" => {
+                crate::alog!("afterglow: quit from the tray");
+                app.exit(0)
+            }
             _ => {}
         }
     })
@@ -301,6 +304,6 @@ pub fn show_settings(app: &AppHandle) {
         Ok(window) => crate::platform::set_taskbar_icon(&window),
         #[cfg(not(windows))]
         Ok(_) => {}
-        Err(e) => eprintln!("afterglow: could not open settings: {e}"),
+        Err(e) => crate::alog!("afterglow: could not open settings: {e}"),
     }
 }

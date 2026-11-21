@@ -33,7 +33,7 @@ uniform float uT;
 // one jelly
 uniform vec3 uC;        // centre (cx, y, cz)
 uniform vec2 uTilt;     // cos, sin of the tilt
-uniform float uR, uHb, uP, uFlash, uFade, uExcite, uJR, uPeriod, uPhase, uPush, uReduced, uTentN, uStir;
+uniform float uR, uHb, uP, uFlash, uFade, uExcite, uJR, uPeriod, uPhase, uPush, uReduced, uTentN;
 uniform vec3 uBell, uGlow, uTentCol;
 uniform float uBellStep, uBellRing, uLineStep;
 // marine snow
@@ -139,9 +139,8 @@ void main() {
     float ph = (i / uTentN) * PI * 2.0;
     float rx = uR * sin(TH_MAX) * cos(ph), rz = uR * sin(TH_MAX) * sin(ph), ry = uHb * cos(TH_MAX);
     float k = s / len;
-    float st = uStir * 0.15 * (0.25 + 0.75 * k); // hover: a quicker, small ripple on top
-    float wave1 = sin(s * 1.1 - uT * 1.5 + i * 1.7) * 0.35 * k + sin(s * 1.5 - uT * 3.2 + i * 2.1) * st;
-    float wave2 = cos(s * 0.8 - uT * 1.1 + i) * 0.25 * k + cos(s * 1.3 - uT * 2.9 + i * 1.3) * st;
+    float wave1 = sin(s * 1.1 - uT * 1.5 + i * 1.7) * 0.35 * k;
+    float wave2 = cos(s * 0.8 - uT * 1.1 + i) * 0.25 * k;
     float lag = s * 0.11;
     float pl = pAt(uT - lag);
     float follow = (1.0 - 0.18 * pl) / (1.0 - 0.18 * uP);
@@ -194,8 +193,15 @@ uniform vec2 uCell;     // CSS px
 uniform float uDpr;
 uniform float uCanvasH; // device px
 uniform vec3 uBG;       // 0..255
+uniform vec4 uScr;      // hover scramble: cursor x, y (CSS px), radius, amount
+uniform float uScrT;    // its 90 ms time bucket
 out vec4 o;
 ${GLYPH_GLSL}
+float hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
 void main() {
   vec3 bg = uBG / 255.0;
   vec2 css = vec2(gl_FragCoord.x, uCanvasH - gl_FragCoord.y) / uDpr;
@@ -220,11 +226,17 @@ void main() {
   if (own < a * 0.35) g = min(3.0, floor(L * 2.0 * 4.0));
   else if (tent > own * 0.6) g = 4.0 + min(3.0, floor((1.0 - L) * 4.0));
   else g = 8.0 + clamp(floor(L * 11.0 + 0.5), 1.0, 11.0) - 1.0;
+  // hover: a few characters near the cursor scramble into glitch glyphs (19+)
+  if (uScr.w > 0.0) {
+    float d = length((vec2(cell) + 0.5) * uCell - uScr.xy) / uScr.z;
+    if (d < 1.0 && hash21(vec2(cell) + uScrT * 0.618) < uScr.w * (1.0 - d * d))
+      g = 19.0 + floor(hash21(vec2(cell) * 1.37 + uScrT * 0.31) * 13.0);
+  }
   vec2 local = (css - vec2(cell) * uCell) * uDpr;
   o = vec4(mix(bg, c / 255.0, glyphInk(g, c, local)), 1.0);
 }`;
 
-const GLYPHS = ".'`:" + "|!:;" + ".:-=+*oO#%@";
+const GLYPHS = ".'`:" + "|!:;" + ".:-=+*oO#%@" + "/\\<>[]{}?$&~^"; // the last 13: hover scramble (jellyfish.js GLITCH)
 
 // Returns null when WebGL2 or float render targets aren't available, or the
 // shaders don't compile: the caller then uses the CPU renderer.
@@ -320,9 +332,7 @@ export function createJellyGL(canvas, opts) {
       gl.uniform1f(u.uP, s.p);
       gl.uniform1f(u.uFlash, s.flash);
       gl.uniform1f(u.uFade, s.fade);
-      gl.uniform1f(u.uExcite, j.excite || 0);
-      gl.uniform1f(u.uStir, j.stir || 0);
-      gl.uniform1f(u.uJR, s.jr);
+      gl.uniform1f(u.uExcite, j.excite || 0);      gl.uniform1f(u.uJR, s.jr);
       gl.uniform1f(u.uPeriod, j.period);
       gl.uniform1f(u.uPhase, j.phase);
       gl.uniform1f(u.uPush, s.push);
@@ -373,6 +383,9 @@ export function createJellyGL(canvas, opts) {
     gl.uniform1f(glyph.u.uDpr, g.dpr);
     gl.uniform1f(glyph.u.uCanvasH, canvas.height);
     gl.uniform3f(glyph.u.uBG, ...f.bg);
+    const sc = f.scramble ?? { amt: 0, x: 0, y: 0, r: 1, bucket: 0 };
+    gl.uniform4f(glyph.u.uScr, sc.x, sc.y, sc.r, sc.amt);
+    gl.uniform1f(glyph.u.uScrT, sc.bucket);
     gl.uniform1f(glyph.u.uAtlasW, g.slotW);
     gl.uniform1f(glyph.u.uAtlasH, g.slotH);
     gl.drawArrays(gl.TRIANGLES, 0, 3);

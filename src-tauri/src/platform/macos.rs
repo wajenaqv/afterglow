@@ -78,13 +78,13 @@ fn wallpaper_store() -> Option<std::path::PathBuf> {
 /// `dir` is AfterGlow's config folder. Main thread only (NSWorkspace).
 pub fn black_desktop(dir: &std::path::Path) {
     let Some(store) = wallpaper_store() else {
-        eprintln!("afterglow: no wallpaper store found; leaving the system wallpaper alone");
+        crate::alog!("afterglow: no wallpaper store found; leaving the system wallpaper alone");
         return;
     };
     let backup = dir.join("wallpaper-store-backup.plist");
     if !backup.exists() {
         if let Err(e) = std::fs::create_dir_all(dir).and_then(|_| std::fs::copy(&store, &backup)) {
-            eprintln!("afterglow: could not back up the wallpaper ({e}); leaving it alone");
+            crate::alog!("afterglow: could not back up the wallpaper ({e}); leaving it alone");
             return;
         }
     }
@@ -145,7 +145,7 @@ fn set_black(only_if_needed: bool) {
             let mut error: *mut AnyObject = std::ptr::null_mut();
             let ok: bool = msg_send![workspace, setDesktopImageURL: url, forScreen: screen, options: options, error: &mut error];
             if !ok {
-                eprintln!("afterglow: could not set a black wallpaper on display {i}");
+                crate::alog!("afterglow: could not set a black wallpaper on display {i}");
             }
         }
     }
@@ -161,7 +161,7 @@ pub fn restore_desktop() {
             let _ = std::process::Command::new("/usr/bin/killall").arg("WallpaperAgent").status();
             let _ = std::fs::remove_file(backup);
         }
-        Err(e) => eprintln!("afterglow: could not restore the wallpaper ({e}); the backup stays at {}", backup.display()),
+        Err(e) => crate::alog!("afterglow: could not restore the wallpaper ({e}); the backup stays at {}", backup.display()),
     }
 }
 

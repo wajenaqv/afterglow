@@ -129,7 +129,7 @@ pub fn save(app: &AppHandle, s: &Settings) {
     }
     if let Ok(text) = serde_json::to_string_pretty(s) {
         if let Err(e) = fs::write(&p, text) {
-            eprintln!("afterglow: could not save settings to {}: {e}", p.display());
+            crate::alog!("afterglow: could not save settings to {}: {e}", p.display());
         }
     }
 }

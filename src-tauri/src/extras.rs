@@ -57,7 +57,7 @@ pub fn start_rotation(app: &AppHandle) {
         }
         let next = list.iter().position(|w| *w == current).map(|i| list[(i + 1) % list.len()].clone()).unwrap_or_else(|| list[0].clone());
         if let Err(e) = settings::choose(&app, &next, None) {
-            eprintln!("afterglow: rotation: {e}");
+            crate::alog!("afterglow: rotation: {e}");
         }
         *LAST_SWITCH.lock().unwrap() = Some(Instant::now());
     });

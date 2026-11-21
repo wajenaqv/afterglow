@@ -66,7 +66,7 @@ pub(crate) fn set_status(app: &AppHandle, id: &str, state: &str, text: impl Into
     let status = Status { state: state.into(), text: text.into() };
     let before = app.state::<Connectors>().status.lock().unwrap().insert(id.into(), status.clone());
     if before.map(|b| b.state != status.state || (b.state != "ok" && b.text != status.text)).unwrap_or(true) {
-        eprintln!("afterglow: connector {id}: {}: {}", status.state, status.text);
+        crate::alog!("afterglow: connector {id}: {}: {}", status.state, status.text);
     }
 }
 
@@ -103,7 +103,7 @@ pub fn forget(app: &AppHandle, connector: &str) {
 fn send(app: &AppHandle, source: &str, kind: &str, count: Option<u32>) {
     let sig = Signal { source: source.to_string(), kind: kind.to_string(), count, colour: None, afterglow: None };
     if let Err(e) = signals::handle(app, sig) {
-        eprintln!("afterglow: connector signal for {source}: {e}");
+        crate::alog!("afterglow: connector signal for {source}: {e}");
     }
 }
 

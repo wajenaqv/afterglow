@@ -73,8 +73,8 @@ pub fn request_access() {
     match UserNotificationListener::Current() {
         Ok(l) => match l.RequestAccessAsync() {
             Ok(op) => ASKING.with(|a| *a.borrow_mut() = Some(Box::new(op))),
-            Err(e) => eprintln!("afterglow: asking for notification access failed: {e}"),
+            Err(e) => crate::alog!("afterglow: asking for notification access failed: {e}"),
         },
-        Err(_) => eprintln!("afterglow: notifications connector: {NO_IDENTITY}"),
+        Err(_) => crate::alog!("afterglow: notifications connector: {NO_IDENTITY}"),
     }
 }

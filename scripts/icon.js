@@ -10,7 +10,7 @@
 //   assets/icon/tray-mac.svg   macOS menu bar: bold black AG (a template image
 //                              that macOS tints for light and dark menu bars)
 //
-// Run: bun scripts/icon.js && bun run tauri icon assets/icon/app.svg
+// Run: bun scripts/icon.js && bun run tauri icon assets/icon/app.svg && bun scripts/icon-ico.js
 // (src-tauri/icons/ then holds every size; tray PNGs: see CLAUDE.md)
 
 import { mkdirSync, writeFileSync } from "node:fs";

@@ -23,11 +23,11 @@ pub fn start(app: &AppHandle) {
     let server = match Server::http(("127.0.0.1", PORT)) {
         Ok(s) => s,
         Err(e) => {
-            eprintln!("afterglow: local endpoint not started (port {PORT} busy?): {e}");
+            crate::alog!("afterglow: local endpoint not started (port {PORT} busy?): {e}");
             return;
         }
     };
-    eprintln!("afterglow: listening for signals on http://127.0.0.1:{PORT}/signal");
+    crate::alog!("afterglow: listening for signals on http://127.0.0.1:{PORT}/signal");
     let app = app.clone();
     thread::spawn(move || {
         let json = Header::from_bytes("Content-Type", "application/json").unwrap();

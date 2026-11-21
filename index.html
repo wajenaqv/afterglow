@@ -113,6 +113,9 @@
           <p class="hint"><span id="about-version">AfterGlow</span>. ASCII live wallpapers that react to your apps. MIT licensed.</p>
           <p class="dim hint"><a href="https://github.com/wajenaqv/afterglow" target="_blank" rel="noreferrer">github.com/wajenaqv/afterglow</a></p>
 
+          <h3 class="sub">log</h3>
+          <p class="dim hint">What AfterGlow has been doing, with times (UTC). If it ever stops or misbehaves, this says why. <button type="button" id="open-log">open the log</button> <span id="log-note"></span></p>
+
           <h3 class="sub">signals from your own scripts</h3>
           <p class="dim hint">While AfterGlow runs it listens on this computer only. Requests from web pages are refused.</p>
           <p class="endpoint"><code id="curl">curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'</code> <button type="button" id="copy-curl">copy</button></p>

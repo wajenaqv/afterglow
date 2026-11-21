@@ -643,6 +643,7 @@ if (IN_APP)
     $("#version").textContent = v.toLowerCase();
     $("#about-version").textContent = v;
   });
+$("#open-log").addEventListener("click", () => invoke("open_log").catch((e) => ($("#log-note").textContent = String(e))));
 $("#copy-curl").addEventListener("click", async (e) => {
   try {
     await navigator.clipboard.writeText($("#curl").textContent);
