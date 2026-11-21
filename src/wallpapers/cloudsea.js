@@ -237,8 +237,17 @@ function smooth() {
 // Three shade glyphs, picked by plain tone bands (no dither: it turned to
 // speckle), blank below MIN_TONE so dim light is clean black, and the colour
 // carries the tone smoothly, each channel tone-mapped so hues stay varied.
-const SHADES = " ░▒▓";
-const MIN_TONE = 0.14;
+// Plain ASCII symbols by default (more steps, since a symbol holds less tone
+// than a block); ?glyphs=blocks draws the shade blocks ░▒▓ instead.
+const GLYPHS = {
+  blocks: { chars: " ░▒▓", edges: [0.14, 0.28, 0.5] },
+  ascii: { chars: " .:-=+*#%@", edges: [0.14, 0.19, 0.25, 0.32, 0.4, 0.5, 0.62, 0.75, 0.88] },
+};
+const GLYPH = GLYPHS[params.get("glyphs")] ?? GLYPHS.ascii;
+const SHADES = GLYPH.chars;
+const EDGES = GLYPH.edges;
+const MIN_TONE = EDGES[0];
+const GAIN = 1; // (a brighter ASCII version, gain 1.9, was tried: owner preferred it dim)
 const EXPOSURE = 2.2 * 1.1;
 let dims = null;
 const out = [0, 0, 0];
@@ -246,8 +255,12 @@ const chan = (v) => Math.round((1 - Math.exp(-4.5 * v * v - 0.6 * v)) * 15) * 17
 function sample(X, Y, t, cell) {
   const cw = dims.cw / dims.H, ch = dims.ch / dims.H;
   seaLight((cell[0] + 0.5) * cw, (cell[1] + 0.5) * ch, dims.A, t, out, cw);
+  out[0] *= GAIN;
+  out[1] *= GAIN;
+  out[2] *= GAIN;
   const T = 1 - Math.exp(-EXPOSURE * (0.3 * out[0] + 0.59 * out[1] + 0.11 * out[2]));
-  const step = T < MIN_TONE ? 0 : T < 0.28 ? 1 : T < 0.5 ? 2 : 3;
+  let step = 0;
+  for (const e of EDGES) if (T >= e) step++;
   return [out, SHADES[step], `rgb(${chan(out[0])},${chan(out[1])},${chan(out[2])})`];
 }
 
@@ -363,9 +376,11 @@ vec4 sampleCell4(vec2 P) {
   vec2 cs = uCell / uH;
   ivec2 cell = ivec2(floor(P / cs));
   vec2 C = (vec2(cell) + 0.5) * cs;
-  vec3 col = seaLight(C.x, C.y, cs.x);
+  vec3 col = seaLight(C.x, C.y, cs.x) * ${f1(GAIN)};
   float T = 1.0 - exp(-${f1(EXPOSURE)} * dot(col, vec3(0.3, 0.59, 0.11)));
-  float shade = T < ${f1(MIN_TONE)} ? 0.0 : T < 0.28 ? 1.0 : T < 0.5 ? 2.0 : 3.0;
+  const float EDGES[${EDGES.length}] = float[${EDGES.length}](${EDGES.map(f1).join(", ")});
+  float shade = 0.0;
+  for (int i = 0; i < ${EDGES.length}; i++) if (T >= EDGES[i]) shade += 1.0;
   if (shade < 0.5) return vec4(0.0);
   vec3 q = floor((1.0 - exp(-4.5 * col * col - 0.6 * col)) * 15.0 + 0.5) * 17.0;
   return vec4(q / 255.0, shade);
