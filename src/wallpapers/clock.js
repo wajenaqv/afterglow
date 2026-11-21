@@ -5,7 +5,8 @@
 //
 // Options (Settings card; also plain URL options):
 //   ?style=   slant (default) | small-slant | big | colossal | banner |
-//             heywajih | nixie | density | lcd | plain | radar | scope
+//             heywajih | nixie | density | lcd | plain | radar | scope | light
+//             (light: lightclock.js, the time drawn as light like the jellies)
 //             (radar and scope animate: crtclock.js draws them with the
 //             night-scene renderer, GPU and CPU; nixie's tubes are HTML)
 //   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade)
@@ -28,7 +29,7 @@
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
 import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES, NIXIE_CSS, nixieHTML } from "./hoverclock.js";
 
-const CRT = ["radar", "scope"];
+const CRT = ["radar", "scope", "light"]; // drawn by a scene renderer (GPU and CPU), not as text
 const STYLE = [...STYLES, ...CRT].includes(params.get("style")) ? params.get("style") : "slant";
 const IS_CRT = CRT.includes(STYLE);
 const TINT = ["natural", "cool", "grey", "warm", "green"].includes(params.get("tint")) ? params.get("tint") : "natural";
@@ -310,7 +311,15 @@ if (IS_CRT) {
   // natural: the green of real phosphor; the other palettes their main colour
   const tint = TINT === "natural" ? [0.2, 1, 0.55] : TINT === "green" ? cssRGB("--logo-bottom").map((v) => v / 255) : hex(PALETTES[TINT][1]);
   wall.classList.add("crt");
-  import("./crtclock.js").then(({ startCrtClock }) => {
+  if (STYLE === "light") {
+    // the date is part of the light; only the lantern dots stay in the page
+    dateEl.style.display = "none";
+    const brand = [cssRGB("--logo-top"), cssRGB("--logo-bottom")].map((v) => v.map((x) => x / 255));
+    import("./lightclock.js").then(({ startLightClock }) => {
+      crt = startLightClock({ tint: TINT, brand, hours: HOURS, size: SIZE, fps: 30 });
+      crt.onLayout(({ bottom }) => (wall.style.top = `${bottom + 10}px`));
+    });
+  } else import("./crtclock.js").then(({ startCrtClock }) => {
     crt = startCrtClock({ style: STYLE, tint, size: SIZE, fps: 30 });
     crt.onLayout(({ cy, R }) => {
       wall.style.top = `${cy + R + 28}px`;

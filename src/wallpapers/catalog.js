@@ -46,7 +46,7 @@ export const WALLPAPERS = [
       {
         key: "style",
         label: "style",
-        choices: [["", "slant"], ["heywajih", "heywajih"], ["nixie", "nixie"], ["radar", "radar"], ["scope", "oscilloscope"], ["small-slant", "small slant"], ["big", "big"], ["colossal", "colossal"], ["banner", "banner"], ["density", "density"], ["lcd", "lcd"], ["plain", "plain"]],
+        choices: [["", "slant"], ["light", "light"], ["heywajih", "heywajih"], ["nixie", "nixie"], ["radar", "radar"], ["scope", "oscilloscope"], ["small-slant", "small slant"], ["big", "big"], ["colossal", "colossal"], ["banner", "banner"], ["density", "density"], ["lcd", "lcd"], ["plain", "plain"]],
       },
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"]] },
       { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },
