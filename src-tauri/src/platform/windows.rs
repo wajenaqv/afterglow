@@ -216,3 +216,30 @@ pub fn do_not_disturb() -> bool {
     };
     toasts_off || matches!(unsafe { SHQueryUserNotificationState() }, Ok(s) if s == QUNS_QUIET_TIME)
 }
+
+// ---- the taskbar icon ----
+
+/// Give a window the big icon the taskbar shows. Tauri only sets the small
+/// (title bar) icon, so the Settings window's taskbar button was blank. The
+/// app icon is in the exe's resources (tauri-build embeds icon.ico as
+/// resource 32512).
+pub fn set_taskbar_icon(window: &tauri::WebviewWindow) {
+    use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::UI::WindowsAndMessaging::{LoadImageW, SendMessageW, ICON_BIG, IMAGE_ICON, LR_DEFAULTCOLOR, SM_CXICON, SM_CYICON, WM_SETICON};
+    let Ok(raw) = window.hwnd() else { return };
+    let hwnd = HWND(raw.0 as *mut c_void);
+    unsafe {
+        let Ok(module) = GetModuleHandleW(None) else { return };
+        let icon = LoadImageW(
+            Some(module.into()),
+            PCWSTR(32512 as *const u16), // MAKEINTRESOURCE(32512)
+            IMAGE_ICON,
+            GetSystemMetrics(SM_CXICON),
+            GetSystemMetrics(SM_CYICON),
+            LR_DEFAULTCOLOR,
+        );
+        if let Ok(icon) = icon {
+            SendMessageW(hwnd, WM_SETICON, Some(WPARAM(ICON_BIG as usize)), Some(LPARAM(icon.0 as isize)));
+        }
+    }
+}

@@ -295,7 +295,12 @@ pub fn show_settings(app: &AppHandle) {
         .min_inner_size(640.0, 480.0)
         .background_color(Color(0, 0, 0, 255))
         .build();
-    if let Err(e) = built {
-        eprintln!("afterglow: could not open settings: {e}");
+    match built {
+        // Windows: the taskbar button needs the big icon too
+        #[cfg(windows)]
+        Ok(window) => crate::platform::set_taskbar_icon(&window),
+        #[cfg(not(windows))]
+        Ok(_) => {}
+        Err(e) => eprintln!("afterglow: could not open settings: {e}"),
     }
 }
