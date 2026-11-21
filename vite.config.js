@@ -50,6 +50,7 @@ export default defineConfig({
         paws: resolve(import.meta.dirname, "wallpapers/paws.html"),
         clock: resolve(import.meta.dirname, "wallpapers/clock.html"),
         shore: resolve(import.meta.dirname, "wallpapers/shore.html"),
+        cloudsea: resolve(import.meta.dirname, "wallpapers/cloudsea.html"),
       },
     },
   },

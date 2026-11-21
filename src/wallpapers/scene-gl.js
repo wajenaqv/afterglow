@@ -18,7 +18,11 @@ import { GLYPH_GLSL, QUAD_VS, buildAtlas, compile, floatTex, gpuContext } from "
 
 const RAMP = ".:-=+*oO#%@"; // nightscene.js RAMP without the blank
 
-const lightFS = (glsl) => `#version 300 es
+// A scene can also choose its glyphs and colours itself ("direct" scenes, like
+// the cloud sea): it defines `vec4 sampleCell4(vec2 P)` returning the cell's
+// exact colour (0..1) and, in alpha, the glyph: 0 blank, 1.. the slot in
+// spec.ramp (1 = the first character). The CPU twin returns [col, char, css].
+const lightFS = (glsl, direct) => `#version 300 es
 precision highp float;
 uniform vec2 uCell;  // CSS px
 uniform float uH;    // screen height, CSS px
@@ -27,7 +31,7 @@ ${glsl}
 void main() {
   vec2 cell = floor(gl_FragCoord.xy);
   vec2 P = vec2((cell.x + 0.5) * uCell.x, (cell.y + 0.5) * uCell.y) / uH;
-  o = vec4(sampleCell(P), 1.0);
+  o = ${direct ? "sampleCell4(P)" : "vec4(sampleCell(P), 1.0)"};
 }`;
 
 // nightscene.js ink() and common.js hash()
@@ -37,6 +41,7 @@ uniform sampler2D uLight;
 uniform vec2 uCell;
 uniform float uDpr, uCanvasH;
 uniform vec3 uBG; // 0..255
+uniform float uDirect; // 1 for direct scenes (see lightFS)
 out vec4 o;
 ${GLYPH_GLSL}
 // common.js hash(x, y, z): the same 32-bit integer maths
@@ -52,7 +57,14 @@ void main() {
   ivec2 cell = ivec2(floor(css.x / uCell.x), floor(css.y / uCell.y));
   ivec2 size = textureSize(uLight, 0);
   if (cell.x >= size.x || cell.y >= size.y) { o = vec4(bg, 1.0); return; }
-  vec3 col = texelFetch(uLight, cell, 0).rgb;
+  vec4 tx = texelFetch(uLight, cell, 0);
+  vec3 col = tx.rgb;
+  if (uDirect > 0.5) {
+    if (tx.a < 0.5) { o = vec4(bg, 1.0); return; }
+    vec3 c = floor(clamp(col, 0.0, 1.0) * 255.0 + 0.5);
+    vec2 loc = (css - vec2(cell) * uCell) * uDpr;
+    o = vec4(mix(bg, c / 255.0, glyphInk(floor(tx.a + 0.5) - 1.0, c, loc)), 1.0);    return;
+  }
   float L = 0.3 * col.r + 0.59 * col.g + 0.11 * col.b;
   float T = 1.0 - exp(-L * 2.2);
   if (T < 0.045 + 0.06 * hash3(cell.x, cell.y, 5)) { o = vec4(bg, 1.0); return; }
@@ -73,7 +85,7 @@ export function createSceneGL(canvas, { still, spec }) {
   if (!gl) return null;
   let light, glyph;
   try {
-    light = compile(gl, QUAD_VS, lightFS(spec.glsl));
+    light = compile(gl, QUAD_VS, lightFS(spec.glsl, !!spec.ramp));
     glyph = compile(gl, QUAD_VS, GLYPH_FS);
   } catch (e) {
     console.warn("afterglow: GPU scene unavailable, using the CPU:", e.message);
@@ -90,7 +102,7 @@ export function createSceneGL(canvas, { still, spec }) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, lightTex, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    g = { dpr, cw, ch, cols, rows, light: lightTex, fbo, ...buildAtlas(gl, atlasTex, RAMP, { cw, ch, dpr, fontPx, font }) };
+    g = { dpr, cw, ch, cols, rows, light: lightTex, fbo, ...buildAtlas(gl, atlasTex, spec.ramp ?? RAMP, { cw, ch, dpr, fontPx, font }) };
   }
 
   // { H, bg (0..255) }
@@ -122,6 +134,7 @@ export function createSceneGL(canvas, { still, spec }) {
     gl.uniform1f(glyph.u.uDpr, g.dpr);
     gl.uniform1f(glyph.u.uCanvasH, canvas.height);
     gl.uniform3f(glyph.u.uBG, ...bg);
+    gl.uniform1f(glyph.u.uDirect, spec.ramp ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
