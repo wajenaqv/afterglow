@@ -63,7 +63,15 @@ void main() {
     if (tx.a < 0.5) { o = vec4(bg, 1.0); return; }
     vec3 c = floor(clamp(col, 0.0, 1.0) * 255.0 + 0.5);
     vec2 loc = (css - vec2(cell) * uCell) * uDpr;
-    o = vec4(mix(bg, c / 255.0, glyphInk(floor(tx.a + 0.5) - 1.0, c, loc)), 1.0);    return;
+    // a touch of sideways blur: the CPU draws characters at fractional
+    // positions with soft edges, and without it every narrow glyph leaves a hard
+    // black column beside it (vertical lines through the picture)
+    float g = floor(tx.a + 0.5) - 1.0;
+    float ink = 0.5 * glyphInk(g, c, loc)
+      + 0.25 * glyphInk(g, c, vec2(clamp(loc.x - 1.0, 0.0, uAtlasW - 1.0), loc.y))
+      + 0.25 * glyphInk(g, c, vec2(clamp(loc.x + 1.0, 0.0, uAtlasW - 1.0), loc.y));
+    o = vec4(mix(bg, c / 255.0, ink), 1.0);
+    return;
   }
   float L = 0.3 * col.r + 0.59 * col.g + 0.11 * col.b;
   float T = 1.0 - exp(-L * 2.2);
