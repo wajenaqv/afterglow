@@ -55,6 +55,11 @@ const BOX = (() => {
   const ys = segments().flatMap(([, y1, , y2]) => [y1, y2]);
   return { x0: Math.min(...xs), y0: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
 })();
+// Optical nudge to the right, as a share of the tile: the letters lean right,
+// and the A's foot reaching out bottom-left makes the eye read the whole AG
+// as sitting left of centre (owner: "a bit to the right"). The macOS menu
+// bar icon has no tile and is cropped to the letters, so it isn't nudged.
+const NUDGE = 0.015;
 // The (ox, oy) for path() that puts the strokes' centre at (cx, cy)
 const centred = (unit, cx, cy) => [cx - (BOX.x0 + BOX.w / 2) * unit, cy - (BOX.y0 + BOX.h / 2) * unit];
 
@@ -70,7 +75,7 @@ function appIcon() {
   // macOS-style icon: a rounded square inset in the canvas
   const inset = 100, side = S - inset * 2, radius = 185;
   const unit = (side * 0.74) / COLS; // the art fills ~74% of the square's width
-  const [ox, oy] = centred(unit, S / 2, S / 2);
+  const [ox, oy] = centred(unit, S / 2 + side * NUDGE, S / 2);
   const d = path(unit, ox, oy);
   // the fade runs over the letters themselves, top to bottom
   const top = oy + BOX.y0 * unit, bottom = top + BOX.h * unit;
@@ -99,7 +104,7 @@ function appIcon() {
 function trayIcon({ colour, plate }) {
   const S = 256;
   const unit = (S * (plate ? 0.84 : 0.96)) / COLS;
-  const [ox, oy] = centred(unit, S / 2, S / 2);
+  const [ox, oy] = centred(unit, S / 2 + S * NUDGE, S / 2);
   const back = plate ? `<rect width="${S}" height="${S}" rx="${S * 0.22}" fill="${BG}"/>\n  ` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">
   ${back}<path d="${path(unit, ox, oy)}" fill="none" stroke="${colour}" stroke-width="${(unit * (plate ? 0.5 : 0.42)).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/>
