@@ -23,7 +23,7 @@ use crate::tray;
 
 /// The wallpapers: (id, name in the tray). Each is a page wallpapers/<id>.html.
 /// Keep in sync with src/wallpapers/catalog.js.
-pub const WALLPAPERS: &[(&str, &str)] = &[("jellyfish", "Jellyfish"), ("big-jellyfish", "Big jellyfish"), ("paws", "Paw prints")];
+pub const WALLPAPERS: &[(&str, &str)] = &[("jellyfish", "Jellyfish"), ("big-jellyfish", "Big jellyfish"), ("paws", "Paw prints"), ("clock", "Clock")];
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
@@ -50,6 +50,8 @@ pub struct Settings {
     pub steam: crate::connectors::steam::SteamPrefs,
     /// The hover clock (extras.rs, hoverclock.js)
     pub clock: crate::extras::Clock,
+    /// Hovering a jelly scrambles its characters (off: ?scramble=0)
+    pub scramble: bool,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -74,6 +76,7 @@ impl Default for Settings {
             rotate: Default::default(),
             steam: Default::default(),
             clock: Default::default(),
+            scramble: true,
         }
     }
 }
@@ -92,6 +95,9 @@ impl Settings {
         }
         if self.renderer != "auto" && RENDERERS.contains(&self.renderer.as_str()) {
             parts.push(format!("render={}", self.renderer));
+        }
+        if !self.scramble {
+            parts.push("scramble=0".into());
         }
         parts.join("&")
     }
@@ -200,6 +206,19 @@ pub fn set_fps(app: AppHandle, fps: u32) -> Result<(), String> {
     host::show_wallpaper(&app);
     tray::sync(&app);
     Ok(())
+}
+
+/// Settings → wallpaper: the hover scramble on or off (reloads the wallpaper)
+#[tauri::command]
+pub fn set_scramble(app: AppHandle, on: bool) {
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.scramble = on;
+        s.clone()
+    };
+    save(&app, &snapshot);
+    host::show_wallpaper(&app);
 }
 
 /// How wallpapers are drawn: "auto", "gpu" or "cpu" (reloads them).

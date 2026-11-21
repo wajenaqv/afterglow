@@ -61,6 +61,7 @@ pub fn run() {
             extras::open_stills_folder,
             extras::open_link,
             extras::set_clock,
+            settings::set_scramble,
             logfile::open_log,
             connectors::connectors_state,
             connectors::set_connector,

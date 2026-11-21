@@ -16,7 +16,7 @@ import "@fontsource/jetbrains-mono/700.css";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
-import { clockRows } from "./wallpapers/hoverclock.js";
+import { clockRows, STYLES as CLOCK_STYLES } from "./wallpapers/hoverclock.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -51,7 +51,10 @@ function standIn(cmd, a) {
       s.renderer = a.renderer;
       return save();
     case "set_clock":
-      s.clock = { on: a.on, always: a.always, style: a.style, corner: a.corner, colour: a.colour, fill: a.fill };
+      s.clock = a.clock;
+      return save();
+    case "set_scramble":
+      s.scramble = a.on;
       return save();
     case "set_rotation":
       s.rotate = { on: a.on, minutes: a.minutes, walls: a.walls };
@@ -189,6 +192,29 @@ for (const w of WALLPAPERS) {
   $("#cards").append(el);
 }
 
+// Coming soon: wallpapers on their way (from heywajih.com), as dim tiles
+// with a sketch, so the picker shows there's more to come
+const SOON = [
+  { name: "constellation", about: "A cat drawn in the stars: chart lines join the stars into a cat, then it dissolves and the next one forms.", art: "  *        *\n   \\      /\n    *----*\n    |    |\n    *    *--*" },
+  { name: "black hole", about: "Light bending around a black hole, traced ray by ray: a glowing disk, its lensed halo and warped stars.", art: "  .   *    .\n   .-~~~~-.\n  ( ( @@ ) )\n   '-~~~~-'\n .    *   ." },
+  { name: "cats", about: "Glowing text-art cats: one asleep in the corner, a whole family, and a troupe that dances.", art: "  /\\_/\\\n ( -.- )\n  > ^ <\n (__)_)~" },
+];
+for (const w of SOON) {
+  const el = document.createElement("article");
+  el.className = "card soon";
+  el.innerHTML = `
+    <div class="preview"><pre></pre></div>
+    <div class="body">
+      <h3></h3>
+      <p class="dim about"></p>
+      <p class="soon-tag">coming soon</p>
+    </div>`;
+  el.querySelector("pre").textContent = w.art;
+  el.querySelector("h3").textContent = w.name;
+  el.querySelector(".about").textContent = w.about;
+  $("#cards").append(el);
+}
+
 // Previews render at 960x540 and are scaled to fit their card
 const fit = new ResizeObserver((entries) => {
   for (const e of entries) e.target.style.setProperty("--k", String(e.contentRect.width / 960));
@@ -221,11 +247,12 @@ async function saveRotation() {
 // Show it (hover / always / never), the four styles as small previews you
 // click to pick, and corner, colour and fill. Saved on every change; the
 // wallpapers update straight away.
-const CLOCK_STYLES = ["slant", "density", "lcd", "plain"];
 const clockShowInputs = $$('input[name="clock-show"]');
 const clockCorner = $("#clock-corner");
 const clockColour = $("#clock-colour");
 const clockFill = $("#clock-fill");
+const clockSize = $("#clock-size");
+const clockHours = $("#clock-hours");
 let clockStyle = "slant";
 const clockShow = () => clockShowInputs.find((i) => i.checked)?.value ?? "hover";
 for (const id of CLOCK_STYLES) {
@@ -236,7 +263,7 @@ for (const id of CLOCK_STYLES) {
   b.setAttribute("role", "radio");
   b.innerHTML = '<pre></pre><span class="dim"></span>';
   b.querySelector("pre").textContent = clockRows(id).join("\n");
-  b.querySelector("span").textContent = id;
+  b.querySelector("span").textContent = id.replace("-", " ");
   b.addEventListener("click", () => {
     clockStyle = id;
     saveClock();
@@ -254,11 +281,12 @@ function markClock() {
 function saveClock() {
   markClock();
   const show = clockShow();
-  invoke("set_clock", { on: show !== "never", always: show === "always", style: clockStyle, corner: clockCorner.value, colour: clockColour.value, fill: clockFill.value })
+  const clock = { on: show !== "never", always: show === "always", style: clockStyle, corner: clockCorner.value, colour: clockColour.value, fill: clockFill.value, size: clockSize.value, hours: clockHours.value };
+  invoke("set_clock", { clock })
     .then(() => ($("#clock-note").textContent = ""))
     .catch((e) => ($("#clock-note").textContent = String(e)));
 }
-[...clockShowInputs, clockCorner, clockColour, clockFill].forEach((el) => el.addEventListener("change", saveClock));
+[...clockShowInputs, clockCorner, clockColour, clockFill, clockSize, clockHours].forEach((el) => el.addEventListener("change", saveClock));
 function showClock(c = {}) {
   const show = c.on === false ? "never" : c.always ? "always" : "hover";
   clockShowInputs.forEach((i) => (i.checked = i.value === show));
@@ -266,8 +294,13 @@ function showClock(c = {}) {
   clockCorner.value = c.corner ?? "top-right";
   clockColour.value = c.colour ?? "wallpaper";
   clockFill.value = c.fill ?? "gradient";
+  clockSize.value = c.size ?? "medium";
+  clockHours.value = c.hours ?? "auto";
   markClock();
 }
+
+// Hover scramble on or off (settings.rs set_scramble; the wallpaper reloads)
+$("#scramble").addEventListener("change", (e) => invoke("set_scramble", { on: e.target.checked }).catch((err) => (stillNote.textContent = String(err))));
 
 function showRotation(r = {}) {
   rotateOn.checked = !!r.on;
@@ -785,6 +818,7 @@ async function load() {
   showRunning(settings.renderer);
   showRotation(saved.rotate);
   showClock(saved.clock);
+  $("#scramble").checked = saved.scramble ?? true;
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {

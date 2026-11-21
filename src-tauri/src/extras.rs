@@ -134,14 +134,15 @@ pub fn open_link(url: String) -> Result<(), String> {
 
 // ---- the hover clock (src/wallpapers/hoverclock.js) ----
 
-/// Settings → wallpaper → clock: on or off, its style and which corner
+/// Settings → clock: when it shows, its style, corner, colour, fill, size and
+/// hour format (the clock wallpaper uses style, colour, fill and hours too)
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct Clock {
     pub on: bool,
     /// true: always shown in its corner; false: only while you hover it
     pub always: bool,
-    /// slant (the banner's figlet font), density, lcd or plain
+    /// one of CLOCK_STYLES (hoverclock.js STYLES)
     pub style: String,
     /// top-right, top-left, bottom-right or bottom-left
     pub corner: String,
@@ -149,28 +150,42 @@ pub struct Clock {
     pub colour: String,
     /// "gradient" (light at the top into the colour) or "solid"
     pub fill: String,
+    /// small, medium, large or huge
+    pub size: String,
+    /// "auto" (the system's setting), "12" or "24" (24-hour, "military" time)
+    pub hours: String,
 }
 
 impl Default for Clock {
     fn default() -> Self {
-        Clock { on: true, always: false, style: "slant".into(), corner: "top-right".into(), colour: "wallpaper".into(), fill: "gradient".into() }
+        Clock {
+            on: true,
+            always: false,
+            style: "slant".into(),
+            corner: "top-right".into(),
+            colour: "wallpaper".into(),
+            fill: "gradient".into(),
+            size: "medium".into(),
+            hours: "auto".into(),
+        }
     }
 }
 
-pub const CLOCK_STYLES: &[&str] = &["slant", "density", "lcd", "plain"];
+pub const CLOCK_STYLES: &[&str] = &["slant", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
 pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-left"];
 
 /// Save the clock's settings and tell the wallpapers straight away
 #[tauri::command]
-pub fn set_clock(app: AppHandle, on: bool, always: bool, style: String, corner: String, colour: String, fill: String) -> Result<(), String> {
-    if !CLOCK_STYLES.contains(&style.as_str())
-        || !CORNERS.contains(&corner.as_str())
-        || !["wallpaper", "brand"].contains(&colour.as_str())
-        || !["gradient", "solid"].contains(&fill.as_str())
-    {
-        return Err("unknown clock style, corner, colour or fill".into());
+pub fn set_clock(app: AppHandle, clock: Clock) -> Result<(), String> {
+    let ok = CLOCK_STYLES.contains(&clock.style.as_str())
+        && CORNERS.contains(&clock.corner.as_str())
+        && ["wallpaper", "brand"].contains(&clock.colour.as_str())
+        && ["gradient", "solid"].contains(&clock.fill.as_str())
+        && ["small", "medium", "large", "huge"].contains(&clock.size.as_str())
+        && ["auto", "12", "24"].contains(&clock.hours.as_str());
+    if !ok {
+        return Err("unknown clock option".into());
     }
-    let clock = Clock { on, always, style, corner, colour, fill };
     let host = app.state::<Host>();
     let snapshot = {
         let mut s = host.settings.lock().unwrap();

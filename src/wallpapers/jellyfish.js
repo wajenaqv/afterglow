@@ -445,11 +445,13 @@ function reactionsTick(dt) {
 const SEEN_MS = 800;
 // the scramble's glyphs, faint to bright (also jellyfish-gl.js GLYPHS, slots 19-21)
 const SHADES = "░▒▓";
+// ?scramble=0 (Settings → wallpaper): no scramble; the cursor still marks lanterns seen
+const SCRAMBLE_ON = params.get("scramble") !== "0";
 const SCRAMBLE = { amt: 0, x: 0, y: 0, r: 1, bucket: 0 };
 function hoverTick(dt) {
   let top = null;
   for (const j of JELLIES) if (j.stir > 0.01 && j.screen && (!top || j.stir > top.stir)) top = j;
-  SCRAMBLE.amt = top ? top.stir * 0.4 : 0;
+  SCRAMBLE.amt = top && SCRAMBLE_ON ? top.stir * 0.4 : 0;
   if (top) Object.assign(SCRAMBLE, { x: pointer.x, y: pointer.y, r: Math.max(20, top.screen.r * 1.0), bucket: Math.floor(performance.now() / 90) % 10000 });
   for (const j of JELLIES) {
     j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);

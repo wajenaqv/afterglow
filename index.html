@@ -33,6 +33,11 @@
           <p class="dim hint">Every monitor shows the one you pick. Options apply straight away to the one that's showing.</p>
           <div id="cards" class="cards"></div>
 
+          <h3 class="sub">hover</h3>
+          <div class="list">
+            <label><input type="checkbox" id="scramble" /> scramble a jelly's characters when I hover it <span class="dim">resting the cursor on a lit jelly still marks it seen</span></label>
+          </div>
+
           <h3 class="sub">rotation</h3>
           <div class="list rotate">
             <label><input type="checkbox" id="rotate-on" /> change wallpaper every <select id="rotate-minutes"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">hour</option></select></label>
@@ -63,6 +68,8 @@
             <label><span class="dim">corner</span> <select id="clock-corner"><option value="top-right">top right</option><option value="top-left">top left</option><option value="bottom-right">bottom right</option><option value="bottom-left">bottom left</option></select></label>
             <label><span class="dim">colour</span> <select id="clock-colour"><option value="wallpaper">match the wallpaper</option><option value="brand">AfterGlow green</option></select></label>
             <label><span class="dim">fill</span> <select id="clock-fill"><option value="gradient">gradient</option><option value="solid">solid</option></select></label>
+            <label><span class="dim">size</span> <select id="clock-size"><option value="small">small</option><option value="medium">medium</option><option value="large">large</option><option value="huge">huge</option></select></label>
+            <label><span class="dim">hours</span> <select id="clock-hours"><option value="auto">like my system</option><option value="12">12-hour</option><option value="24">24-hour (military)</option></select></label>
           </div>
           <p class="dim hint clock-note" id="clock-note"></p>
         </section>

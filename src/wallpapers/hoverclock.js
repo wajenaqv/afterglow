@@ -8,7 +8,8 @@
 // Settings → wallpaper → clock (extras.rs Clock, live through the "clock"
 // event): off, on hover or always, style, corner and colour:
 //   style   slant    figlet's Slant digits, the AfterGlow banner's font
-//                    (clock-slant.json, made by scripts/clock-font.js)
+//           small-slant, big, colossal, banner: more figlet fonts
+//                    (all in clock-fonts.json, made by scripts/clock-font.js)
 //           density  3x5 pixel digits in shading blocks, softer at the ends
 //           lcd      seven segments drawn with _ and |
 //           plain    the time in a large, thin mono font
@@ -21,7 +22,7 @@ import "@fontsource/jetbrains-mono/300.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
 import "../brand.css";
-import SLANT from "./clock-slant.json";
+import FONTS from "./clock-fonts.json";
 
 const ZONE_W = 220; // CSS px from the side edge
 const ZONE_H = 140; // CSS px from the top or bottom edge
@@ -33,7 +34,7 @@ const HIDE_AFTER = 1000; // ms after leaving it
 
 // The colours of each wallpaper palette (?tint=), top to bottom, like the
 // jellyfish TINTS: light at the top running into the palette's main hue
-const PALETTES = {
+export const PALETTES = {
   natural: ["#ffe1f0", "#b98cff"],
   cool: ["#d9f5ff", "#3f8cff"],
   grey: ["#f5f5f5", "#8e949c"],
@@ -105,11 +106,20 @@ function density(text) {
   );
 }
 
-function slant(text) {
-  return [0, 1, 2, 3, 4].map((r) => [...text].map((ch) => SLANT[ch][r]).join(""));
+// A figlet font from clock-fonts.json: each character's rows side by side
+function figlet(text, font) {
+  const glyphs = FONTS[font];
+  return glyphs["0"].map((_, r) => [...text].map((ch) => glyphs[ch][r]).join(""));
 }
 
-const hour12 = (() => {
+/** Every style, in the order Settings shows them */
+export const STYLES = ["slant", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
+/** Sizes: how much bigger than the base size (CSS zoom) */
+export const SIZES = { small: 0.75, medium: 1, large: 1.4, huge: 2 };
+
+// 12 or 24 hours: "auto" follows the system's setting, "12" or "24" (24-hour
+// time, "military" time) choose
+const systemHour12 = (() => {
   try {
     const hc = new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hourCycle;
     return hc === "h12" || hc === "h11";
@@ -117,21 +127,26 @@ const hour12 = (() => {
     return false;
   }
 })();
+const is12 = (hours) => (hours === "12" ? true : hours === "24" ? false : systemHour12);
 
-function timeText(now) {
+/** "4:43" or "16:43" */
+export function timeText(now, hours = "auto") {
   let h = now.getHours();
-  if (hour12) h = h % 12 || 12;
-  const hh = hour12 ? String(h) : String(h).padStart(2, "0");
+  const twelve = is12(hours);
+  if (twelve) h = h % 12 || 12;
+  const hh = twelve ? String(h) : String(h).padStart(2, "0");
   return `${hh}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
-function under(now) {
+/** "pm · sat, nov 21" (no am/pm in 24-hour time) */
+export function dateText(now, hours = "auto") {
   const date = now.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }).toLowerCase();
-  return hour12 ? `${now.getHours() < 12 ? "am" : "pm"} · ${date}` : date;
+  return is12(hours) ? `${now.getHours() < 12 ? "am" : "pm"} · ${date}` : date;
 }
 
-/** The clock's rows for a style (Settings previews them) */
+/** The clock's rows for a style (Settings previews them, the wallpaper draws them) */
 export function clockRows(style, text = "4:43") {
-  return style === "slant" ? slant(text) : style === "density" ? density(text) : style === "lcd" ? lcd(text) : [text];
+  if (FONTS[style]) return figlet(text, style);
+  return style === "density" ? density(text) : style === "lcd" ? lcd(text) : [text];
 }
 
 function css() {
@@ -147,6 +162,10 @@ function css() {
     .hover-clock pre { margin: 0; letter-spacing: 0; line-height: 1.05; }
     .hover-clock .under { margin-top: 10px; font: 400 13px/1.2 "JetBrains Mono", ui-monospace, monospace; text-shadow: none; }
     .hover-clock.slant pre { font: 700 14px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
+    .hover-clock.small-slant pre { font: 700 16px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
+    .hover-clock.big pre { font: 700 12px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
+    .hover-clock.colossal pre { font: 700 9px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
+    .hover-clock.banner pre { font: 700 9px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.density pre { font: 700 12px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.lcd pre { font: 700 15px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.plain pre { font: 300 52px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; }
@@ -161,7 +180,7 @@ function css() {
  */
 export function hoverClock(frames, config = {}, tint = "") {
   css();
-  let cfg = { on: true, always: false, style: "slant", corner: "top-right", colour: "wallpaper", fill: "gradient", ...config };
+  let cfg = { on: true, always: false, style: "slant", corner: "top-right", colour: "wallpaper", fill: "gradient", size: "medium", hours: "auto", ...config };
   let palette = tint || "natural";
 
   const clocks = frames.map((fr) => {
@@ -179,7 +198,7 @@ export function hoverClock(frames, config = {}, tint = "") {
 
   const paint = (c) => {
     const now = new Date();
-    const rows = clockRows(cfg.style, timeText(now));
+    const rows = clockRows(cfg.style, timeText(now, cfg.hours));
     const [top, low] = colours();
     const pre = c.el.querySelector("pre");
     pre.textContent = "";
@@ -193,7 +212,7 @@ export function hoverClock(frames, config = {}, tint = "") {
     });
     pre.style.textShadow = `0 0 ${cfg.style === "plain" ? 16 : 8}px color-mix(in srgb, ${low} 60%, transparent)`;
     const u = c.el.querySelector(".under");
-    u.textContent = under(now);
+    u.textContent = dateText(now, cfg.hours);
     u.style.color = `color-mix(in srgb, ${low} 65%, #000)`;
   };
 
@@ -202,9 +221,12 @@ export function hoverClock(frames, config = {}, tint = "") {
     for (const c of clocks) {
       const { x, y, w, h } = c.fr;
       c.el.className = `hover-clock ${cfg.style}${right() ? " right" : ""}${c.on ? " on" : ""}`;
+      // zoom also scales left/top, so they are divided by it to stay in the corner
+      const z = SIZES[cfg.size] ?? 1;
+      c.el.style.zoom = String(z);
       Object.assign(c.el.style, {
-        left: `${right() ? x + w - EDGE_X : x + EDGE_X}px`,
-        top: `${bottom() ? y + h - EDGE_BOTTOM : y + EDGE_TOP}px`,
+        left: `${(right() ? x + w - EDGE_X : x + EDGE_X) / z}px`,
+        top: `${(bottom() ? y + h - EDGE_BOTTOM : y + EDGE_TOP) / z}px`,
         transform: `translate(${right() ? "-100%" : "0"}, ${bottom() ? "-100%" : "0"})`,
       });
       if (c.on) paint(c);
@@ -224,9 +246,11 @@ export function hoverClock(frames, config = {}, tint = "") {
     clearInterval(c.tick);
   };
 
-  // always on: every monitor shows it; off: none; hover: shown on demand
+  // always on: every monitor shows it; off: none; hover: shown on demand.
+  // Never while the clock wallpaper is showing (setHidden): one clock is enough.
+  let hidden = false;
   const mode = () => {
-    if (!cfg.on) clocks.forEach(hide);
+    if (!cfg.on || hidden) clocks.forEach(hide);
     else if (cfg.always) clocks.forEach(show);
     else clocks.forEach(hide);
   };
@@ -235,7 +259,7 @@ export function hoverClock(frames, config = {}, tint = "") {
 
   return {
     cursor(p) {
-      if (!cfg.on || cfg.always) return;
+      if (!cfg.on || cfg.always || hidden) return;
       for (const c of clocks) {
         const { x, y, w, h } = c.fr;
         const inX = p && (right() ? p.x >= x + w - ZONE_W && p.x < x + w : p.x >= x && p.x < x + ZONE_W);
@@ -254,6 +278,10 @@ export function hoverClock(frames, config = {}, tint = "") {
     configure(next) {
       cfg = { ...cfg, ...next };
       place();
+      mode();
+    },
+    setHidden(next) {
+      hidden = !!next;
       mode();
     },
     setTint(next) {

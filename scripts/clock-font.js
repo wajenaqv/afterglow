@@ -1,22 +1,34 @@
-// Generates src/wallpapers/clock-slant.json: figlet's Slant digits and colon
-// for the hover clock's "slant" style (the AfterGlow banner's font). Each
-// character is rendered on its own at full width, so the clock can join
-// them in any order. Run once after changing it: bun scripts/clock-font.js
+// Generates src/wallpapers/clock-fonts.json: the digits and colon of the
+// figlet fonts the clock offers (hover clock and the clock wallpaper):
+//   slant        Slant, the AfterGlow banner's font (the default)
+//   small-slant  Small Slant, a compact slant
+//   big          Big, rounded
+//   colossal     Colossal, large and detailed
+//   banner       Banner3, made of #
+// Only fonts drawn with plain ASCII: block-character fonts (Electronic)
+// fall back to another font in the webview and break, like the first
+// density clock did. Each character is rendered on its own at full width,
+// so the clock can join them in any order; trailing blank rows are cut.
+// Run after changing it: bun scripts/clock-font.js (figlet is a dev dependency)
 import figlet from "figlet";
 import { writeFileSync } from "node:fs";
 
+const FONTS = { slant: "Slant", "small-slant": "Small Slant", big: "Big", colossal: "Colossal", banner: "Banner3" };
 const out = {};
-for (const ch of "0123456789:") {
-  const lines = figlet.textSync(ch, { font: "Slant", horizontalLayout: "full" }).split("\n");
-  while (lines.length && !lines.at(-1).trim()) lines.pop();
-  out[ch] = lines;
+for (const [id, font] of Object.entries(FONTS)) {
+  const glyphs = {};
+  for (const ch of "0123456789:") glyphs[ch] = figlet.textSync(ch, { font, horizontalLayout: "full" }).split("\n");
+  // rows that are blank in every glyph at the bottom are cut
+  let rows = Math.max(...Object.values(glyphs).map((l) => l.length));
+  while (rows > 1 && Object.values(glyphs).every((l) => !(l[rows - 1] ?? "").trim())) rows--;
+  for (const ch in glyphs) {
+    const lines = glyphs[ch].slice(0, rows);
+    while (lines.length < rows) lines.push("");
+    const w = Math.max(...lines.map((l) => l.length));
+    glyphs[ch] = lines.map((l) => l.padEnd(w));
+  }
+  out[id] = glyphs;
+  console.log(`${id}: ${rows} rows`);
 }
-const rows = Math.max(...Object.values(out).map((l) => l.length));
-for (const ch in out) {
-  while (out[ch].length < rows) out[ch].push("");
-  const w = Math.max(...out[ch].map((l) => l.length));
-  out[ch] = out[ch].map((l) => l.padEnd(w));
-}
-writeFileSync("src/wallpapers/clock-slant.json", JSON.stringify(out, null, 1) + "\n");
-console.log(`wrote src/wallpapers/clock-slant.json (${rows} rows)`);
-for (const ch of "4:43") console.log(out[ch].join("\n"));
+writeFileSync("src/wallpapers/clock-fonts.json", JSON.stringify(out) + "\n");
+console.log("wrote src/wallpapers/clock-fonts.json");

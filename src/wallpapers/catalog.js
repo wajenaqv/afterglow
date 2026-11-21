@@ -38,6 +38,22 @@ export const WALLPAPERS = [
     options: [PALETTE],
     reacts: ["pulse", "flash"],
   },
+  {
+    id: "clock",
+    name: "clock",
+    about: "The time, big and glowing in the middle of the screen, in any of the clock styles. When the minute turns, the digits that change scramble into place.",
+    options: [
+      {
+        key: "style",
+        label: "style",
+        choices: [["", "slant"], ["small-slant", "small slant"], ["big", "big"], ["colossal", "colossal"], ["banner", "banner"], ["density", "density"], ["lcd", "lcd"], ["plain", "plain"]],
+      },
+      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"]] },
+      { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },
+      { key: "hours", label: "hours", choices: [["", "like my system"], ["12", "12-hour"], ["24", "24-hour"]] },
+    ],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
 ];
 
 // The big jellyfish's colour menu names the colours of the chosen palette

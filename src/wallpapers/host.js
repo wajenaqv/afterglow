@@ -40,10 +40,12 @@ const frames = screens.map(([x, y, w, h]) => {
 // the wallpaper's palette (?tint=), for the clock's "match the wallpaper" colour
 const tintOf = (query) => new URLSearchParams(query ?? "").get("tint") ?? "";
 const clock = hoverClock(frames, config.clock ?? {}, tintOf(config.query));
+clock.setHidden(config.wall === "clock"); // the clock wallpaper is a clock already
 
 // Settings or the tray picked another wallpaper: swap every frame's page
 function show({ wall, query }) {
   clock.setTint(tintOf(query));
+  clock.setHidden(wall === "clock");
   const src = pageFor(wall, query);
   frames.forEach((fr) => {
     if (fr.f.getAttribute("src") !== src) fr.f.src = src;

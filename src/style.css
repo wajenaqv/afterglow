@@ -541,3 +541,65 @@ table.apps {
 .clock-style.lcd pre {
   font: 700 8px/1 "JetBrains Mono", ui-monospace, Consolas, monospace;
 }
+
+/* scrollbars in the app's colours: thin, dim green on black */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--dim) 70%, var(--bg)) var(--bg);
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--dim) 55%, var(--bg));
+  border: 3px solid var(--bg);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg);
+}
+::-webkit-scrollbar-corner {
+  background: var(--bg);
+}
+
+/* coming soon: dim tiles with a sketch */
+.card.soon {
+  border-style: dashed;
+  opacity: 0.75;
+}
+.card.soon .preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card.soon .preview pre {
+  margin: 0;
+  color: var(--dim);
+  font: 400 13px/1.2 "JetBrains Mono", ui-monospace, monospace;
+  text-shadow: 0 0 6px rgba(var(--glow), 0.3);
+}
+.card.soon h3 {
+  color: var(--fg);
+}
+.soon-tag {
+  margin: auto 0 0;
+  color: var(--accent);
+  font-size: 12px;
+}
+.soon-tag::before {
+  content: "> ";
+  color: var(--dim);
+}
+
+/* the bigger figlet fonts need smaller previews to fit their tiles */
+.clock-style.colossal pre,
+.clock-style.banner pre {
+  font-size: 4.5px;
+}
+.clock-style.big pre {
+  font-size: 6px;
+}
