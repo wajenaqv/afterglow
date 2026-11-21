@@ -13,7 +13,8 @@
     <div class="shell">
       <nav class="side" aria-label="settings">
         <pre id="mark" class="mark" aria-label="AfterGlow"></pre>
-        <ul>
+        <p class="tree-root">~/afterglow/</p>
+        <ul class="tree">
           <li><a href="#wallpaper" data-page="wallpaper">wallpaper</a></li>
           <li><a href="#clock" data-page="clock">clock</a></li>
           <li><a href="#apps" data-page="apps">apps</a></li>
@@ -145,6 +146,11 @@
           <p class="hint"><span id="about-version">AfterGlow</span>. ASCII live wallpapers that react to your apps. MIT licensed.</p>
           <p class="dim hint"><a href="https://github.com/wajenaqv/afterglow" target="_blank" rel="noreferrer">github.com/wajenaqv/afterglow</a></p>
 
+          <h3 class="sub">look</h3>
+          <div class="list">
+            <label><input type="checkbox" id="boot" /> boot lines when Settings opens <span class="dim">a second of [ OK ] lines; click or press a key to skip</span></label>
+          </div>
+
           <h3 class="sub">log</h3>
           <p class="dim hint">What AfterGlow has been doing, with times (UTC). If it ever stops or misbehaves, this says why. <button type="button" id="open-log">open the log</button> <span id="log-note"></span></p>
 
@@ -159,6 +165,7 @@
           </table>
         </section>
       </main>
+      <footer class="statusbar" id="status" aria-live="off"><span class="st-mode"></span><span class="st-apps"></span><span class="st-wall"></span></footer>
     </div>
   </body>
 </html>

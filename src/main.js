@@ -17,6 +17,7 @@ import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
 import { clockRows, STYLES as CLOCK_STYLES } from "./wallpapers/hoverclock.js";
+import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -154,6 +155,7 @@ async function choose(id) {
   settings.wallpaper = id;
   settings.options = { ...settings.options, [id]: options };
   markShowing();
+  paintStatus();
 }
 
 for (const w of WALLPAPERS) {
@@ -779,6 +781,7 @@ renderInputs.forEach((input) =>
     invoke("set_renderer", { renderer: input.value });
     settings.renderer = input.value;
     showRunning(input.value);
+    paintStatus();
   }),
 );
 
@@ -832,7 +835,29 @@ async function load() {
     first = false;
   }
   markShowing();
+  paintStatus();
 }
 addEventListener("focus", () => load().catch(() => {}));
 show();
+
+// ---- the terminal look (terminal.js): text controls, the command on the
+// prompt line, the status bar and the boot lines ----
+const fpsNow = () => fpsInputs.find((i) => i.checked)?.value;
+startTerminal({
+  invoke,
+  status: () => ({
+    wallpaper: WALLPAPERS.find((w) => w.id === settings.wallpaper)?.name ?? settings.wallpaper,
+    tint: settings.options[settings.wallpaper]?.tint || "",
+    fps: fpsNow(),
+    gpu: describe(settings.renderer).gpu,
+  }),
+  bootLines: () => [
+    "loading settings",
+    `${WALLPAPERS.length} wallpapers, ${SOON.length} on the way`,
+    `renderer: ${describe(settings.renderer).gpu ? "gpu" : "cpu"}`,
+    "listening for your apps",
+  ],
+});
+$("#boot").checked = bootOn();
+$("#boot").addEventListener("change", (e) => setBoot(e.target.checked));
 load();

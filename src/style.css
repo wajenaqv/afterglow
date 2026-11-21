@@ -603,3 +603,284 @@ table.apps {
 .clock-style.big pre {
   font-size: 6px;
 }
+
+/* =====================================================================
+   The terminal look (with src/terminal.js): heywajih's CRT feel without
+   anything to type. Scanlines and a vignette over the window, the sidebar
+   as a folder tree, controls drawn as text ([x] (•) < value > [ button ]),
+   square corners, a vim-style status bar and short boot lines.
+   ===================================================================== */
+
+/* scanlines and vignette, over everything, never in the way */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+body::before {
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in srgb, var(--bg) 22%, transparent) 2px 3px);
+}
+body::after {
+  background: radial-gradient(ellipse at center, transparent 60%, color-mix(in srgb, var(--bg) 55%, transparent) 100%);
+}
+
+/* square corners everywhere, like a terminal */
+.card,
+.clock-style,
+select,
+button,
+input,
+.side a,
+.guide code {
+  border-radius: 0 !important;
+}
+
+/* ---- layout: the status bar along the bottom ---- */
+.shell {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.side,
+main {
+  min-height: 0;
+}
+
+/* ---- the sidebar as a folder tree ---- */
+.tree-root {
+  margin: 0 0 -14px 8px;
+  color: var(--bright);
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+.side ul.tree {
+  gap: 0;
+}
+.side .tree a {
+  padding: 3px 8px;
+  white-space: pre;
+}
+.side .tree a::before,
+.side .tree a[aria-current="page"]::before {
+  content: "├─ ";
+  color: var(--dim);
+}
+.side .tree li:last-child a::before {
+  content: "└─ ";
+}
+.side .tree a[aria-current="page"]::before {
+  content: "├─> ";
+  color: var(--accent);
+}
+.side .tree li:last-child a[aria-current="page"]::before {
+  content: "└─> ";
+}
+.side .tree a[aria-current="page"] {
+  background: transparent;
+}
+.side .tree a[aria-current="page"]::after {
+  content: "/";
+  color: var(--dim);
+}
+
+/* ---- headings: markdown-ish ---- */
+h3.sub::before {
+  content: "## ";
+  color: var(--dim);
+}
+
+/* ---- checkboxes and radios: [x] and (•) ---- */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: auto;
+  height: auto;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--dim);
+  cursor: pointer;
+  flex: none;
+}
+input[type="checkbox"]::before {
+  content: "[ ]";
+  white-space: pre;
+}
+input[type="checkbox"]:checked::before {
+  content: "[x]";
+}
+input[type="radio"]::before {
+  content: "( )";
+  white-space: pre;
+}
+input[type="radio"]:checked::before {
+  content: "(•)";
+}
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+input[type="checkbox"]:hover,
+input[type="radio"]:hover,
+label:hover > input[type="checkbox"],
+label:hover > input[type="radio"] {
+  color: var(--bright);
+}
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---- selects: < value > ---- */
+.cyc {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.cyc-b {
+  color: var(--dim);
+  cursor: pointer;
+  padding: 0 0.35ch;
+  user-select: none;
+  text-shadow: none;
+}
+.cyc-b:hover {
+  color: var(--bright);
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+.cyc select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  padding: 0 0.2ch;
+  background: none;
+  color: var(--bright);
+  cursor: pointer;
+  field-sizing: content; /* as wide as the chosen value, where supported */
+  text-align: center;
+}
+.cyc select:hover {
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+.cyc select option {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/* ---- buttons: [ label ] ---- */
+button {
+  border: 0;
+  background: none;
+  color: var(--bright);
+  padding: 0 2px;
+}
+button::before {
+  content: "[ ";
+  color: var(--dim);
+}
+button::after {
+  content: " ]";
+  color: var(--dim);
+}
+button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 14%, var(--bg));
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+}
+button:hover:not(:disabled)::before,
+button:hover:not(:disabled)::after {
+  color: var(--accent);
+}
+/* "● showing" and the clock's style tiles aren't bracketed */
+button.use:disabled::before,
+button.use:disabled::after,
+.clock-style::before,
+.clock-style::after {
+  content: none;
+}
+.clock-style {
+  border: 1px dashed color-mix(in srgb, var(--dim) 55%, var(--bg));
+  color: var(--fg);
+}
+.clock-style:hover:not(:disabled) {
+  background: none;
+  border-color: var(--fg);
+}
+.clock-style.on {
+  border-style: solid;
+}
+
+/* ---- text fields: an underlined blank ---- */
+input:not([type]),
+input[type="text"],
+input[type="password"] {
+  border: 0;
+  border-bottom: 1px dashed var(--dim);
+  background: color-mix(in srgb, var(--fg) 5%, var(--bg));
+  padding: 1px 6px;
+}
+input:not([type]):focus,
+input[type="text"]:focus,
+input[type="password"]:focus {
+  border-bottom-color: var(--accent);
+  outline: none;
+}
+
+/* ---- cards: dashed boxes, solid and glowing when showing ---- */
+.card {
+  border-style: dashed;
+}
+.card.on {
+  border-style: solid;
+}
+.card.on h3::after {
+  content: " *";
+  color: var(--accent);
+}
+
+/* ---- the status bar ---- */
+.statusbar {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 2ch;
+  align-items: baseline;
+  padding: 2px 12px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--fg) 14%, var(--bg));
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+.statusbar .st-mode {
+  color: var(--bright);
+  font-weight: 700;
+}
+.statusbar .st-apps {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.statusbar .st-wall {
+  margin-left: auto;
+}
+
+/* ---- boot lines ---- */
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  padding: 28px 32px;
+  cursor: pointer;
+  transition: opacity 0.25s;
+}
+.boot .ok {
+  color: var(--accent);
+}
+.boot.out {
+  opacity: 0;
+}
