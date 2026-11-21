@@ -47,6 +47,17 @@ function segments() {
   return out;
 }
 
+// Where the strokes actually are, in cell units. Layouts centre THIS, not the
+// character grid: the art's top row only draws underscores at the bottom of
+// its cells, so centring the grid left the AG visibly low.
+const BOX = (() => {
+  const xs = segments().flatMap(([x1, , x2]) => [x1, x2]);
+  const ys = segments().flatMap(([, y1, , y2]) => [y1, y2]);
+  return { x0: Math.min(...xs), y0: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+})();
+// The (ox, oy) for path() that puts the strokes' centre at (cx, cy)
+const centred = (unit, cx, cy) => [cx - (BOX.x0 + BOX.w / 2) * unit, cy - (BOX.y0 + BOX.h / 2) * unit];
+
 // The strokes as one path, scaled by `unit` px per cell width, at (ox, oy)
 function path(unit, ox, oy) {
   return segments()
@@ -59,12 +70,13 @@ function appIcon() {
   // macOS-style icon: a rounded square inset in the canvas
   const inset = 100, side = S - inset * 2, radius = 185;
   const unit = (side * 0.74) / COLS; // the art fills ~74% of the square's width
-  const w = COLS * unit, h = ROWS * 2 * unit;
-  const ox = (S - w) / 2, oy = (S - h) / 2 + unit * 0.4;
+  const [ox, oy] = centred(unit, S / 2, S / 2);
   const d = path(unit, ox, oy);
+  // the fade runs over the letters themselves, top to bottom
+  const top = oy + BOX.y0 * unit, bottom = top + BOX.h * unit;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">
   <defs>
-    <linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="0" y1="${oy}" x2="0" y2="${oy + h}">
+    <linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="0" y1="${top.toFixed(1)}" x2="0" y2="${bottom.toFixed(1)}">
       <stop offset="0" stop-color="${TOP}"/>
       <stop offset="1" stop-color="${FG}"/>
     </linearGradient>
@@ -87,8 +99,7 @@ function appIcon() {
 function trayIcon({ colour, plate }) {
   const S = 256;
   const unit = (S * (plate ? 0.84 : 0.96)) / COLS;
-  const w = COLS * unit, h = ROWS * 2 * unit;
-  const ox = (S - w) / 2, oy = (S - h) / 2;
+  const [ox, oy] = centred(unit, S / 2, S / 2);
   const back = plate ? `<rect width="${S}" height="${S}" rx="${S * 0.22}" fill="${BG}"/>\n  ` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}" width="${S}" height="${S}">
   ${back}<path d="${path(unit, ox, oy)}" fill="none" stroke="${colour}" stroke-width="${(unit * (plate ? 0.5 : 0.42)).toFixed(1)}" stroke-linecap="round" stroke-linejoin="round"/>
@@ -107,7 +118,7 @@ function trayIconMac() {
   const sw = 0.55; // stroke width in cells
   const unit = ART / (ROWS * 2 + sw);
   const W = Math.ceil((COLS + sw) * unit) + 2;
-  const ox = (W - COLS * unit) / 2, oy = (H - ROWS * 2 * unit) / 2;
+  const [ox, oy] = centred(unit, W / 2, H / 2);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
   <path d="${path(unit, ox, oy)}" fill="none" stroke="#000000" stroke-width="${(unit * sw).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
