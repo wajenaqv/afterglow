@@ -20,6 +20,7 @@
           <li><a href="#apps" data-page="apps">apps</a></li>
           <li><a href="#pausing" data-page="pausing">pausing</a></li>
           <li><a href="#performance" data-page="performance">performance</a></li>
+          <li><a href="#activity" data-page="activity">activity</a></li>
           <li><a href="#about" data-page="about">about</a></li>
         </ul>
         <p class="dim side-foot" id="version">afterglow</p>
@@ -138,6 +139,29 @@
             <label><input type="radio" name="render" value="cpu" /> CPU <span class="dim">for old drivers, remote desktop or a VM</span></label>
           </div>
           <p class="dim hint running">running on: <span id="running">…</span></p>
+        </section>
+
+        <!-- activity (debugging: which app triggered an afterglow, and when) -->
+        <section id="page-activity" data-page="activity" hidden>
+          <h2>activity</h2>
+          <p class="dim hint">Every signal AfterGlow received: which app, when, and what it did with it. For finding out why something did or didn't show. Newest first; the last 500 are kept until AfterGlow quits (the log in about has them too).</p>
+          <div class="list" role="radiogroup" aria-label="show">
+            <label><input type="radio" name="activity-show" value="glows" checked /> afterglows <span class="dim">new messages and flashes: what lit the wallpaper, or would have</span></label>
+            <label><input type="radio" name="activity-show" value="all" /> everything <span class="dim">also counts changing and clears</span></label>
+          </div>
+
+          <h3 class="sub">by app</h3>
+          <div class="scroll-x"><table class="apps" id="act-apps">
+            <thead><tr><th>app</th><th>shown</th><th>held or ignored</th><th>last</th></tr></thead>
+            <tbody></tbody>
+          </table></div>
+
+          <h3 class="sub">timeline</h3>
+          <div class="scroll-x"><table class="apps" id="act-log">
+            <thead><tr><th>time</th><th>app</th><th>signal</th><th>count</th><th>what happened</th></tr></thead>
+            <tbody></tbody>
+          </table></div>
+          <p class="apps-actions"><button type="button" id="act-clear">clear</button> <span class="dim" id="act-note"></span></p>
         </section>
 
         <!-- about -->

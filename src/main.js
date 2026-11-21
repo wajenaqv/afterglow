@@ -81,6 +81,23 @@ function standIn(cmd, a) {
       return { messages: true, online: true, playing: false, steamid: "", has_key: false, can_messages: true };
     case "unread_by_app":
       return {};
+    // sample signals, so the activity page can be designed here
+    case "activity_log": {
+      const now = Date.now();
+      const e = (ago, source, kind, count, result) => ({ at: now - ago * 1000, source, kind, count, result });
+      return [
+        e(8, "claude", "new", null, "pulse #f20707"),
+        e(8, "claude", "unread", 2, "counted (5 waiting in all)"),
+        e(95, "whatsapp", "new", null, "held (you're away)"),
+        e(140, "spotify", "new", null, "flash"),
+        e(300, "windows-security", "new", null, "ignored (its rule says nothing)"),
+        e(420, "whatsapp", "new", null, "replayed (you're back)"),
+        e(900, "snipping-tool", "new", null, "pulse #33ff99"),
+        e(86400 * 2, "steam", "new", null, "pulse #66c0f4"),
+      ];
+    }
+    case "clear_activity":
+      return null;
     case "autostart_state":
     case "set_autostart":
       return false;
@@ -100,7 +117,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "pausing", "performance", "about"];
+const PAGES = ["wallpaper", "clock", "apps", "pausing", "performance", "activity", "about"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -108,6 +125,7 @@ function show() {
   $("#cmd").textContent = page;
   $("main").scrollTop = 0;
   if (page === "apps") refreshApps();
+  if (page === "activity") refreshActivity();
 }
 addEventListener("hashchange", show);
 
@@ -747,6 +765,54 @@ $$("[data-waiting]").forEach((b) =>
     sendSignal(simWaiting ? { source: "simulator", kind: "unread", count: simWaiting } : { source: "simulator", kind: "clear" });
   }),
 );
+
+// =========================== activity ===========================
+// Settings → activity (signals.rs activity_log): every signal, newest first
+const actShow = $$('input[name="activity-show"]');
+let actLast = [];
+const SHOWN = /^(pulse|flash|replayed)/;
+const clockOf = (ms) => {
+  const d = new Date(ms);
+  const t = d.toLocaleTimeString([], { hour12: false });
+  return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${t}`;
+};
+function renderActivity() {
+  const glows = (actShow.find((i) => i.checked)?.value ?? "glows") === "glows";
+  const rows = glows ? actLast.filter((e) => e.kind === "new" || e.kind === "flash") : actLast;
+  // by app: how many showed, how many were held or ignored, and the last time
+  const apps = new Map();
+  for (const e of actLast) {
+    if (e.kind !== "new" && e.kind !== "flash") continue;
+    const a = apps.get(e.source) ?? { shown: 0, held: 0, last: e.at };
+    if (SHOWN.test(e.result)) a.shown++;
+    else a.held++;
+    a.last = Math.max(a.last, e.at);
+    apps.set(e.source, a);
+  }
+  $("#act-apps tbody").innerHTML =
+    [...apps]
+      .sort((x, y) => y[1].last - x[1].last)
+      .map(([src, a]) => `<tr><td class="name">${esc(src)}</td><td>${a.shown}</td><td class="${a.held ? "" : "dim"}">${a.held}</td><td class="dim">${clockOf(a.last)}</td></tr>`)
+      .join("") || '<tr><td class="dim" colspan="4">nothing yet</td></tr>';
+  const shown = rows.slice(0, 200);
+  $("#act-log tbody").innerHTML =
+    shown
+      .map((e) => `<tr><td class="dim" style="white-space:nowrap">${clockOf(e.at)}</td><td class="name">${esc(e.source)}</td><td>${esc(e.kind)}</td><td class="dim">${e.count ?? ""}</td><td class="${SHOWN.test(e.result) ? "" : "dim"}">${esc(e.result)}</td></tr>`)
+      .join("") || '<tr><td class="dim" colspan="5">nothing yet</td></tr>';
+  $("#act-note").textContent = rows.length > 200 ? `showing the latest 200 of ${rows.length}` : `${rows.length} shown`;
+}
+async function refreshActivity() {
+  if ($("#page-activity").hidden) return;
+  try {
+    actLast = await invoke("activity_log");
+    renderActivity();
+  } catch (e) {
+    $("#act-note").textContent = String(e);
+  }
+}
+actShow.forEach((i) => i.addEventListener("change", renderActivity));
+$("#act-clear").addEventListener("click", () => invoke("clear_activity").then(refreshActivity));
+setInterval(refreshActivity, 2000);
 
 // =========================== pausing ===========================
 const pauseBoxes = $$("[data-pause]");

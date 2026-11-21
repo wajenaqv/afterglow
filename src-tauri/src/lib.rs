@@ -55,6 +55,8 @@ pub fn run() {
             signals::unread_by_app,
             signals::dismiss_lantern,
             signals::lantern_state,
+            signals::activity_log,
+            signals::clear_activity,
             connectors::steam::steam_state,
             connectors::steam::set_steam,
             extras::save_png,
