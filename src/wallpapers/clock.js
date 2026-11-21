@@ -5,7 +5,10 @@
 //
 // Options (Settings card; also plain URL options):
 //   ?style=   slant (default) | small-slant | big | colossal | banner |
-//             density | lcd | plain
+//             heywajih | nixie | density | lcd | plain | radar | scope | light
+//             (light: lightclock.js, the time drawn as light like the jellies)
+//             (radar and scope animate: crtclock.js draws them with the
+//             night-scene renderer, GPU and CPU; nixie's tubes are HTML)
 //   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade)
 //   ?fill=    gradient (default) | solid
 //   ?hours=   auto (the system's setting) | 12 | 24
@@ -24,9 +27,11 @@
 // a canvas for "save a still".
 
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
-import { clockRows, timeText, dateText, STYLES, PALETTES } from "./hoverclock.js";
+import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES, NIXIE_CSS, nixieHTML } from "./hoverclock.js";
 
-const STYLE = STYLES.includes(params.get("style")) ? params.get("style") : "slant";
+const CRT = ["radar", "scope", "light"]; // drawn by a scene renderer (GPU and CPU), not as text
+const STYLE = [...STYLES, ...CRT].includes(params.get("style")) ? params.get("style") : "slant";
+const IS_CRT = CRT.includes(STYLE);
 const TINT = ["natural", "cool", "grey", "warm", "green"].includes(params.get("tint")) ? params.get("tint") : "natural";
 const FILL = params.get("fill") === "solid" ? "solid" : "gradient";
 const HOURS = ["12", "24"].includes(params.get("hours")) ? params.get("hours") : "auto";
@@ -42,7 +47,7 @@ const [TOP, LOW] = COLOURS;
 const rowColour = (i, n) => `color-mix(in srgb, ${LOW} ${FILL === "solid" ? 85 : n > 1 ? Math.round((i / (n - 1)) * 100) : 55}%, ${TOP})`;
 
 // the font size per style, relative to the others, before fitting
-const FONT = { slant: 700, "small-slant": 700, big: 700, colossal: 700, banner: 700, density: 700, lcd: 700, plain: 300 };
+const FONT = { nixie: 300, heywajih: 700, slant: 700, "small-slant": 700, big: 700, colossal: 700, banner: 700, density: 700, lcd: 700, plain: 300 };
 
 // ---- the page ----
 const style = document.createElement("style");
@@ -56,7 +61,11 @@ style.textContent = `
   .clock-wall .date { margin-top: 1.4em; font: 400 1em/1.2 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.08em; }
   .clock-wall .lanterns { margin-top: 1em; height: 1em; display: flex; gap: 0.9em; justify-content: center; }
   .clock-wall .lanterns i { width: 0.55em; height: 0.55em; border-radius: 50%; display: block; transition: opacity 1.5s; }
-  @media (prefers-reduced-motion: reduce) { .clock-wall .glow { animation: none; } }`;
+  @media (prefers-reduced-motion: reduce) { .clock-wall .glow { animation: none; } }
+  .clock-wall.crt { position: fixed; left: 0; right: 0; z-index: 1; }
+  .clock-wall.crt .glow { display: none; }
+  .clock-wall.crt .date { margin-top: 0; }
+  ${NIXIE_CSS}`;
 document.head.append(style);
 
 const wall = document.createElement("div");
@@ -69,7 +78,9 @@ if (!STILL) document.body.append(wall);
 
 // ---- drawing the text ----
 let shown = []; // the rows on screen now
+let nixieCycle = 0;
 function setRows(rows) {
+  if (STYLE === "nixie") return setNixie(rows[0]);
   shown = rows;
   pre.textContent = "";
   rows.forEach((row, i) => {
@@ -80,28 +91,51 @@ function setRows(rows) {
   });
 }
 
+// nixie: the tubes; when the minute turns, a changing tube runs through its
+// numerals for a moment first (cathode cycling, as real nixie clocks do)
+function setNixie(text) {
+  const before = shown[0] ?? "";
+  shown = [text];
+  clearInterval(nixieCycle);
+  const changed = [...text].map((ch, i) => ch !== ":" && before && ch !== before[i]);
+  if (reduced || isPaused() || !changed.some(Boolean)) return void (pre.innerHTML = nixieHTML(text));
+  const t0 = performance.now();
+  nixieCycle = setInterval(() => {
+    const done = performance.now() - t0 > 700;
+    pre.innerHTML = nixieHTML(text, done ? null : [...text].map((ch, i) => (changed[i] ? String(Math.floor(Math.random() * 10)) : ch)));
+    if (done) clearInterval(nixieCycle);
+  }, 55);
+}
+
 // Fit: the block of characters takes about 55% of the width (85% on a
 // portrait screen), times ?size, and at most 45% of the height
 function fit() {
   pre.style.font = `${FONT[STYLE]} 10px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace`;
-  const w = pre.scrollWidth || 1;
-  const h = pre.scrollHeight || 1;
+  // nixie: measure the tubes themselves (the block is as wide as the date
+  // line when that's wider)
+  const box = STYLE === "nixie" && pre.firstElementChild ? pre.firstElementChild.getBoundingClientRect() : null;
+  const w = (box ? box.width : pre.scrollWidth) || 1;
+  const h = (box ? box.height : pre.scrollHeight) || 1;
   const portrait = innerHeight > innerWidth;
   const target = Math.min((innerWidth * (portrait ? 0.85 : 0.55) * SIZE) / w, (innerHeight * 0.45 * SIZE) / h) * 10;
   pre.style.fontSize = `${target}px`;
+  pre.style.fontVariantLigatures = "none"; // the font shorthand turned them back on: == and != would merge
   wall.style.fontSize = `${Math.max(12, Math.min(28, target * (STYLE === "plain" ? 0.18 : 1.1)))}px`; // the date
   pre.style.textShadow = `0 0 ${Math.max(6, target * 0.9)}px color-mix(in srgb, ${LOW} 55%, transparent)`;
   dateEl.style.color = `color-mix(in srgb, ${LOW} 70%, #000)`;
+  if (STYLE === "nixie") dateEl.style.color = "#a8623a"; // the tubes' amber, whatever the palette
 }
 
 // ---- the minute turning over: changed characters scramble into place ----
 const NOISE = ".:-=+*#%@";
 let scramble = 0;
+let turnedAt = -1e9; // when the last minute scramble started
 function turnTo(rows) {
   const from = shown.length === rows.length ? shown : rows.map((r) => " ".repeat(r.length));
   const width = Math.max(...rows.map((r) => r.length));
   const t0 = performance.now();
   const DURATION = reduced ? 0 : 900;
+  turnedAt = t0;
   cancelAnimationFrame(scramble);
   const step = (now) => {
     const p = DURATION ? (now - t0) / DURATION : 1;
@@ -123,10 +157,27 @@ function turnTo(rows) {
   };
   scramble = requestAnimationFrame(step);
 }
+// heywajih's characters shimmer: redrawn every second (a few change), not
+// while the minute is scrambling or the wallpaper is paused
+let lastText = "";
+function shimmer() {
+  if (SHIMMERS.includes(STYLE) && !isPaused() && !reduced && lastText) {
+    const rows = clockRows(STYLE, lastText);
+    if (performance.now() - turnedAt > 1300) setRows(rows);
+  }
+  setTimeout(shimmer, 1000);
+}
 
 function tick(first = false) {
   const now = new Date();
-  const rows = clockRows(STYLE, timeText(now, HOURS));
+  if (IS_CRT) {
+    // radar and scope draw themselves; the time and date go under the face
+    dateEl.textContent = `${timeText(now, HOURS)} · ${dateText(now, HOURS)}`;
+    setTimeout(() => tick(), 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 30);
+    return;
+  }
+  lastText = timeText(now, HOURS);
+  const rows = clockRows(STYLE, lastText);
   if (first || isPaused()) setRows(rows);
   else turnTo(rows);
   dateEl.textContent = dateText(now, HOURS);
@@ -156,7 +207,9 @@ onReaction((r) => {
       glowEl.style.transition = "filter 0.6s ease-out";
       glowEl.style.filter = "";
     }, 120);
-  } else if (r.type === "lanterns") {
+  }
+  if (r.type === "pulse" || r.type === "flash") crt?.react(r);
+  if (r.type === "lanterns") {
     lanternsEl.textContent = "";
     for (const l of Array.isArray(r.items) ? r.items : []) {
       const dot = document.createElement("i");
@@ -222,7 +275,9 @@ async function still() {
   // a soft glow: the text drawn blurred first in the low colour
   const paint = () => rows.forEach((row, i) => {
     ctx.fillStyle = mixed(i, rows.length);
-    ctx.fillText(row, x0, y0 + i * lineH);
+    // a character at a time on the grid: whole rows would let the font merge
+    // pairs like == and != into ligatures
+    [...row].forEach((ch, c) => ch !== " " && ctx.fillText(ch, x0 + c * charW, y0 + i * lineH));
   });
   ctx.shadowColor = LOW;
   ctx.shadowBlur = Math.max(6, px * 0.9);
@@ -249,12 +304,41 @@ function toRGB(c) {
   return n ? n.slice(0, 3).map(Number) : [255, 255, 255];
 }
 
-if (STILL) still();
+// ---- radar and scope ----
+let crt = null;
+if (IS_CRT) {
+  const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16) / 255);
+  // natural: the green of real phosphor; the other palettes their main colour
+  const tint = TINT === "natural" ? [0.2, 1, 0.55] : TINT === "green" ? cssRGB("--logo-bottom").map((v) => v / 255) : hex(PALETTES[TINT][1]);
+  wall.classList.add("crt");
+  if (STYLE === "light") {
+    // the date is part of the light; only the lantern dots stay in the page
+    dateEl.style.display = "none";
+    const brand = [cssRGB("--logo-top"), cssRGB("--logo-bottom")].map((v) => v.map((x) => x / 255));
+    import("./lightclock.js").then(({ startLightClock }) => {
+      crt = startLightClock({ tint: TINT, brand, hours: HOURS, size: SIZE, fps: 30 });
+      crt.onLayout(({ bottom }) => (wall.style.top = `${bottom + 10}px`));
+    });
+  } else import("./crtclock.js").then(({ startCrtClock }) => {
+    crt = startCrtClock({ style: STYLE, tint, size: SIZE, fps: 30 });
+    crt.onLayout(({ cy, R }) => {
+      wall.style.top = `${cy + R + 28}px`;
+      wall.style.fontSize = `${Math.max(13, Math.min(22, R * 0.075))}px`;
+      dateEl.style.color = `rgb(${tint.map((v) => Math.round(v * 170)).join(",")})`;
+    });
+  });
+}
+
+if (STILL && IS_CRT) {
+  // the scene renderer sends its own still
+} else if (STILL) still();
 else {
   fontReady().then(() => {
     tick(true);
+    if (IS_CRT) return hoverLoop();
     addEventListener("resize", fit);
     pauseLoop();
     hoverLoop();
+    shimmer();
   });
 }

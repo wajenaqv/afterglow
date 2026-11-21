@@ -171,7 +171,7 @@ impl Default for Clock {
     }
 }
 
-pub const CLOCK_STYLES: &[&str] = &["slant", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
+pub const CLOCK_STYLES: &[&str] = &["slant", "heywajih", "nixie", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
 pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-left"];
 
 /// Save the clock's settings and tell the wallpapers straight away

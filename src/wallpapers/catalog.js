@@ -39,14 +39,21 @@ export const WALLPAPERS = [
     reacts: ["pulse", "flash"],
   },
   {
+    id: "shore",
+    name: "shore",
+    about: "A bioluminescent beach at night, seen from above: waves break into glowing blue foam that runs up the sand and fades. Move the cursor through the water and it glows behind you.",
+    options: [{ key: "tint", label: "glow", choices: [["", "blue"], ["green", "green"], ["violet", "violet"], ["grey", "grey"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
-    about: "The time, big and glowing in the middle of the screen, in any of the clock styles. When the minute turns, the digits that change scramble into place.",
+    about: "The time, big and glowing in the middle of the screen, in any of the clock styles, or as nixie tubes, a radar or an oscilloscope. When the minute turns, the digits that change scramble into place.",
     options: [
       {
         key: "style",
         label: "style",
-        choices: [["", "slant"], ["small-slant", "small slant"], ["big", "big"], ["colossal", "colossal"], ["banner", "banner"], ["density", "density"], ["lcd", "lcd"], ["plain", "plain"]],
+        choices: [["", "slant"], ["light", "light"], ["heywajih", "heywajih"], ["nixie", "nixie"], ["radar", "radar"], ["scope", "oscilloscope"], ["small-slant", "small slant"], ["big", "big"], ["colossal", "colossal"], ["banner", "banner"], ["density", "density"], ["lcd", "lcd"], ["plain", "plain"]],
       },
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"]] },
       { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },

@@ -16,7 +16,8 @@ import "@fontsource/jetbrains-mono/700.css";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
-import { clockRows, STYLES as CLOCK_STYLES } from "./wallpapers/hoverclock.js";
+import { clockRows, STYLES as CLOCK_STYLES, NIXIE_CSS, nixieHTML } from "./wallpapers/hoverclock.js";
+import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -80,6 +81,23 @@ function standIn(cmd, a) {
       return { messages: true, online: true, playing: false, steamid: "", has_key: false, can_messages: true };
     case "unread_by_app":
       return {};
+    // sample signals, so the activity page can be designed here
+    case "activity_log": {
+      const now = Date.now();
+      const e = (ago, source, kind, count, result) => ({ at: now - ago * 1000, source, kind, count, result });
+      return [
+        e(8, "claude", "new", null, "pulse #f20707"),
+        e(8, "claude", "unread", 2, "counted (5 waiting in all)"),
+        e(95, "whatsapp", "new", null, "held (you're away)"),
+        e(140, "spotify", "new", null, "flash"),
+        e(300, "windows-security", "new", null, "ignored (its rule says nothing)"),
+        e(420, "whatsapp", "new", null, "replayed (you're back)"),
+        e(900, "snipping-tool", "new", null, "pulse #33ff99"),
+        e(86400 * 2, "steam", "new", null, "pulse #66c0f4"),
+      ];
+    }
+    case "clear_activity":
+      return null;
     case "autostart_state":
     case "set_autostart":
       return false;
@@ -99,7 +117,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "pausing", "performance", "about"];
+const PAGES = ["wallpaper", "clock", "apps", "pausing", "performance", "activity", "about"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -107,6 +125,7 @@ function show() {
   $("#cmd").textContent = page;
   $("main").scrollTop = 0;
   if (page === "apps") refreshApps();
+  if (page === "activity") refreshActivity();
 }
 addEventListener("hashchange", show);
 
@@ -154,6 +173,7 @@ async function choose(id) {
   settings.wallpaper = id;
   settings.options = { ...settings.options, [id]: options };
   markShowing();
+  paintStatus();
 }
 
 for (const w of WALLPAPERS) {
@@ -262,14 +282,17 @@ for (const id of CLOCK_STYLES) {
   b.dataset.style = id;
   b.setAttribute("role", "radio");
   b.innerHTML = '<pre></pre><span class="dim"></span>';
-  b.querySelector("pre").textContent = clockRows(id).join("\n");
-  b.querySelector("span").textContent = id.replace("-", " ");
+  if (id === "nixie") b.querySelector("pre").innerHTML = nixieHTML("4:43");
+  else b.querySelector("pre").textContent = clockRows(id).join("\n");
+  b.querySelector(":scope > span").textContent = id.replace("-", " "); // (nixie's tubes are spans too)
   b.addEventListener("click", () => {
     clockStyle = id;
     saveClock();
   });
   $("#clock-styles").append(b);
 }
+// the nixie preview's tubes
+document.head.append(Object.assign(document.createElement("style"), { textContent: NIXIE_CSS }));
 function markClock() {
   for (const b of $$(".clock-style")) {
     const on = b.dataset.style === clockStyle;
@@ -743,6 +766,54 @@ $$("[data-waiting]").forEach((b) =>
   }),
 );
 
+// =========================== activity ===========================
+// Settings → activity (signals.rs activity_log): every signal, newest first
+const actShow = $$('input[name="activity-show"]');
+let actLast = [];
+const SHOWN = /^(pulse|flash|replayed)/;
+const clockOf = (ms) => {
+  const d = new Date(ms);
+  const t = d.toLocaleTimeString([], { hour12: false });
+  return d.toDateString() === new Date().toDateString() ? t : `${d.toLocaleDateString([], { month: "short", day: "numeric" })} ${t}`;
+};
+function renderActivity() {
+  const glows = (actShow.find((i) => i.checked)?.value ?? "glows") === "glows";
+  const rows = glows ? actLast.filter((e) => e.kind === "new" || e.kind === "flash") : actLast;
+  // by app: how many showed, how many were held or ignored, and the last time
+  const apps = new Map();
+  for (const e of actLast) {
+    if (e.kind !== "new" && e.kind !== "flash") continue;
+    const a = apps.get(e.source) ?? { shown: 0, held: 0, last: e.at };
+    if (SHOWN.test(e.result)) a.shown++;
+    else a.held++;
+    a.last = Math.max(a.last, e.at);
+    apps.set(e.source, a);
+  }
+  $("#act-apps tbody").innerHTML =
+    [...apps]
+      .sort((x, y) => y[1].last - x[1].last)
+      .map(([src, a]) => `<tr><td class="name">${esc(src)}</td><td>${a.shown}</td><td class="${a.held ? "" : "dim"}">${a.held}</td><td class="dim">${clockOf(a.last)}</td></tr>`)
+      .join("") || '<tr><td class="dim" colspan="4">nothing yet</td></tr>';
+  const shown = rows.slice(0, 200);
+  $("#act-log tbody").innerHTML =
+    shown
+      .map((e) => `<tr><td class="dim" style="white-space:nowrap">${clockOf(e.at)}</td><td class="name">${esc(e.source)}</td><td>${esc(e.kind)}</td><td class="dim">${e.count ?? ""}</td><td class="${SHOWN.test(e.result) ? "" : "dim"}">${esc(e.result)}</td></tr>`)
+      .join("") || '<tr><td class="dim" colspan="5">nothing yet</td></tr>';
+  $("#act-note").textContent = rows.length > 200 ? `showing the latest 200 of ${rows.length}` : `${rows.length} shown`;
+}
+async function refreshActivity() {
+  if ($("#page-activity").hidden) return;
+  try {
+    actLast = await invoke("activity_log");
+    renderActivity();
+  } catch (e) {
+    $("#act-note").textContent = String(e);
+  }
+}
+actShow.forEach((i) => i.addEventListener("change", renderActivity));
+$("#act-clear").addEventListener("click", () => invoke("clear_activity").then(refreshActivity));
+setInterval(refreshActivity, 2000);
+
 // =========================== pausing ===========================
 const pauseBoxes = $$("[data-pause]");
 const pausingNote = $("#pausing-note");
@@ -779,6 +850,7 @@ renderInputs.forEach((input) =>
     invoke("set_renderer", { renderer: input.value });
     settings.renderer = input.value;
     showRunning(input.value);
+    paintStatus();
   }),
 );
 
@@ -832,7 +904,29 @@ async function load() {
     first = false;
   }
   markShowing();
+  paintStatus();
 }
 addEventListener("focus", () => load().catch(() => {}));
 show();
+
+// ---- the terminal look (terminal.js): text controls, the command on the
+// prompt line, the status bar and the boot lines ----
+const fpsNow = () => fpsInputs.find((i) => i.checked)?.value;
+startTerminal({
+  invoke,
+  status: () => ({
+    wallpaper: WALLPAPERS.find((w) => w.id === settings.wallpaper)?.name ?? settings.wallpaper,
+    tint: settings.options[settings.wallpaper]?.tint || "",
+    fps: fpsNow(),
+    gpu: describe(settings.renderer).gpu,
+  }),
+  bootLines: () => [
+    "loading settings",
+    `${WALLPAPERS.length} wallpapers, ${SOON.length} on the way`,
+    `renderer: ${describe(settings.renderer).gpu ? "gpu" : "cpu"}`,
+    "listening for your apps",
+  ],
+});
+$("#boot").checked = bootOn();
+$("#boot").addEventListener("change", (e) => setBoot(e.target.checked));
 load();

@@ -29,7 +29,7 @@ pub mod accounts;
 pub mod oauth;
 pub mod steam;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Mutex;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -78,6 +78,12 @@ pub(crate) fn set_status(app: &AppHandle, id: &str, state: &str, text: impl Into
 /// Compare a connector's new per-app counts with the last ones and send the
 /// signals for what changed (see the top of this file).
 pub fn report(app: &AppHandle, connector: &str, now: HashMap<String, u32>) {
+    report_fresh(app, connector, now, &HashSet::new());
+}
+
+/// report(), where a connector also knows which apps have something new even
+/// if their count didn't go up (Windows notifications: a replaced notification)
+pub fn report_fresh(app: &AppHandle, connector: &str, now: HashMap<String, u32>, fresh: &HashSet<String>) {
     let conns = app.state::<Connectors>();
     let mut all = conns.counts.lock().unwrap();
     let first = !all.contains_key(connector);
@@ -88,7 +94,7 @@ pub fn report(app: &AppHandle, connector: &str, now: HashMap<String, u32>) {
     sources.dedup();
     for source in sources {
         let (old, new) = (before.get(source).copied().unwrap_or(0), now.get(source).copied().unwrap_or(0));
-        if !first && new > old {
+        if !first && (new > old || fresh.contains(source.as_str())) {
             send(app, source, "new", None);
         }
         if first || new != old {
@@ -162,10 +168,10 @@ fn poll(app: &AppHandle, id: &str) -> Duration {
     match id {
         #[cfg(windows)]
         "notifications" => match notifications::counts() {
-            Ok(counts) => {
+            Ok((counts, fresh)) => {
                 let total: u32 = counts.values().sum();
                 set_status(app, id, "ok", format!("watching; {total} notification(s) waiting"));
-                report(app, id, counts);
+                report_fresh(app, id, counts, &fresh);
                 Duration::from_secs(2)
             }
             Err(notifications::Problem::Setup(text)) => {

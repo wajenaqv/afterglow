@@ -33,9 +33,9 @@
 // Signals come from the Settings window's simulator (send_signal), the
 // local endpoint (endpoint.rs) and the connectors.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
@@ -108,8 +108,47 @@ pub struct Bus {
     /// the count an app had when its lantern was seen (hovered); it lights
     /// again only when the count goes above that
     seen: Mutex<BTreeMap<String, u32>>,
-    /// pulses and flashes that arrived while you were away
-    missed: Mutex<Vec<Reaction>>,
+    /// pulses and flashes that arrived while you were away (with their app)
+    missed: Mutex<Vec<(String, Reaction)>>,
+    /// the latest signals and what became of each (Settings → activity)
+    activity: Mutex<VecDeque<Activity>>,
+}
+
+/// One signal, for the activity page (debugging: which app triggered what,
+/// when, and what AfterGlow did with it)
+#[derive(Serialize, Clone, Debug)]
+pub struct Activity {
+    /// Unix time, milliseconds
+    pub at: u64,
+    pub source: String,
+    /// new, unread, clear or flash
+    pub kind: String,
+    pub count: Option<u32>,
+    /// what happened: pulse #rrggbb, flash, counted, ignored by a rule,
+    /// held (Do Not Disturb or away), replayed
+    pub result: String,
+}
+const ACTIVITY_MAX: usize = 500;
+
+fn record(app: &AppHandle, source: &str, kind: &str, count: Option<u32>, result: String) {
+    let at = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+    let bus = app.state::<Bus>();
+    let mut log = bus.activity.lock().unwrap();
+    log.push_back(Activity { at, source: source.to_string(), kind: kind.to_string(), count, result });
+    while log.len() > ACTIVITY_MAX {
+        log.pop_front();
+    }
+}
+
+/// The activity page: newest first
+#[tauri::command]
+pub fn activity_log(app: AppHandle) -> Vec<Activity> {
+    app.state::<Bus>().activity.lock().unwrap().iter().rev().cloned().collect()
+}
+
+#[tauri::command]
+pub fn clear_activity(app: AppHandle) {
+    app.state::<Bus>().activity.lock().unwrap().clear();
 }
 
 impl Bus {
@@ -201,6 +240,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             let reaction = match on_new {
                 "nothing" => {
                     crate::alog!("afterglow: signal from {source} ignored by a rule");
+                    record(app, &source, "new", None, "ignored (its rule says nothing)".into());
                     return Ok(());
                 }
                 "flash" => Reaction::Flash,
@@ -216,9 +256,19 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             };
             // no count from this app (a script, the simulator): its lantern
             // stays lit until it's seen or cleared
-            if sig.linger != Some(false) && bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0) == 0 {
+            let unread = bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0);
+            if sig.linger != Some(false) && unread == 0 {
                 bus.pending.lock().unwrap().insert(source.clone());
                 bus.seen.lock().unwrap().remove(&source);
+            } else if sig.linger != Some(false) {
+                // something new from an app whose waiting ones were all seen
+                // (a notification replaced by a new one keeps the count the
+                // same): its lantern lights again
+                if let Some(seen) = bus.seen.lock().unwrap().get_mut(&source) {
+                    if *seen >= unread {
+                        *seen = unread - 1;
+                    }
+                }
             }
             reaction
         }
@@ -257,18 +307,28 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         && crate::platform::do_not_disturb()
     {
         crate::alog!("afterglow: signal -> {reaction:?} held back: Do Not Disturb");
+        record(app, &source, &sig.kind, sig.count, "held back (Do Not Disturb)".into());
         return Ok(());
     }
     // Away: held, and replayed when you're back
     if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash) && !watching(app) {
         let mut missed = bus.missed.lock().unwrap();
         if missed.len() < MISSED_MAX {
-            missed.push(reaction.clone());
+            missed.push((source.clone(), reaction.clone()));
         }
         crate::alog!("afterglow: signal -> {reaction:?} held: you're away ({} held)", missed.len());
+        drop(missed);
+        record(app, &source, &sig.kind, sig.count, "held (you're away)".into());
         return Ok(());
     }
     crate::alog!("afterglow: signal -> {reaction:?}");
+    let result = match &reaction {
+        Reaction::Pulse { colour, .. } => format!("pulse #{:02x}{:02x}{:02x}", colour[0], colour[1], colour[2]),
+        Reaction::Flash => "flash".to_string(),
+        Reaction::Count { n } => format!("counted ({n} waiting in all)"),
+        Reaction::Lanterns { .. } => "lanterns".to_string(),
+    };
+    record(app, &source, &sig.kind, sig.count, result);
     host::emit_to_walls(app, "reaction", reaction);
     Ok(())
 }
@@ -337,12 +397,13 @@ pub fn replay_missed(app: &AppHandle) {
     if bus.missed.lock().unwrap().is_empty() || !watching(app) {
         return;
     }
-    let held: Vec<Reaction> = std::mem::take(&mut *bus.missed.lock().unwrap());
+    let held: Vec<(String, Reaction)> = std::mem::take(&mut *bus.missed.lock().unwrap());
     crate::alog!("afterglow: you're back: replaying {} missed", held.len());
     let app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(800));
-        for r in held {
+        for (source, r) in held {
+            record(&app, &source, "new", None, "replayed (you're back)".into());
             host::emit_to_walls(&app, "reaction", r);
             std::thread::sleep(Duration::from_millis(1400));
         }

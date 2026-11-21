@@ -10,7 +10,8 @@
 // Without identity, Current() fails and the connector says what's needed.
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::Mutex;
 
 use windows::UI::Notifications::Management::{UserNotificationListener, UserNotificationListenerAccessStatus};
 use windows::UI::Notifications::NotificationKinds;
@@ -30,8 +31,16 @@ fn listener() -> Result<UserNotificationListener, Problem> {
     UserNotificationListener::Current().map_err(|_| Problem::Setup(NO_IDENTITY.into()))
 }
 
-/// Notifications waiting, per app (source name -> count)
-pub fn counts() -> Result<HashMap<String, u32>, Problem> {
+/// Every notification id seen so far (None until the first read). A new
+/// notification is one whose id wasn't seen before: counting alone missed
+/// apps that replace their last notification with the new one (Claude does),
+/// where the count stays the same.
+static SEEN: Mutex<Option<HashSet<u32>>> = Mutex::new(None);
+
+/// Notifications waiting, per app (source name -> count), and the apps with
+/// a notification not seen before (none on the first read: those were
+/// already there when AfterGlow started)
+pub fn counts() -> Result<(HashMap<String, u32>, HashSet<String>), Problem> {
     let l = listener()?;
     match l.GetAccessStatus() {
         Ok(s) if s == UserNotificationListenerAccessStatus::Allowed => {}
@@ -48,17 +57,32 @@ pub fn counts() -> Result<HashMap<String, u32>, Problem> {
         .and_then(|op| op.get())
         .map_err(|e| Problem::Error(format!("couldn't read notifications: {e}")))?;
     let mut out = HashMap::new();
+    let mut fresh = HashSet::new();
+    let mut seen = SEEN.lock().unwrap();
+    let first = seen.is_none();
+    let known = seen.get_or_insert_with(HashSet::new);
+    let mut ids = HashSet::new();
     for i in 0..list.Size().unwrap_or(0) {
         let Ok(n) = list.GetAt(i) else { continue };
+        let id = n.Id().ok();
         let name = n
             .AppInfo()
             .and_then(|a| a.DisplayInfo())
             .and_then(|d| d.DisplayName())
             .map(|h| h.to_string())
             .unwrap_or_else(|_| "app".into());
-        *out.entry(source_name(&name)).or_insert(0) += 1;
+        let source = source_name(&name);
+        if let Some(id) = id {
+            if !first && !known.contains(&id) {
+                fresh.insert(source.clone());
+            }
+            ids.insert(id);
+        }
+        *out.entry(source).or_insert(0) += 1;
     }
-    Ok(out)
+    // remember only what's still there, so the set never grows
+    *known = ids;
+    Ok((out, fresh))
 }
 
 thread_local! {

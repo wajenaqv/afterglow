@@ -28,7 +28,7 @@ The apps page has grown complex (connectors, accounts, guides, rules and the sim
 - What an app does (pulse / flash / nothing, colour, counts as waiting) sits under a small "customize" line per app.
 - The simulator and the local endpoint move to about (or an "advanced" area).
 
-## 3. Terminal look in Settings (no typing)
+## 3. Terminal look in Settings (no typing): done
 
 Same mockup. Bring heywajih's terminal feel back into the Settings window:
 
