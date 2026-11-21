@@ -60,7 +60,9 @@ function light(X, Y, cell) {
   let g = 0; // glow (in the tint)
   let pg = 0; // glow in the pulse colour
   let sea = 0, sand = 0;
-  if (Y < ys) sea = smoothstep(0.62, 0.95, vnoise(X * 7 + t * 0.06, Y * 11, 3)) * 0.9;
+  // long thin glints of light on the water, stretched along the swell and
+  // drifting shoreward with it (round blobs of noise read as stains)
+  if (Y < ys) sea = smoothstep(0.7, 0.95, vnoise(X * 1.6 + t * 0.03, Y * 30 - t * 0.3, 3)) * 0.8;
   else sand = hash(cell[0], cell[1], 7) < 0.02 ? 0.5 : 0;
   for (let i = 0; i < WAVES; i++) {
     const cyc = t / T + i / WAVES;
@@ -156,7 +158,7 @@ vec3 sampleCell(vec2 P) {
   float X = C.x, Y = C.y, t = uTime;
   float ys = shoreY(X);
   float g = 0.0, pg = 0.0, sea = 0.0, sand = 0.0;
-  if (Y < ys) sea = smoothstep(0.62, 0.95, vnoise(X * 7.0 + t * 0.06, Y * 11.0, 3)) * 0.9;
+  if (Y < ys) sea = smoothstep(0.7, 0.95, vnoise(X * 1.6 + t * 0.03, Y * 30.0 - t * 0.3, 3)) * 0.8;
   else sand = hash3(cell.x, cell.y, 7) < 0.02 ? 0.5 : 0.0;
   for (int i = 0; i < ${WAVES}; i++) {
     float cyc = t / ${T}.0 + float(i) / ${WAVES}.0;
