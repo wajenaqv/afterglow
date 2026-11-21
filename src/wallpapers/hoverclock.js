@@ -13,6 +13,9 @@
 //           density  3x5 pixel digits in shading blocks, softer at the ends
 //           lcd      seven segments drawn with _ and |
 //           plain    the time in a large, thin mono font
+//           nixie    glass tubes: the lit numeral glows orange in front of
+//                    the other nine, faintly stacked behind it (neon orange
+//                    always: it's what the tubes look like)
 //           heywajih heywajih.com's clock: 5x7 pixel digits, each pixel 3
 //                    characters by 2 rows, filled with the logo's characters
 //                    (solid inside a stroke, lighter at its edges) that
@@ -110,6 +113,23 @@ function heywajih(text, now = Date.now()) {
   );
 }
 
+// ---- nixie: built as HTML (not rows of characters), styled by NIXIE_CSS ----
+export const NIXIE_CSS = `
+  .nixie-tubes { display: inline-flex; gap: 0.14em; align-items: center; font: 300 1em/1 "JetBrains Mono", ui-monospace, monospace; font-variant-ligatures: none; white-space: nowrap; text-shadow: none; }
+  .nixie-tubes .tube { position: relative; display: inline-block; width: 0.8em; height: 1.34em; border: 0.03em solid rgba(255, 170, 100, 0.24); border-radius: 0.38em 0.38em 0.1em 0.1em; background: radial-gradient(ellipse at 50% 45%, rgba(255, 120, 40, 0.09), transparent 70%); }
+  .nixie-tubes .tube > span { position: absolute; inset: 0; display: grid; place-items: center; }
+  .nixie-tubes .ghost { color: rgba(255, 138, 60, 0.08); }
+  .nixie-tubes .lit { color: #ffcfa3; text-shadow: 0 0 0.05em #fff4e6, 0 0 0.16em #ff8a3c, 0 0 0.42em #ff6a1c; }
+  .nixie-tubes .colon { display: inline-grid; gap: 0.28em; }
+  .nixie-tubes .colon i { width: 0.1em; height: 0.1em; border-radius: 50%; background: #ffb070; box-shadow: 0 0 0.12em #ff8a3c, 0 0 0.3em #ff6a1c; }`;
+/** The nixie tubes for "4:43" (lit: optional digit shown per position, for cathode cycling) */
+export function nixieHTML(text, lit = null) {
+  const ghosts = [..."0123456789"].map((d) => `<span class="ghost">${d}</span>`).join("");
+  return `<span class="nixie-tubes">${[...text]
+    .map((ch, i) => (ch === ":" ? '<span class="colon"><i></i><i></i></span>' : `<span class="tube">${ghosts}<span class="lit">${lit?.[i] ?? ch}</span></span>`))
+    .join("")}</span>`;
+}
+
 // Seven segments for "lcd": a top, b top-right, c bottom-right, d bottom,
 // e bottom-left, f top-left, g middle
 const SEGMENTS = { 0: "abcdef", 1: "bc", 2: "abdeg", 3: "abcdg", 4: "bcfg", 5: "acdfg", 6: "acdefg", 7: "abc", 8: "abcdefg", 9: "abcdfg" };
@@ -167,7 +187,7 @@ function figlet(text, font) {
 }
 
 /** Every style, in the order Settings shows them */
-export const STYLES = ["slant", "heywajih", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
+export const STYLES = ["slant", "heywajih", "nixie", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
 /** Styles whose characters shimmer: drawn again every second while shown */
 export const SHIMMERS = ["heywajih"];
 /** Sizes: how much bigger than the base size (CSS zoom) */
@@ -217,7 +237,7 @@ function css() {
     .hover-clock.on { opacity: 1; }
     .hover-clock.right { text-align: right; }
     .hover-clock pre { margin: 0; letter-spacing: 0; line-height: 1.05; font-variant-ligatures: none !important; } /* !important: each style sets the font shorthand, which turns ligatures back on (== and != would merge) */
-    .hover-clock .under { margin-top: 10px; font: 400 13px/1.2 "JetBrains Mono", ui-monospace, monospace; text-shadow: none; }
+    .hover-clock .under { white-space: nowrap; margin-top: 10px; font: 400 13px/1.2 "JetBrains Mono", ui-monospace, monospace; text-shadow: none; }
     .hover-clock.slant pre { font: 700 14px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.small-slant pre { font: 700 16px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.big pre { font: 700 12px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
@@ -225,6 +245,8 @@ function css() {
     .hover-clock.banner pre { font: 700 9px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.density pre { font: 700 12px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.lcd pre { font: 700 15px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
+    .hover-clock.nixie pre { font-size: 40px; }
+    ${NIXIE_CSS}
     .hover-clock.heywajih pre { font: 700 6px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.plain pre { font: 300 52px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; }
     @media (prefers-reduced-motion: reduce) { .hover-clock { transition: none; } }`;
@@ -256,9 +278,17 @@ export function hoverClock(frames, config = {}, tint = "") {
 
   const paint = (c) => {
     const now = new Date();
-    const rows = clockRows(cfg.style, timeText(now, cfg.hours));
     const [top, low] = colours();
     const pre = c.el.querySelector("pre");
+    if (cfg.style === "nixie") {
+      pre.innerHTML = nixieHTML(timeText(now, cfg.hours));
+      pre.style.textShadow = "none";
+      const u = c.el.querySelector(".under");
+      u.textContent = dateText(now, cfg.hours);
+      u.style.color = "#a8623a";
+      return;
+    }
+    const rows = clockRows(cfg.style, timeText(now, cfg.hours));
     pre.textContent = "";
     rows.forEach((row, i) => {
       const line = document.createElement("span");
