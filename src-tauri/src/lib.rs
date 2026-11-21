@@ -60,6 +60,7 @@ pub fn run() {
             extras::save_png,
             extras::open_stills_folder,
             extras::open_link,
+            extras::set_clock,
             logfile::open_log,
             connectors::connectors_state,
             connectors::set_connector,

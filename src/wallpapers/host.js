@@ -26,7 +26,7 @@ function pageFor(wall, query) {
   return `/wallpapers/${name}.html${q}`;
 }
 
-// the hover clock in each monitor's top-right corner (hoverclock.js)
+// the hover clock in a corner of each monitor (hoverclock.js)
 import { hoverClock } from "./hoverclock.js";
 const frames = screens.map(([x, y, w, h]) => {
   const f = document.createElement("iframe");
@@ -37,10 +37,13 @@ const frames = screens.map(([x, y, w, h]) => {
   return { f, x, y, w, h };
 });
 
-const clockCursor = hoverClock(frames);
+// the wallpaper's palette (?tint=), for the clock's "match the wallpaper" colour
+const tintOf = (query) => new URLSearchParams(query ?? "").get("tint") ?? "";
+const clock = hoverClock(frames, config.clock ?? {}, tintOf(config.query));
 
 // Settings or the tray picked another wallpaper: swap every frame's page
 function show({ wall, query }) {
+  clock.setTint(tintOf(query));
   const src = pageFor(wall, query);
   frames.forEach((fr) => {
     if (fr.f.getAttribute("src") !== src) fr.f.src = src;
@@ -55,7 +58,7 @@ function cursor(p) {
   if (under && under !== hit) send(under, { type: "cursor", at: null });
   if (hit) send(hit, { type: "cursor", at: { x: p.x - hit.x, y: p.y - hit.y } });
   under = hit ?? null;
-  clockCursor(p);
+  clock.cursor(p);
 }
 
 // Pause: the app sends one flag per frame (a monitor hidden behind app
@@ -109,6 +112,7 @@ if ("__TAURI_INTERNALS__" in window) {
     win.listen("cursor", ({ payload }) => cursor(payload));
     win.listen("paused", ({ payload }) => pause(payload));
     win.listen("wallpaper", ({ payload }) => show(payload));
+    win.listen("clock", ({ payload }) => clock.configure(payload ?? {}));
     win.listen("reaction", ({ payload }) => {
       log(`host got ${payload?.type} for ${frames.length} frame(s)`);
       reaction(payload);

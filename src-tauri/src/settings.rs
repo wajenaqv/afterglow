@@ -48,6 +48,8 @@ pub struct Settings {
     pub rotate: crate::extras::Rotate,
     /// Steam connector parts and Steam ID (connectors/steam.rs; the key is in the keychain)
     pub steam: crate::connectors::steam::SteamPrefs,
+    /// The hover clock (extras.rs, hoverclock.js)
+    pub clock: crate::extras::Clock,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -71,6 +73,7 @@ impl Default for Settings {
             rules: Vec::new(),
             rotate: Default::default(),
             steam: Default::default(),
+            clock: Default::default(),
         }
     }
 }

@@ -39,11 +39,12 @@ use crate::settings::{self, Settings};
 struct Showing {
     wall: String,
     query: String,
+    clock: crate::extras::Clock,
 }
 
 impl Showing {
     fn from(s: &Settings) -> Self {
-        Showing { wall: s.wallpaper.clone(), query: s.query() }
+        Showing { wall: s.wallpaper.clone(), query: s.query(), clock: s.clock.clone() }
     }
 }
 
@@ -89,7 +90,7 @@ impl Wall {
                 ]
             })
             .collect();
-        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens });
+        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens, "clock": showing.clock });
         format!("window.__AFTERGLOW__ = {config};")
     }
 }

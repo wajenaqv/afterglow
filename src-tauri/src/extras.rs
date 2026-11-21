@@ -1,4 +1,4 @@
-// Two small features of Settings:
+// Small features of Settings:
 //   rotation   every N minutes, the next wallpaper in the chosen list (each
 //              keeps its own options); switched in Settings or the tray
 //   save_png   a still of a wallpaper (rendered by the Settings page at the
@@ -130,4 +130,48 @@ pub fn open_link(url: String) -> Result<(), String> {
         return Err("not a link AfterGlow opens".into());
     }
     open::that(url).map_err(|e| e.to_string())
+}
+
+// ---- the hover clock (src/wallpapers/hoverclock.js) ----
+
+/// Settings → wallpaper → clock: on or off, its style and which corner
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(default)]
+pub struct Clock {
+    pub on: bool,
+    /// true: always shown in its corner; false: only while you hover it
+    pub always: bool,
+    /// slant (the banner's figlet font), density, lcd or plain
+    pub style: String,
+    /// top-right, top-left, bottom-right or bottom-left
+    pub corner: String,
+    /// "wallpaper" (the palette of what's showing) or "brand" (white to green)
+    pub colour: String,
+}
+
+impl Default for Clock {
+    fn default() -> Self {
+        Clock { on: true, always: false, style: "slant".into(), corner: "top-right".into(), colour: "wallpaper".into() }
+    }
+}
+
+pub const CLOCK_STYLES: &[&str] = &["slant", "density", "lcd", "plain"];
+pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-left"];
+
+/// Save the clock's settings and tell the wallpapers straight away
+#[tauri::command]
+pub fn set_clock(app: AppHandle, on: bool, always: bool, style: String, corner: String, colour: String) -> Result<(), String> {
+    if !CLOCK_STYLES.contains(&style.as_str()) || !CORNERS.contains(&corner.as_str()) || !["wallpaper", "brand"].contains(&colour.as_str()) {
+        return Err("unknown clock style, corner or colour".into());
+    }
+    let clock = Clock { on, always, style, corner, colour };
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.clock = clock.clone();
+        s.clone()
+    };
+    settings::save(&app, &snapshot);
+    crate::host::emit_to_walls(&app, "clock", clock);
+    Ok(())
 }

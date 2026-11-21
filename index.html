@@ -38,6 +38,17 @@
             <div class="rotate-walls" id="rotate-walls"></div>
           </div>
 
+          <h3 class="sub">clock</h3>
+          <p class="dim hint">The time in a corner of the screen: always, or fading in when you rest the cursor there.</p>
+          <div class="list">
+            <label><span class="dim">show it</span> <select id="clock-show"><option value="hover">when I hover the corner</option><option value="always">always</option><option value="never">never</option></select></label>
+          </div>
+          <div class="clock-styles" id="clock-styles" role="radiogroup" aria-label="clock style"></div>
+          <div class="opts clock-opts">
+            <label><span class="dim">corner</span> <select id="clock-corner"><option value="top-right">top right</option><option value="top-left">top left</option><option value="bottom-right">bottom right</option><option value="bottom-left">bottom left</option></select></label>
+            <label><span class="dim">colour</span> <select id="clock-colour"><option value="wallpaper">match the wallpaper</option><option value="brand">AfterGlow green</option></select></label>
+          </div>
+
           <h3 class="sub">stills</h3>
           <p class="dim hint stills"><span id="still-note">"save a still" on a card saves a PNG at your screen's size to Pictures/AfterGlow.</span> <button type="button" id="open-stills">open folder</button></p>
         </section>

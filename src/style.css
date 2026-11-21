@@ -492,3 +492,43 @@ table.apps {
 .account.steam .st-id {
   min-width: 30ch;
 }
+
+/* the hover clock's styles, as previews to pick from */
+.clock-styles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 10px 0;
+}
+.clock-styles.off {
+  opacity: 0.45;
+}
+.clock-style {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  min-width: 150px;
+}
+.clock-style.on {
+  border-color: var(--fg);
+  box-shadow: 0 0 12px rgba(var(--glow), 0.25);
+}
+.clock-style pre {
+  margin: 0;
+  color: var(--fg);
+  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+  font: 700 7px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace;
+  font-variant-ligatures: none;
+}
+.clock-style.lcd pre {
+  font: 400 13px/0.95 "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+.clock-style.plain pre {
+  font: 300 26px/1 "JetBrains Mono", ui-monospace, monospace;
+}
+.clock-opts {
+  margin-top: 0;
+}

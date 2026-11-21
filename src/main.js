@@ -16,6 +16,7 @@ import "@fontsource/jetbrains-mono/700.css";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
+import { clockRows } from "./wallpapers/hoverclock.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -48,6 +49,9 @@ function standIn(cmd, a) {
       return save();
     case "set_renderer":
       s.renderer = a.renderer;
+      return save();
+    case "set_clock":
+      s.clock = { on: a.on, always: a.always, style: a.style, corner: a.corner, colour: a.colour };
       return save();
     case "set_rotation":
       s.rotate = { on: a.on, minutes: a.minutes, walls: a.walls };
@@ -213,6 +217,49 @@ async function saveRotation() {
   }
 }
 [rotateOn, rotateMinutes, ...wallBoxes()].forEach((el) => el.addEventListener("change", saveRotation));
+// ---- the hover clock (extras.rs set_clock, src/wallpapers/hoverclock.js) ----
+// The four styles as small previews you click to pick
+const CLOCK_STYLES = ["slant", "density", "lcd", "plain"];
+const clockShow = $("#clock-show"); // hover, always or never
+const clockCorner = $("#clock-corner");
+const clockColour = $("#clock-colour");
+let clockStyle = "slant";
+for (const id of CLOCK_STYLES) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "clock-style " + id;
+  b.dataset.style = id;
+  b.setAttribute("role", "radio");
+  b.innerHTML = '<pre></pre><span class="dim"></span>';
+  b.querySelector("pre").textContent = clockRows(id).join("\n");
+  b.querySelector("span").textContent = id;
+  b.addEventListener("click", () => {
+    clockStyle = id;
+    saveClock();
+  });
+  $("#clock-styles").append(b);
+}
+function markClock() {
+  for (const b of document.querySelectorAll(".clock-style")) {
+    const on = b.dataset.style === clockStyle;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", String(on));
+  }
+  $("#clock-styles").classList.toggle("off", clockShow.value === "never");
+}
+function saveClock() {
+  markClock();
+  invoke("set_clock", { on: clockShow.value !== "never", always: clockShow.value === "always", style: clockStyle, corner: clockCorner.value, colour: clockColour.value }).catch((e) => (stillNote.textContent = String(e)));
+}
+[clockShow, clockCorner, clockColour].forEach((el) => el.addEventListener("change", saveClock));
+function showClock(c = {}) {
+  clockShow.value = c.on === false ? "never" : c.always ? "always" : "hover";
+  clockStyle = c.style ?? "slant";
+  clockCorner.value = c.corner ?? "top-right";
+  clockColour.value = c.colour ?? "wallpaper";
+  markClock();
+}
+
 function showRotation(r = {}) {
   rotateOn.checked = !!r.on;
   rotateMinutes.value = String(r.minutes ?? 10);
@@ -728,6 +775,7 @@ async function load() {
   renderInputs.forEach((input) => (input.checked = input.value === settings.renderer));
   showRunning(settings.renderer);
   showRotation(saved.rotate);
+  showClock(saved.clock);
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {
