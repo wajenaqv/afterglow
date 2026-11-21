@@ -39,6 +39,13 @@ export const WALLPAPERS = [
     reacts: ["pulse", "flash"],
   },
   {
+    id: "shore",
+    name: "shore",
+    about: "A bioluminescent beach at night, seen from above: waves break into glowing blue foam that runs up the sand and fades. Move the cursor through the water and it glows behind you.",
+    options: [{ key: "tint", label: "glow", choices: [["", "blue"], ["green", "green"], ["violet", "violet"], ["grey", "grey"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles, or as nixie tubes, a radar or an oscilloscope. When the minute turns, the digits that change scramble into place.",

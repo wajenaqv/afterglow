@@ -49,6 +49,7 @@ export default defineConfig({
         "big-jellyfish": resolve(import.meta.dirname, "wallpapers/big-jellyfish.html"),
         paws: resolve(import.meta.dirname, "wallpapers/paws.html"),
         clock: resolve(import.meta.dirname, "wallpapers/clock.html"),
+        shore: resolve(import.meta.dirname, "wallpapers/shore.html"),
       },
     },
   },

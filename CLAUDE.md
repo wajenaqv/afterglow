@@ -90,6 +90,8 @@ Mac parity and phases 5-7 were built 2026-11-19 while the owner was away (stacke
 7. Built: rules per app, rotation, saving a still. Not done: more wallpapers (each needs a GPU and a CPU renderer; the owner picks which), macOS banner watching (Dock badges first).
 Later: sync settings between machines; code signing (Windows), Apple notarization and a macOS download, in-app updates.
 
+- Shore wallpaper (owner's idea, 2026-11-21, after the rings attempt failed): `src/wallpapers/shore.js`, a bioluminescent beach seen from above, per cell in JS and GLSL (night-scene renderer). A curving cove (`shoreY`); WAVES=2 cycles of T=11 s: rolling in as a faint line, breaking into a flare along the crest (sweeping along the shore), lacy foam (two-octave value noise) running up the sand and sliding back, sparkles left in the wet sand; the waterline keeps twinkling between waves; sea and sand nearly black (a filled field of faint characters looked busy). Hover: the cursor leaves a glowing wake (connected segments that widen as they fade). Pulse: the next wave to break is in the app's colour; lanterns: glowing patches in the surf, hover 0.8 s = seen; flash. `?tint=green|violet|grey`. Rings (a planet's rings like a long exposure, after an owner reference) were tried twice and parked on branch `parked/rings`: hairline detail turns into noise at character resolution; scene-gl.js's `draw` hook (add light by drawing points) lives on that branch only.
+
 ## Open tasks (saved for later by the owner, 2026-11-21)
 
 Details and mockups in `docs/ideas/` (README.md plus two `.html` pages to open in a browser). Not started:
