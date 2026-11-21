@@ -5,7 +5,7 @@
 //
 // Options (Settings card; also plain URL options):
 //   ?style=   slant (default) | small-slant | big | colossal | banner |
-//             density | lcd | plain
+//             heywajih | density | lcd | plain
 //   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade)
 //   ?fill=    gradient (default) | solid
 //   ?hours=   auto (the system's setting) | 12 | 24
@@ -24,7 +24,7 @@
 // a canvas for "save a still".
 
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
-import { clockRows, timeText, dateText, STYLES, PALETTES } from "./hoverclock.js";
+import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES } from "./hoverclock.js";
 
 const STYLE = STYLES.includes(params.get("style")) ? params.get("style") : "slant";
 const TINT = ["natural", "cool", "grey", "warm", "green"].includes(params.get("tint")) ? params.get("tint") : "natural";
@@ -42,7 +42,7 @@ const [TOP, LOW] = COLOURS;
 const rowColour = (i, n) => `color-mix(in srgb, ${LOW} ${FILL === "solid" ? 85 : n > 1 ? Math.round((i / (n - 1)) * 100) : 55}%, ${TOP})`;
 
 // the font size per style, relative to the others, before fitting
-const FONT = { slant: 700, "small-slant": 700, big: 700, colossal: 700, banner: 700, density: 700, lcd: 700, plain: 300 };
+const FONT = { heywajih: 700, slant: 700, "small-slant": 700, big: 700, colossal: 700, banner: 700, density: 700, lcd: 700, plain: 300 };
 
 // ---- the page ----
 const style = document.createElement("style");
@@ -89,6 +89,7 @@ function fit() {
   const portrait = innerHeight > innerWidth;
   const target = Math.min((innerWidth * (portrait ? 0.85 : 0.55) * SIZE) / w, (innerHeight * 0.45 * SIZE) / h) * 10;
   pre.style.fontSize = `${target}px`;
+  pre.style.fontVariantLigatures = "none"; // the font shorthand turned them back on: == and != would merge
   wall.style.fontSize = `${Math.max(12, Math.min(28, target * (STYLE === "plain" ? 0.18 : 1.1)))}px`; // the date
   pre.style.textShadow = `0 0 ${Math.max(6, target * 0.9)}px color-mix(in srgb, ${LOW} 55%, transparent)`;
   dateEl.style.color = `color-mix(in srgb, ${LOW} 70%, #000)`;
@@ -97,11 +98,13 @@ function fit() {
 // ---- the minute turning over: changed characters scramble into place ----
 const NOISE = ".:-=+*#%@";
 let scramble = 0;
+let turnedAt = -1e9; // when the last minute scramble started
 function turnTo(rows) {
   const from = shown.length === rows.length ? shown : rows.map((r) => " ".repeat(r.length));
   const width = Math.max(...rows.map((r) => r.length));
   const t0 = performance.now();
   const DURATION = reduced ? 0 : 900;
+  turnedAt = t0;
   cancelAnimationFrame(scramble);
   const step = (now) => {
     const p = DURATION ? (now - t0) / DURATION : 1;
@@ -123,10 +126,21 @@ function turnTo(rows) {
   };
   scramble = requestAnimationFrame(step);
 }
+// heywajih's characters shimmer: redrawn every second (a few change), not
+// while the minute is scrambling or the wallpaper is paused
+let lastText = "";
+function shimmer() {
+  if (SHIMMERS.includes(STYLE) && !isPaused() && !reduced && lastText) {
+    const rows = clockRows(STYLE, lastText);
+    if (performance.now() - turnedAt > 1300) setRows(rows);
+  }
+  setTimeout(shimmer, 1000);
+}
 
 function tick(first = false) {
   const now = new Date();
-  const rows = clockRows(STYLE, timeText(now, HOURS));
+  lastText = timeText(now, HOURS);
+  const rows = clockRows(STYLE, lastText);
   if (first || isPaused()) setRows(rows);
   else turnTo(rows);
   dateEl.textContent = dateText(now, HOURS);
@@ -222,7 +236,9 @@ async function still() {
   // a soft glow: the text drawn blurred first in the low colour
   const paint = () => rows.forEach((row, i) => {
     ctx.fillStyle = mixed(i, rows.length);
-    ctx.fillText(row, x0, y0 + i * lineH);
+    // a character at a time on the grid: whole rows would let the font merge
+    // pairs like == and != into ligatures
+    [...row].forEach((ch, c) => ch !== " " && ctx.fillText(ch, x0 + c * charW, y0 + i * lineH));
   });
   ctx.shadowColor = LOW;
   ctx.shadowBlur = Math.max(6, px * 0.9);
@@ -256,5 +272,6 @@ else {
     addEventListener("resize", fit);
     pauseLoop();
     hoverLoop();
+    shimmer();
   });
 }

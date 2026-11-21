@@ -30,5 +30,10 @@ for (const [id, font] of Object.entries(FONTS)) {
   out[id] = glyphs;
   console.log(`${id}: ${rows} rows`);
 }
+// Slant's own 8 has a bracketed top half, ( __ ), while every other digit is
+// drawn with slashes, so it looked like another font: two slanted loops
+// pinched at the waist with > <, like slant's own 3 (two plain stacked
+// loops looked like the 0 when drawn big)
+out.slant["8"] = ["   ____ ", "  / __ \\", " > __  <", "/ /_/ / ", "\\____/  "];
 writeFileSync("src/wallpapers/clock-fonts.json", JSON.stringify(out) + "\n");
 console.log("wrote src/wallpapers/clock-fonts.json");

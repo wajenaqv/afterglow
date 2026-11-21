@@ -600,6 +600,10 @@ table.apps {
 .clock-style.banner pre {
   font-size: 4.5px;
 }
+.clock-style.heywajih pre {
+  font-size: 2.7px;
+  line-height: 1.05;
+}
 .clock-style.big pre {
   font-size: 6px;
 }
@@ -883,4 +887,10 @@ input[type="password"]:focus {
 }
 .boot.out {
   opacity: 0;
+}
+
+/* the previews set the font shorthand, which turns ligatures back on:
+   heywajih's == and != would merge into symbols */
+.clock-style pre {
+  font-variant-ligatures: none !important;
 }
