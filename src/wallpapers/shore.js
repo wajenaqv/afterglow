@@ -1,10 +1,10 @@
 // Shore: a bioluminescent beach at night, seen from straight above. Dark sea
 // at the top, dark sand below, the water's edge curving across the screen.
-// Waves roll in as faint lines; where one breaks, a band of electric blue
-// flares along the crest, runs up the sand as glowing foam, fades and slides
-// back, leaving sparkles in the wet sand. Two waves overlap, so one breaks
-// every few seconds. The light comes from plankton that glow when disturbed,
-// so the cursor in the water stirs glowing trails.
+// Waves roll in as trains of three glowing crests that follow the curve of the
+// beach, bunching up and brightening as they near it; where one breaks, a band
+// of electric blue flares along the crest, runs up the sand as glowing foam,
+// fades and slides back, leaving sparkles in the wet sand. Two waves overlap,
+// so one breaks every few seconds. (The cursor does nothing to the water.)
 //
 // Reactions: a new message breaks the next wave in the app's colour; every
 // app with something waiting leaves a glowing patch in the surf in its
@@ -17,9 +17,8 @@ import { params, hash, STILL, HOVER, pointer, onReaction, seenLantern } from "./
 import { setPalette, startScene, reduced, BG } from "./nightscene.js";
 
 const T = 11; // seconds per wave cycle; WAVES of them, evenly offset
-const WAVES = 2;
-const PB = 0.5; // the part of a cycle spent rolling in, before it breaks
-const TRAIL = 24; // cursor trail points
+const WAVES = 3;
+const PB = 0.62; // the part of a cycle spent rolling in, before it breaks
 const PATCHES = 6; // most lanterns shown
 
 const TINTS = {
@@ -51,8 +50,8 @@ function vnoise(x, y, z) {
 
 // ---- state per frame ----
 let dims = null;
-const S = { time: 0, flash: 0, pulse: [0, 0, 0], pulseWave: -1, trail: [], patches: [] };
-// trail: [{ x, y, age }]; patches: [{ source, colour, x, y }]
+const S = { time: 0, flash: 0, pulse: [0, 0, 0], pulseWave: -1, patches: [] };
+// patches: [{ source, colour, x, y }]
 
 const out = [0, 0, 0];
 function light(X, Y, cell) {
@@ -70,12 +69,18 @@ function light(X, Y, cell) {
     const isPulse = n * WAVES + i === S.pulseWave;
     let w = 0;
     if (p < PB) {
-      // rolling in: a faint line, brighter as it nears the shore
+      // rolling in: a train of three crests, each a copy of the shore's curve
+      // (waves bend to run parallel to the beach), bunching up and brightening
+      // as they near it, with a lacy, uneven crest and a soft trough behind
       const q = Math.max(0, p / PB);
-      const yf = -0.08 + (ys + 0.01 + 0.08) * Math.pow(q, 1.3);
-      const d = Y - yf;
-      w += Math.exp(-((d / 0.01) ** 2)) * (0.06 + 0.5 * q ** 4);
-      if (d < 0) w += Math.exp(d / 0.025) * 0.04 * q;
+      for (let k = 0; k < 3; k++) {
+        const lag = k * 0.055 * (0.35 + 0.65 * q);
+        const cy = ys * Math.pow(q, 0.85) + 0.01 * q - lag + 0.006 * Math.sin(X * 11 + n * 2.3 + k * 1.7);
+        const d = Y - cy;
+        const lace = 0.65 + 0.7 * vnoise(X * 24 + n * 5 + k * 9, q * 5, 21);
+        w += Math.exp(-((d / 0.011) ** 2)) * (0.3 + 0.7 * q ** 3) * lace * (k === 0 ? 1 : 0.6 / k);
+        if (k === 0 && d < 0) w += Math.exp(d / 0.022) * 0.05 * q;
+      }
     } else {
       // broken: the flare, then foam running up the sand and sliding back
       const q = (p - PB) / (1 - PB);
@@ -103,20 +108,6 @@ function light(X, Y, cell) {
     const tz = Math.floor(t * 1.5 + hash(cell[0], cell[1], 9) * 7);
     if (hash(cell[0], cell[1], 200 + tz) < 0.035) g += 0.45 * (1 - dz / 0.045);
   }
-  // the cursor stirring the water
-  // (segments between successive points, widening as they fade, like
-  // stirred water spreading)
-  if (Y < ys + 0.02)
-    for (let k = 0; k < S.trail.length; k++) {
-      const a = S.trail[k], b = S.trail[Math.min(k + 1, S.trail.length - 1)];
-      const joined = b.age - a.age < 0.4;
-      const bx = joined ? b.x : a.x, by = joined ? b.y : a.y;
-      const dx = bx - a.x, dy = by - a.y, l2 = dx * dx + dy * dy;
-      const h = l2 > 0 ? Math.max(0, Math.min(1, ((X - a.x) * dx + (Y - a.y) * dy) / l2)) : 0;
-      const d = Math.hypot(X - a.x - dx * h, Y - a.y - dy * h);
-      const rad = 0.01 + a.age * 0.012;
-      if (d < rad * 5) g = Math.max(g, Math.exp(-d / rad) * Math.exp(-a.age / 1.6) * 0.9);
-    }
   // waiting apps: glowing patches in the surf
   const br = 0.75 + 0.25 * Math.sin(t * 1.4);
   for (const pt of S.patches) {
@@ -139,9 +130,8 @@ function sample(X, Y, t, cell) {
 // ---- the same in GLSL ----
 const GLSL = `
 uniform float uTime, uFlash;
-uniform int uPulseWave, uTrailN, uPatchN;
+uniform int uPulseWave, uPatchN;
 uniform vec3 uGlow, uSea, uSand, uPulse, uStart;
-uniform vec3 uTrail[${TRAIL}];
 uniform vec2 uPatch[${PATCHES}];
 uniform vec3 uPatchCol[${PATCHES}];
 const float PI = 3.141592654;
@@ -177,10 +167,14 @@ vec3 sampleCell(vec2 P) {
     float w = 0.0;
     if (p < ${PB}) {
       float q = max(0.0, p / ${PB});
-      float yf = -0.08 + (ys + 0.01 + 0.08) * pow(q, 1.3);
-      float d = Y - yf;
-      w += exp(-pow(d / 0.01, 2.0)) * (0.06 + 0.5 * pow(q, 4.0));
-      if (d < 0.0) w += exp(d / 0.025) * 0.04 * q;
+      for (int k = 0; k < 3; k++) {
+        float lag = float(k) * 0.055 * (0.35 + 0.65 * q);
+        float cy = ys * pow(q, 0.85) + 0.01 * q - lag + 0.006 * sin(X * 11.0 + nf * 2.3 + float(k) * 1.7);
+        float d = Y - cy;
+        float lace = 0.65 + 0.7 * vnoise(X * 24.0 + nf * 5.0 + float(k) * 9.0, q * 5.0, 21);
+        w += exp(-pow(d / 0.011, 2.0)) * (0.3 + 0.7 * pow(q, 3.0)) * lace * (k == 0 ? 1.0 : 0.6 / float(k));
+        if (k == 0 && d < 0.0) w += exp(d / 0.022) * 0.05 * q;
+      }
     } else {
       float q = (p - ${PB}) / ${(1 - PB).toFixed(3)};
       float R = 0.15 + 0.04 * sin(X * 2.3 + nf * 1.9);
@@ -204,19 +198,6 @@ vec3 sampleCell(vec2 P) {
     int tz = int(floor(t * 1.5 + hash3(cell.x, cell.y, 9) * 7.0));
     if (hash3(cell.x, cell.y, 200 + tz) < 0.035) g += 0.45 * (1.0 - dz / 0.045);
   }
-  if (Y < ys + 0.02) {
-    for (int k = 0; k < ${TRAIL}; k++) {
-      if (k >= uTrailN) break;
-      vec3 a = uTrail[k], b = uTrail[min(k + 1, uTrailN - 1)];
-      bool joined = b.z - a.z < 0.4;
-      vec2 e = joined ? b.xy - a.xy : vec2(0.0);
-      float l2 = dot(e, e);
-      float h = l2 > 0.0 ? clamp(dot(vec2(X, Y) - a.xy, e) / l2, 0.0, 1.0) : 0.0;
-      float d = length(vec2(X, Y) - a.xy - e * h);
-      float rad = 0.01 + a.z * 0.012;
-      if (d < rad * 5.0) g = max(g, exp(-d / rad) * exp(-a.z / 1.6) * 0.9);
-    }
-  }
   vec3 col = vec3(0.0);
   float br = 0.75 + 0.25 * sin(t * 1.4);
   for (int k = 0; k < ${PATCHES}; k++) {
@@ -238,10 +219,6 @@ const gpu = {
     gl.uniform3f(u.uSand, ...SAND);
     gl.uniform3f(u.uPulse, ...S.pulse);
     gl.uniform3f(u.uStart, BG[0] / 255, BG[1] / 255, BG[2] / 255);
-    const tr = new Float32Array(TRAIL * 3);
-    S.trail.slice(0, TRAIL).forEach((p, i) => tr.set([p.x, p.y, p.age], i * 3));
-    gl.uniform1i(u.uTrailN, Math.min(TRAIL, S.trail.length));
-    gl.uniform3fv(u["uTrail[0]"], tr);
     const pp = new Float32Array(PATCHES * 2), pc = new Float32Array(PATCHES * 3);
     S.patches.forEach((p, i) => {
       pp.set([p.x, p.y], i * 2);
@@ -253,19 +230,7 @@ const gpu = {
   },
 };
 
-// ---- the cursor, the reactions ----
-let lastPoint = null;
-function stir(dt) {
-  for (const p of S.trail) p.age += dt;
-  S.trail = S.trail.filter((p) => p.age < 4);
-  if (!HOVER || !pointer.on || !dims) return;
-  const x = pointer.x / dims.H, y = pointer.y / dims.H;
-  if (!lastPoint || Math.hypot(x - lastPoint.x, y - lastPoint.y) > 0.006) {
-    lastPoint = { x, y };
-    S.trail.unshift({ x, y, age: 0 });
-    if (S.trail.length > TRAIL) S.trail.length = TRAIL;
-  }
-}
+// ---- the reactions ----
 let lanterns = [];
 let overSince = null;
 function placePatches() {
@@ -303,13 +268,10 @@ onReaction((r) => {
   else if (r.type === "lanterns") lanterns = Array.isArray(r.items) ? r.items.filter((l) => Array.isArray(l.colour)) : [];
 });
 
-let prevT = null;
 function frame(t) {
   nowT = t;
   if (!dims) return;
   S.time = STILL || reduced ? 33 : t;
-  stir(prevT === null ? 0 : t - prevT);
-  prevT = t;
   S.flash = Math.max(0, 1 - (t - flashAt) / 0.6) * 0.8;
   if (S.pulseWave >= 0 && S.time > pulseUntil) S.pulseWave = -1;
   S.pulse = S.pulseWave >= 0 ? pulseCol : [0, 0, 0];

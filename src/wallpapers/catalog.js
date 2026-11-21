@@ -41,7 +41,7 @@ export const WALLPAPERS = [
   {
     id: "shore",
     name: "shore",
-    about: "A bioluminescent beach at night, seen from above: waves break into glowing blue foam that runs up the sand and fades. Move the cursor through the water and it glows behind you.",
+    about: "A bioluminescent beach at night, seen from above: trains of glowing crests roll in along the curve of the beach, break into blue foam that runs up the sand, and slide back.",
     options: [{ key: "tint", label: "glow", choices: [["", "blue"], ["green", "green"], ["violet", "violet"], ["grey", "grey"]] }],
     reacts: ["pulse", "lanterns", "flash"],
   },
