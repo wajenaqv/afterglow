@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/readme/banner.svg" alt="AfterGlow: live ASCII wallpapers that glow when something happens" width="100%">
+  <img src="assets/readme/banner.svg" alt="AfterGlow: living ASCII wallpapers that glow with what's waiting for you" width="100%">
 </p>
 
 <p align="center">
@@ -19,59 +19,81 @@
 
 <br>
 
-Your desktop, quietly aware. **AfterGlow** puts glowing text-art wallpapers behind your desktop icons and lets your apps nudge them. A message arrives and a jellyfish pulses green, then slowly fades: an afterglow. No popups, no badges, no sounds. You just *see* that something is waiting.
+### Your desktop, quietly aware.
+
+**AfterGlow** gives you living text-art wallpapers, drawn entirely in glowing characters.
+
+Then your apps nudge them.
+
+- A message arrives → the wallpaper lights up in that app's colour, then slowly fades. *That's the afterglow.*
+- Things pile up → the scene fills up with them.
+- You start a game → it pauses and uses nothing.
+
+No popups. No badges. No sounds.<br>
+You just ***see*** that something is waiting.
 
 <p align="center">
-  <img src="assets/readme/jellyfish.gif" alt="Three glowing ASCII jellyfish in the cool palette, pulsing and drifting" width="100%">
+  <img src="assets/readme/jellyfish.gif" alt="Glowing ASCII jellyfish in the cool palette, pulsing and drifting" width="100%">
 </p>
 
 ## ✦ What it does
 
 | when… | your wallpaper… |
 | --- | --- |
-| a WhatsApp message arrives | the jellyfish pulses green, then fades |
-| your inbox fills up | more jellies drift in, one for every few unread |
-| Slack or Teams pings you | a pulse in that app's colour |
-| a song is playing on Spotify | breathes along, tinted by the cover |
-| Do Not Disturb is on | everything slows down and dims |
-| you launch a fullscreen game | it pauses. Zero CPU while you play |
+| a WhatsApp message arrives | lights up in WhatsApp green, then fades |
+| Slack, Teams or Discord pings you | lights up in that app's colour |
+| your inbox fills up | gets busier, the more that's waiting |
+| the song changes on Spotify | lights up in Spotify green |
+| Do Not Disturb is on (Windows) | stays calm: no pulses, no flashes |
+| a game or video goes fullscreen | pauses. Zero CPU while you play |
+| windows cover it | that monitor pauses until you see it again |
 
-You decide which app does what: *when* `source` *does* `signal`, *the wallpaper does* `reaction` *in* `colour`.
+You decide what each app does in **Settings → apps**: light up, flash or nothing, in its own colour or one you pick.
+
+**Wallpapers today:** jellyfish, one big jellyfish, and glowing paw prints, each with its own palettes. More are on the way.
 
 > [!TIP]
-> Early days: this is where AfterGlow is headed. See the [roadmap](#-roadmap) for what works today.
+> Early days: see the [roadmap](#-roadmap) for what works today.
 
 ## ↓ Download
 
-**Windows**: grab `AfterGlow_<version>_x64-setup.exe` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest) and run it. It installs just for you, no admin needed.
+**Windows**: the first release is coming soon. It will be `AfterGlow_<version>_x64-setup.exe` on the [releases page](https://github.com/wajenaqv/afterglow/releases), installs just for you, no admin needed. Until then, [build it from source](#-build-from-source).
 
 > [!NOTE]
 > The installer isn't code-signed yet, so Windows may say *"Windows protected your PC"*. Click **More info → Run anyway**.
 
-**macOS**: build from source for now ([below](#-build-from-source)). A signed download comes later.
+**macOS**: build from source for now ([below](#-build-from-source)).
 
 > [!IMPORTANT]
-> Quit any other live wallpaper app (Wallpaper Engine, Lively) first: they draw in the same place behind your icons and will cover AfterGlow.
+> Quit any other live wallpaper app (Wallpaper Engine, Lively, Plash) first, or it will cover AfterGlow.
 
 ## ◉ How it works
 
 ```text
-  connectors              signal bus                 wallpaper
- ─────────────          ──────────────           ─────────────────
-  notifications  ──►    app.new                ──►   pulse(#33ff99)
-  dock badges    ──►    app.unread  n=14       ──►   count(14)
-  gmail · spotify ──►   rules: source → reaction ──► flash, dim, breathe
-  your scripts   ──►    POST localhost:<port>/signal
+  your apps                 AfterGlow                   your wallpaper
+ ───────────           ──────────────────            ──────────────────
+  notifications  ──►    app.new                ──►    lights up
+  dock badges    ──►    app.unread  n=14       ──►    fills up
+  gmail · spotify ──►   your rules per app     ──►    flashes, or stays calm
+  your scripts   ──►    POST 127.0.0.1:47811/signal
 ```
 
-- **A wallpaper host.** The wallpaper on every monitor, behind the desktop icons, with hover effects. It pauses for fullscreen apps and games, and on battery. Pause and start at login live in the tray.
-- **Two signals.** Every connector boils activity down to `app.new` (something just happened) and `app.unread(n)` (how much is waiting).
-- **Reactions.** Each wallpaper says what it can do (`pulse`, `count`, `flash`, …) and you choose how signals map onto them.
-- **Connectors.** Windows notifications (WhatsApp, Slack, Teams, Discord), macOS Dock badges, Gmail and Outlook, Spotify, Do Not Disturb, time of day, and a local endpoint for anything else: scripts, Home Assistant, CI.
+- **Wallpapers.** On every monitor, with hover effects, drawn on the graphics card (under 1% of the CPU while you look at it). They pause for fullscreen apps, behind windows and on battery.
+- **Two signals.** Every app boils down to *something just happened* (`new`) and *this many are waiting* (`unread`).
+- **Reactions.** Each wallpaper shows them its own way, and your rules decide which app does what.
+- **Apps.** Windows notifications (WhatsApp, Slack, Teams, Discord, …), macOS Dock badges, Gmail, Outlook, Spotify, and a local endpoint for anything else.
+
+### Connect your apps
+
+Switch them on in **Settings → apps**. Each one has a step-by-step guide right there, with links to the right pages and copy buttons for everything you paste.
+
+- **Windows notifications**: Windows asks once to allow access.
+- **Dock badges** (macOS): macOS asks once for Accessibility access.
+- **Gmail, Outlook, Spotify**: AfterGlow has no server and no shared keys, so you register your own free app (2 to 5 minutes, once) and sign in.
 
 ### Send signals from your own scripts
 
-While AfterGlow runs, it listens on your own computer (nothing outside can reach it):
+While AfterGlow runs, it listens on your own computer only:
 
 ```sh
 curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
@@ -79,31 +101,19 @@ curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
 
 | field | |
 | --- | --- |
-| `source` | a name: `whatsapp`, `gmail`, `build`, … (known apps pulse in their own colour) |
-| `kind` | `new` (something happened: a pulse), `unread` (how many are waiting, with `count`), `clear`, `flash` |
+| `source` | a name: `whatsapp`, `gmail`, `build`, … (known apps light up in their own colour) |
+| `kind` | `new` (something happened), `unread` (how many are waiting, with `count`), `clear`, `flash` |
 | `count` | for `unread` |
-| `colour` | optional `#rrggbb` for the pulse |
-| `afterglow` | optional seconds the pulse takes to fade (default 4) |
+| `colour` | optional `#rrggbb` |
+| `afterglow` | optional seconds the glow takes to fade (default 4) |
 
-Requests from web pages are refused, so a website can't set your wallpaper off. To try the reactions without writing anything, use **Try a signal** in the tray menu.
+Requests from web pages are refused, so a website can't set your wallpaper off. To try it without writing anything, use **Try a signal** in the tray menu.
 
-### Connect your apps
+### Also in Settings
 
-Switch connectors on in **Settings → connectors**:
-
-- **Windows notifications**: any app that shows Windows notifications (WhatsApp, Slack, Teams, Discord, …). Windows asks once to allow notification access.
-- **Dock badges** (macOS): the red counts on Dock icons. macOS asks for Accessibility access (System Settings → Privacy & Security → Accessibility).
-- **Gmail, Outlook, Spotify**: AfterGlow has no shared server or app keys, so you register your own (free) app and paste its client ID into Settings, then **sign in**. Use this redirect URI:
-
-| account | where to register | redirect URI | access |
-| --- | --- | --- | --- |
-| Gmail | [Google Cloud Console](https://console.cloud.google.com/apis/credentials): enable the Gmail API, OAuth client of type *Desktop app* (paste its client secret too) | `http://127.0.0.1:47812/callback` | `gmail.labels` (counts only) |
-| Outlook | [Microsoft Entra app registrations](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps): account type *any organizational directory and personal Microsoft accounts*, platform *Mobile and desktop applications* | `http://localhost:47812/callback` | `Mail.ReadBasic` |
-| Spotify | [Spotify developer dashboard](https://developer.spotify.com/dashboard) | `http://127.0.0.1:47812/callback` | `user-read-currently-playing` |
-
-Settings → apps walks you through each one step by step, with links to the right pages and copy buttons for the values to paste. Sign-in tokens are kept in Windows Credential Manager or the macOS Keychain.
-
-**Rules** (Settings → connectors → rules) change what an app does: pulse, flash or nothing on a new message, a colour of your own, and whether its count brings in more jellies. **Do Not Disturb** quiets pulses and flashes on Windows (tray → Quiet during Do Not Disturb). **Rotation** and **save a still** (a PNG at your screen's size, into Pictures/AfterGlow) are in Settings → wallpaper.
+- **Rotation**: a different wallpaper every 5, 10, 30 or 60 minutes.
+- **Save a still**: a PNG of any wallpaper at your screen's size, into Pictures/AfterGlow.
+- **Performance**: frame rate, and graphics card or CPU.
 
 ## ⚿ Private by design
 
@@ -113,19 +123,16 @@ Settings → apps walks you through each one step by step, with links to the rig
 
 ## ▤ Roadmap
 
-- [x] App scaffold, CI on Windows and macOS, Windows installer releases
-- [x] Wallpaper host on Windows: behind the icons, every monitor, pause rules, hover effects
-- [x] Wallpaper host tested on macOS, with its pause rules
-- [x] The jellyfish wallpaper
-- [x] More wallpapers (big jellyfish, cat paws) and a Settings window to pick one, remembered across restarts
-- [x] Pauses a monitor's wallpaper while windows cover it (Windows), and a frame-rate setting
-- [x] GPU rendering (with a CPU fallback and a choice in Settings): a visible wallpaper costs under 1% of the CPU
-- [x] Reactions (pulse, count, flash), a signal simulator, and a local endpoint for your scripts
-- [x] Windows notifications and macOS Dock badges (WhatsApp works)
-- [x] Gmail / Outlook, Spotify, Do Not Disturb
-- [x] Rules per app, wallpaper rotation, saving a still as a PNG
+- [x] Wallpapers behind the desktop on every monitor, on Windows and macOS, with hover effects
+- [x] Jellyfish, big jellyfish and paw prints, with palettes, picked in Settings
+- [x] GPU rendering: a visible wallpaper costs under 1% of the CPU
+- [x] Pauses for fullscreen apps, on battery, and per monitor behind windows
+- [x] Reactions, a signal simulator, and a local endpoint for your scripts
+- [x] Windows notifications, macOS Dock badges, Gmail, Outlook, Spotify, Do Not Disturb
+- [x] Rules per app, rotation, saving a still, setup guides in Settings
+- [ ] The first release
 - [ ] More wallpapers
-- [ ] Signed installers and a macOS download
+- [ ] Easier installs (winget, a one-line Mac install) and in-app updates
 
 ## ⌘ Build from source
 
@@ -137,7 +144,7 @@ bun run tauri dev      # run with hot reload
 bun run tauri build    # build an installer / app bundle
 ```
 
-On a Mac, the app from a CI run or your own build isn't notarized: after copying it to Applications, run `xattr -dr com.apple.quarantine /Applications/AfterGlow.app` once, or macOS says it's damaged.
+On a Mac, your own build isn't notarized: after copying it to Applications, run `xattr -dr com.apple.quarantine /Applications/AfterGlow.app` once, or macOS says it's damaged.
 
 <br>
 

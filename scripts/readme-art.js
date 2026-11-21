@@ -65,7 +65,7 @@ function bannerSVG() {
   <g class="crt" filter="url(#glow)">
     ${rows}
   </g>
-  <text class="tag" x="${width / 2}" y="${tagY}" text-anchor="middle"><tspan class="prompt">$ </tspan>live ASCII wallpapers that glow when something happens<tspan class="cursor"> &#9608;</tspan></text>
+  <text class="tag" x="${width / 2}" y="${tagY}" text-anchor="middle"><tspan class="prompt">$ </tspan>living ASCII wallpapers that glow with what's waiting for you<tspan class="cursor"> &#9608;</tspan></text>
 </svg>
 `;
 }
