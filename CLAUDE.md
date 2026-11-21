@@ -90,6 +90,16 @@ Mac parity and phases 5-7 were built 2026-11-19 while the owner was away (stacke
 7. Built: rules per app, rotation, saving a still. Not done: more wallpapers (each needs a GPU and a CPU renderer; the owner picks which), macOS banner watching (Dock badges first).
 Later: sync settings between machines; code signing (Windows), Apple notarization and a macOS download, in-app updates.
 
+## Open tasks (saved for later by the owner, 2026-11-21)
+
+Details and mockups in `docs/ideas/` (README.md plus two `.html` pages to open in a browser). Not started:
+
+1. CRT afterglow effects (`docs/ideas/crt-afterglow-effects.html`): radar-phosphor pulses (a blue-white flash cooling into the app's colour), optional trails, a switch-off collapse on pause/quit, burn-in ghosts, an optional scanline/bloom overlay.
+2. Reworked apps page (`docs/ideas/apps-page-terminal-mockup.html`): one row per app with a checkbox and live status, a step-by-step [ connect ] wizard, apps seen in notifications offered with [ add ], per-app "customize", simulator and endpoint moved out.
+3. Terminal look in Settings, no typing (same mockup): scanlines and vignette, the sidebar as a folder tree, text controls (`[x]`, `(•)`, `< value >`, `[ button ]`), a vim-style status bar, the prompt line showing the "command" for each change, an optional short boot sequence.
+4. More wallpapers: the coming-soon tiles promise constellation, black hole and cats (from heywajih.com).
+5. Distribution (decided, not built): Mac one-line install script with a self-signed certificate, winget, SignPath application, a release script; see the earlier plan in this file's history and the README roadmap.
+
 ## Distribution
 
 - Windows: `.github/workflows/release.yml` runs on a `v*` tag, builds the NSIS installer (`AfterGlow_<version>_x64-setup.exe`, per-user install, no admin) with `tauri-action`, and attaches it to a **draft** GitHub Release that the owner reviews and publishes. Bump `version` in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` together before tagging.
