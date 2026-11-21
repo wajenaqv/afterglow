@@ -46,6 +46,13 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
+    id: "cloudsea",
+    name: "cloud sea",
+    about: "A sea of cloud seen from above after sunset: a band of glow along the horizon and rolling swells below, their crests lit from behind. A notification sends a wave of the app's colour rolling in from the horizon, then it fades away slowly.",
+    options: [PALETTE],
+    reacts: ["pulse", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles, or as nixie tubes, a radar or an oscilloscope. When the minute turns, the digits that change scramble into place.",

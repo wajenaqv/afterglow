@@ -81,7 +81,8 @@ function style(r, g, b) {
 // Light -> [character, css colour], or null for a blank cell. The cut-off
 // for blank cells is dithered per cell (h: 0..1), so light fading out ends
 // in scattered dots instead of a hard outline
-function ink(col, chr, h = 0.5) {
+function ink(col, chr, h = 0.5, css = null) {
+  if (css) return chr === " " ? null : [chr, css]; // the scene chose glyph and colour itself (the cloud sea)
   const L = 0.3 * col[0] + 0.59 * col[1] + 0.11 * col[2];
   const T = 1 - Math.exp(-L * 2.2);
   if (!chr && T < 0.045 + 0.06 * h) return null;
@@ -181,8 +182,8 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
         if (taken.has(r * cols + c)) continue;
         cell[0] = c;
         cell[1] = r;
-        const [col, chr] = sample(((c + 0.5) * cw) / H, Y, t, cell);
-        put(c, r, ink(col, chr, hash(c, r, 5)));
+        const [col, chr, css] = sample(((c + 0.5) * cw) / H, Y, t, cell);
+        put(c, r, ink(col, chr, hash(c, r, 5), css));
       }
     }
     for (const [c, r, chr, col] of top) put(c, r, ink(col, chr));
