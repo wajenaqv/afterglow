@@ -87,16 +87,22 @@ function light(X, Y, cell) {
       // broken: the flare, then foam running up the sand and sliding back
       const q = (p - PB) / (1 - PB);
       const R = runup(X, n);
-      const ysw = ys + R * Math.sin(Math.PI * Math.min(1, q * 1.15));
+      // the water climbs (adv 0..1) to its highest point, then slides back
+      // (rt 0..1). Sliding back it does not draw a receding line: the foam stays
+      // where the water was, ragged at its edge, and thins out into bubbles
+      const adv = Math.min(1, q / 0.435);
+      const rt = Math.max(0, Math.min(1, (q - 0.435) / 0.565));
+      const ysw = ys + R * Math.sin(Math.PI * 0.5 * adv) + 0.025 * (vnoise(X * 13, q * 2, 41 + n) - 0.5);
       const flare = Math.exp(-(((q - 0.03) / 0.07) ** 2)) * 1.8;
       if (Y > ys - 0.03 && Y < ysw + 0.01) {
-        const foam = smoothstep(0.45, 0.8, 0.6 * vnoise(X * 16, Y * 16 - q * 3, 11 + n) + 0.4 * vnoise(X * 38, Y * 38 - q * 6, 13 + n));
+        const foam = smoothstep(0.45 + 0.35 * rt, 0.8 + 0.2 * rt, 0.6 * vnoise(X * 16, Y * 16 - q * 3, 11 + n) + 0.4 * vnoise(X * 38, Y * 38 - q * 6, 13 + n));
         const fade = Math.pow(1 - q, 0.8);
         w += foam * fade * 1.0 + flare * smoothstep(ys - 0.03, ys, Y) * (1 - smoothstep(ysw - 0.06, ysw, Y)) * 0.6;
       }
-      w += Math.exp(-(((Y - ysw) / 0.007) ** 2)) * (1 - q) * 1.5 + flare * Math.exp(-(((Y - ys) / 0.02) ** 2));
+      // the bright leading edge, only while the water climbs
+      w += Math.exp(-(((Y - ysw) / 0.007) ** 2)) * (1 - q) * 1.5 * (1 - smoothstep(0.6, 1, adv)) + flare * Math.exp(-(((Y - ys) / 0.02) ** 2));
       // sparkles left in the wet sand as it slides back
-      if (Y > ys && Y < ys + R && Y > ysw && q > 0.45) {
+      if (Y > ys && Y < ys + R && q > 0.45) {
         const s = hash(cell[0], cell[1], 100 + n * 7 + i) < 0.05 ? 1 : 0;
         w += s * Math.exp(-(q - 0.45) * 3.5) * (0.6 + 0.4 * Math.sin(t * 6 + hash(cell[0], cell[1], 5) * 6.283)) * 0.9;
       }
@@ -180,15 +186,17 @@ vec3 sampleCell(vec2 P) {
     } else {
       float q = (p - ${PB}) / ${(1 - PB).toFixed(3)};
       float R = 0.15 + 0.04 * sin(X * 2.3 + nf * 1.9);
-      float ysw = ys + R * sin(PI * min(1.0, q * 1.15));
+      float adv = min(1.0, q / 0.435);
+      float rt = clamp((q - 0.435) / 0.565, 0.0, 1.0);
+      float ysw = ys + R * sin(PI * 0.5 * adv) + 0.025 * (vnoise(X * 13.0, q * 2.0, 41 + n) - 0.5);
       float flare = exp(-pow((q - 0.03) / 0.07, 2.0)) * 1.8;
       if (Y > ys - 0.03 && Y < ysw + 0.01) {
-        float foam = smoothstep(0.45, 0.8, 0.6 * vnoise(X * 16.0, Y * 16.0 - q * 3.0, 11 + n) + 0.4 * vnoise(X * 38.0, Y * 38.0 - q * 6.0, 13 + n));
+        float foam = smoothstep(0.45 + 0.35 * rt, 0.8 + 0.2 * rt, 0.6 * vnoise(X * 16.0, Y * 16.0 - q * 3.0, 11 + n) + 0.4 * vnoise(X * 38.0, Y * 38.0 - q * 6.0, 13 + n));
         float fade = pow(1.0 - q, 0.8);
         w += foam * fade * 1.0 + flare * smoothstep(ys - 0.03, ys, Y) * (1.0 - smoothstep(ysw - 0.06, ysw, Y)) * 0.6;
       }
-      w += exp(-pow((Y - ysw) / 0.007, 2.0)) * (1.0 - q) * 1.5 + flare * exp(-pow((Y - ys) / 0.02, 2.0));
-      if (Y > ys && Y < ys + R && Y > ysw && q > 0.45) {
+      w += exp(-pow((Y - ysw) / 0.007, 2.0)) * (1.0 - q) * 1.5 * (1.0 - smoothstep(0.6, 1.0, adv)) + flare * exp(-pow((Y - ys) / 0.02, 2.0));
+      if (Y > ys && Y < ys + R && q > 0.45) {
         float s = hash3(cell.x, cell.y, 100 + n * 7 + i) < 0.05 ? 1.0 : 0.0;
         w += s * exp(-(q - 0.45) * 3.5) * (0.6 + 0.4 * sin(t * 6.0 + hash3(cell.x, cell.y, 5) * 6.283)) * 0.9;
       }
