@@ -362,7 +362,7 @@ function lanternRGB(j) {
 }
 // How lit a jelly is: a pulse, or its lantern (breathing slowly)
 function litAmt(j) {
-  const lantern = (j.lanternAmt || 0) * LANTERN * (0.86 + 0.14 * Math.sin(clock * 1.3 + (j.phase || 0)));
+  const lantern = (j.lanternAmt || 0) * LANTERN * (0.86 + 0.14 * Math.sin(clock * 1.3 + (j.phase || 0))) * (1 - 0.85 * (j.drain || 0));
   return Math.max(j.glowAmt || 0, lantern);
 }
 
@@ -433,18 +433,24 @@ function reactionsTick(dt) {
   }
 }
 
-// Hover (both renderers): the jelly under the cursor flashes; resting the
-// cursor on a lantern for a moment marks it seen
+// Hover (both renderers): the tentacles of the jelly under the cursor stir
+// a little (j.stir: a quicker ripple down them; no light, no change to its
+// path: light on the wallpaper only ever means something is waiting).
+// Resting the cursor on a lantern for 0.8 s marks it seen; its colour
+// drains away meanwhile (j.drain), and comes back if you move off.
+// (j.excite is now only the flash reaction's contraction and glow.)
+const SEEN_MS = 800;
 function hoverTick(dt) {
   for (const j of JELLIES) {
     j.excite = (j.excite || 0) * Math.exp(-dt / 1.5);
     const sc = j.screen;
     const over = HOVER && pointer.on && sc && Math.hypot((pointer.x - sc.x) / (sc.r * 1.3), (pointer.y - sc.y) / (sc.r * 1.1)) < 1;
-    if (over) j.excite = Math.min(1, j.excite + dt * 6);
+    j.stir = over ? Math.min(1, (j.stir || 0) + dt * 2.5) : (j.stir || 0) * Math.exp(-dt / 1.2);
     // real time, not frames (the frame rate can be 15)
     const now = performance.now();
     j.overSince = over ? (j.overSince ?? now) : null;
-    if (j.overSince !== null && now - j.overSince > 800 && j.lanterns?.length) {
+    j.drain = j.overSince !== null && j.lanterns?.length ? Math.min(1, (now - j.overSince) / SEEN_MS) : 0;
+    if (j.overSince !== null && now - j.overSince > SEEN_MS && j.lanterns?.length) {
       for (const l of j.lanterns) seenLantern(l.source);
       for (const l of [...j.lanterns]) takeLantern(l.source); // fade now; the app confirms
     }
@@ -655,8 +661,10 @@ function drawJelly(j, t) {
     for (let s = 0; s < len; s += LINE_STEP, si++) {
       // Waves travel down each tentacle, growing towards the tip
       const k = s / len;
-      const wave1 = Math.sin(s * 1.1 - t * 1.5 + i * 1.7) * 0.35 * k;
-      const wave2 = Math.cos(s * 0.8 - t * 1.1 + i) * 0.25 * k;
+      // hover: a quicker, small ripple on top (j.stir)
+      const st = (j.stir || 0) * 0.15 * (0.25 + 0.75 * k);
+      const wave1 = Math.sin(s * 1.1 - t * 1.5 + i * 1.7) * 0.35 * k + Math.sin(s * 1.5 - t * 3.2 + i * 2.1) * st;
+      const wave2 = Math.cos(s * 0.8 - t * 1.1 + i) * 0.25 * k + Math.cos(s * 1.3 - t * 2.9 + i * 1.3) * st;
       // lower down, it follows the bell's width and push from a moment ago
       const pl = plTab[si];
       const follow = (1 - 0.18 * pl) / follow0; // the bell's width then, against now

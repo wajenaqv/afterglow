@@ -20,14 +20,14 @@ export const WALLPAPERS = [
   {
     id: "jellyfish",
     name: "jellyfish",
-    about: "Glowing, see-through jellyfish pulsing up through dark water, trailing their tentacles. Touch one with the cursor and it flashes.",
+    about: "Glowing, see-through jellyfish pulsing up through dark water, trailing their tentacles. Touch one with the cursor and its tentacles stir.",
     options: [PALETTE, { key: "count", label: "count", choices: [["", "auto"], ...Array.from({ length: 10 }, (_, i) => [String(i + 1), String(i + 1)])] }, SPECKS],
     reacts: ["pulse", "lanterns", "count", "flash"],
   },
   {
     id: "big-jellyfish",
     name: "big jellyfish",
-    about: "One big jellyfish that stays where it is and just pulses, each pulse rippling down its tentacles. Touch it and it flashes.",
+    about: "One big jellyfish that stays where it is and just pulses, each pulse rippling down its tentacles. Touch it and its tentacles stir.",
     options: [PALETTE, { key: "hue", label: "colour", choices: [["", "random"], ...Array.from({ length: 6 }, (_, i) => [String(i + 1), String(i + 1)])], hues: true }, SPECKS],
     reacts: ["pulse", "lanterns", "flash"],
   },

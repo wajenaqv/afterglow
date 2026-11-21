@@ -33,7 +33,7 @@ uniform float uT;
 // one jelly
 uniform vec3 uC;        // centre (cx, y, cz)
 uniform vec2 uTilt;     // cos, sin of the tilt
-uniform float uR, uHb, uP, uFlash, uFade, uExcite, uJR, uPeriod, uPhase, uPush, uReduced, uTentN;
+uniform float uR, uHb, uP, uFlash, uFade, uExcite, uJR, uPeriod, uPhase, uPush, uReduced, uTentN, uStir;
 uniform vec3 uBell, uGlow, uTentCol;
 uniform float uBellStep, uBellRing, uLineStep;
 // marine snow
@@ -139,8 +139,9 @@ void main() {
     float ph = (i / uTentN) * PI * 2.0;
     float rx = uR * sin(TH_MAX) * cos(ph), rz = uR * sin(TH_MAX) * sin(ph), ry = uHb * cos(TH_MAX);
     float k = s / len;
-    float wave1 = sin(s * 1.1 - uT * 1.5 + i * 1.7) * 0.35 * k;
-    float wave2 = cos(s * 0.8 - uT * 1.1 + i) * 0.25 * k;
+    float st = uStir * 0.15 * (0.25 + 0.75 * k); // hover: a quicker, small ripple on top
+    float wave1 = sin(s * 1.1 - uT * 1.5 + i * 1.7) * 0.35 * k + sin(s * 1.5 - uT * 3.2 + i * 2.1) * st;
+    float wave2 = cos(s * 0.8 - uT * 1.1 + i) * 0.25 * k + cos(s * 1.3 - uT * 2.9 + i * 1.3) * st;
     float lag = s * 0.11;
     float pl = pAt(uT - lag);
     float follow = (1.0 - 0.18 * pl) / (1.0 - 0.18 * uP);
@@ -320,6 +321,7 @@ export function createJellyGL(canvas, opts) {
       gl.uniform1f(u.uFlash, s.flash);
       gl.uniform1f(u.uFade, s.fade);
       gl.uniform1f(u.uExcite, j.excite || 0);
+      gl.uniform1f(u.uStir, j.stir || 0);
       gl.uniform1f(u.uJR, s.jr);
       gl.uniform1f(u.uPeriod, j.period);
       gl.uniform1f(u.uPhase, j.phase);
