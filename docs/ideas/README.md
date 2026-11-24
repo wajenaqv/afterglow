@@ -38,3 +38,7 @@ Same mockup. Bring heywajih's terminal feel back into the Settings window:
 - a vim-style status bar along the bottom (page, apps on, waiting, wallpaper, fps, renderer);
 - the prompt line at the top shows the "command" for what you change (`$ afterglow clock --style slant --corner top-right`);
 - optionally a very short boot sequence (`[ OK ] …`) the first time Settings opens, skippable.
+
+## Deep-sea glow (2026-11-24)
+
+[deep-sea-glow.md](deep-sea-glow.md): why the owner's reference jellyfish (`reference/jellyfish2.py`) looks so glowy (bloom, haze, lit tissue, direction-aware strands, travelling light), and two ideas from it: a bloom/haze option for every wallpaper, and a "deep sea jelly" wallpaper.
