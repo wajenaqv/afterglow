@@ -29,7 +29,9 @@
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
 import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES, NIXIE_CSS, nixieHTML } from "./hoverclock.js";
 
-const CRT = ["radar", "scope", "light"]; // drawn by a scene renderer (GPU and CPU), not as text
+// drawn on a canvas, not as page text: radar, scope and light by a scene
+// renderer (GPU and CPU); heywajih by heyclock.js (heywajih.com's clock)
+const CRT = ["radar", "scope", "light", "heywajih", "phosphor"];
 const STYLE = [...STYLES, ...CRT].includes(params.get("style")) ? params.get("style") : "slant";
 const IS_CRT = CRT.includes(STYLE);
 const TINT = ["natural", "cool", "grey", "warm", "green"].includes(params.get("tint")) ? params.get("tint") : "natural";
@@ -311,7 +313,32 @@ if (IS_CRT) {
   // natural: the green of real phosphor; the other palettes their main colour
   const tint = TINT === "natural" ? [0.2, 1, 0.55] : TINT === "green" ? cssRGB("--logo-bottom").map((v) => v / 255) : hex(PALETTES[TINT][1]);
   wall.classList.add("crt");
-  if (STYLE === "light") {
+  if (STYLE === "phosphor") {
+    // the beam-drawn CRT clock; it draws its own date
+    dateEl.style.display = "none";
+    import("./phosphorclock.js").then(({ startPhosphorClock }) => {
+      startPhosphorClock({ onLayout: ({ bottom }) => (wall.style.top = `${bottom + 40}px`) });
+    });
+  } else if (STYLE === "heywajih") {
+    // heywajih.com's clock: the logo's white-to-green by default (as on the
+    // site), or a palette when one is picked; the date is in its own grid
+    dateEl.style.display = "none";
+    const toRGB3 = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+    const logo = !params.has("tint") || TINT === "green";
+    const [top, low] = logo ? [cssRGB("--logo-top"), cssRGB("--logo-bottom")] : PALETTES[TINT].map(toRGB3);
+    const colours = {
+      bg: cssRGB("--bg"),
+      top,
+      low,
+      bright: logo ? cssRGB("--bright") : [255, 255, 255],
+      dim: logo ? cssRGB("--dim") : low.map((v) => v * 0.55),
+      glow: low,
+    };
+    import("./heyclock.js").then(({ startHeyClock }) => {
+      crt = startHeyClock({ colours, hours: HOURS, size: SIZE, fps: 30 });
+      crt.onLayout(({ bottom }) => (wall.style.top = `${bottom + 6}px`));
+    });
+  } else if (STYLE === "light") {
     // the date is part of the light; only the lantern dots stay in the page
     dateEl.style.display = "none";
     const brand = [cssRGB("--logo-top"), cssRGB("--logo-bottom")].map((v) => v.map((x) => x / 255));

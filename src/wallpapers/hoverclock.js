@@ -203,7 +203,7 @@ const systemHour12 = (() => {
     return false;
   }
 })();
-const is12 = (hours) => (hours === "12" ? true : hours === "24" ? false : systemHour12);
+export const is12 = (hours) => (hours === "12" ? true : hours === "24" ? false : systemHour12);
 
 /** "4:43" or "16:43" */
 export function timeText(now, hours = "auto") {
