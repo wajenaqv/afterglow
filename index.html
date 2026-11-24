@@ -32,9 +32,19 @@
         <!-- wallpaper -->
         <section id="page-wallpaper" data-page="wallpaper">
           <h2>wallpaper</h2>
-          <p class="dim hint">Every monitor shows the one you pick. Options apply straight away to the one that's showing.</p>
-          <div id="wall-tabs" class="tabs" role="tablist" aria-label="wallpaper kinds"></div>
-          <div id="cards" class="cards"></div>
+          <p class="dim hint">Every monitor shows the one you pick. Click one to see what it does and set it up.</p>
+          <div class="wall-layout">
+            <div class="wall-list">
+              <div id="wall-tabs" class="tabs" role="tablist" aria-label="wallpaper kinds"></div>
+              <div id="cards" class="cards"></div>
+            </div>
+            <!-- the side panel: the wallpaper you clicked, in detail (main.js openPanel) -->
+            <aside id="wall-panel" class="wall-panel" hidden>
+              <button type="button" class="close" id="panel-close">close</button>
+              <div class="preview big"><iframe id="panel-preview" title="preview" tabindex="-1"></iframe></div>
+              <div id="wall-details"></div>
+            </aside>
+          </div>
 
           <h3 class="sub">hover</h3>
           <div class="list">

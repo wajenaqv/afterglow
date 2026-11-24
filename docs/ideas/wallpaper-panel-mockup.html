@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AfterGlow · mockup: wallpaper side panel</title>
+    <!-- Mockup (2026-11-24): the wallpaper page with compact cards, and a side
+         panel on the right for the one you click: big preview, what it is, how
+         it reacts (new message, waiting apps, flash, hover), its options, use /
+         save. Open with the dev server running (bun run dev): the previews are
+         the real wallpapers. Click any card to open its panel. -->
+    <link rel="stylesheet" href="/src/brand.css" />
+    <style>
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); }
+      body { font: 14px/1.5 "JetBrains Mono", ui-monospace, Consolas, monospace; font-variant-ligatures: none; text-shadow: 0 0 4px rgba(var(--glow), calc(var(--glow-a) * 0.5)); overflow: hidden; }
+      .dim { color: var(--dim); text-shadow: none; }
+      .app { display: grid; grid-template-columns: 190px 1fr 430px; height: 100vh; }
+      .app.closed { grid-template-columns: 190px 1fr 0; }
+      nav { border-right: 1px solid color-mix(in srgb, var(--dim) 40%, transparent); padding: 18px 16px; }
+      nav .logo { color: var(--bright); font-weight: 700; font-size: 22px; margin-bottom: 18px; }
+      nav div { margin: 4px 0; }
+      nav .on { color: var(--bright); }
+      main { overflow-y: auto; padding: 18px 26px; }
+      .prompt { color: var(--accent); margin: 0 0 14px; }
+      h2 { margin: 0 0 4px; color: var(--bright); font-size: 15px; }
+      h2::before { content: "# "; color: var(--dim); }
+      button { all: unset; cursor: pointer; color: var(--bright); white-space: nowrap; }
+      button::before { content: "[ "; color: var(--dim); }
+      button::after { content: " ]"; color: var(--dim); }
+      .tabs { display: flex; gap: 14px; margin: 10px 0 16px; }
+      .tabs .off { color: var(--dim); }
+      .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+      .card { border: 1px dashed color-mix(in srgb, var(--dim) 55%, transparent); cursor: pointer; }
+      .card:hover { border-color: var(--fg); }
+      .card.sel { border: 1px solid var(--accent); box-shadow: 0 0 10px rgba(var(--glow), 0.35); }
+      .card .pv { aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #000; }
+      .card .pv iframe, .panel .pv iframe { position: absolute; left: 0; top: 0; width: 960px; height: 540px; border: 0; transform-origin: 0 0; pointer-events: none; }
+      .card .body { padding: 7px 10px 9px; }
+      .card h3 { margin: 0; font-size: 13px; color: var(--bright); }
+      .card .showing { color: var(--accent); font-weight: 400; }
+      .card p { margin: 3px 0 0; font-size: 12px; }
+      .panel { border-left: 1px solid color-mix(in srgb, var(--dim) 40%, transparent); overflow-y: auto; padding: 18px 20px; position: relative; }
+      .app.closed .panel { display: none; }
+      .panel .close { position: absolute; right: 16px; top: 14px; }
+      .panel h2 { font-size: 17px; margin-bottom: 10px; }
+      .panel .pv { aspect-ratio: 16 / 9; position: relative; overflow: hidden; border: 1px solid color-mix(in srgb, var(--dim) 50%, transparent); }
+      .panel p { margin: 10px 0; }
+      .panel h4 { margin: 18px 0 6px; color: var(--accent); font-size: 13px; font-weight: 400; }
+      .panel h4::before { content: "── "; color: var(--dim); }
+      .panel dl { margin: 0; display: grid; grid-template-columns: 112px 1fr; gap: 6px 10px; font-size: 13px; }
+      .panel dt { color: var(--dim); text-shadow: none; }
+      .panel dd { margin: 0; }
+      .panel .opt { display: flex; justify-content: space-between; margin: 5px 0; font-size: 13px; }
+      .panel .opt b { color: var(--bright); font-weight: 400; }
+      .panel .opt b::before { content: "< "; color: var(--dim); }
+      .panel .opt b::after { content: " >"; color: var(--dim); }
+      .panel .act { display: flex; gap: 16px; margin-top: 18px; }
+      .note { position: fixed; left: 206px; bottom: 10px; color: var(--dim); font-size: 12px; text-shadow: none; }
+    </style>
+  </head>
+  <body>
+    <div class="app" id="app">
+      <nav>
+        <div class="logo">AG</div>
+        <div class="dim">~/afterglow/</div>
+        <div class="on">├─&gt; wallpaper/</div>
+        <div class="dim">├─ clock</div>
+        <div class="dim">├─ apps</div>
+        <div class="dim">├─ pausing</div>
+        <div class="dim">├─ performance</div>
+        <div class="dim">├─ activity</div>
+        <div class="dim">└─ about</div>
+      </nav>
+      <main>
+        <p class="prompt">$ afterglow wallpaper <span id="cmd">sakura</span></p>
+        <h2>wallpaper</h2>
+        <p class="dim">Click one to see what it does and set it up.</p>
+        <div class="tabs"><button>all</button><button class="off">creatures</button><button class="off">nature</button><button class="off">sky</button><button class="off">tech</button><button class="off">clock</button></div>
+        <div class="cards" id="cards"></div>
+      </main>
+      <aside class="panel" id="panel"></aside>
+    </div>
+    <p class="note">mockup · the cards stay small; the panel on the right holds the detail · click a card</p>
+    <script>
+      // What each wallpaper is and how it reacts: the text the panel would show.
+      const W = [
+        { id: "jellyfish", name: "jellyfish", line: "Glowing jellyfish drifting up through dark water.",
+          about: "See-through jellyfish pulse slowly up through dark water, trailing their tentacles, in the palette you choose.",
+          message: "The nearest jelly pulses in the app's colour, then fades.",
+          waiting: "Each app keeps one jelly glowing in its colour, breathing slowly. Rest your cursor on it for a moment to mark it seen.",
+          count: "More jellies drift in as unread messages pile up.",
+          flash: "Every jelly flares at once.",
+          hover: "The jelly under your cursor dissolves into shading blocks.",
+          options: [["palette", "natural"], ["count", "auto"], ["background", "specks"]] },
+        { id: "big-jellyfish", name: "big jellyfish", line: "One big jellyfish, pulsing where it floats.",
+          about: "One large jellyfish that stays in place and pulses, each beat rippling down its tentacles.",
+          message: "It pulses in the app's colour.", waiting: "Its glow cycles through the colours of the waiting apps. Rest your cursor on it to mark them seen.",
+          flash: "It flares.", hover: "Its characters dissolve into shading blocks under the cursor.",
+          options: [["palette", "natural"], ["colour", "random"], ["background", "specks"]] },
+        { id: "paws", name: "paw prints", line: "Glowing paw prints of an invisible cat.",
+          about: "An invisible cat walks across the screen, leaving glowing paw prints that slowly fade.",
+          message: "A second cat walks by, its prints in the app's colour.", waiting: "Not yet.",
+          flash: "The prints brighten.", hover: "Rest the cursor and the cat comes over, circles it and sits.",
+          options: [["palette", "natural"]] },
+        { id: "cloudsea", name: "cloud sea", line: "A sea of cloud after sunset.",
+          about: "Seen from above, after sunset: rolling swells of cloud, their crests lit from behind by the last glow on the horizon.",
+          message: "A wave of the app's colour rolls in from the horizon and fades.", waiting: "Not yet.",
+          flash: "The sky brightens.", hover: "None.", options: [["palette", "natural"]] },
+        { id: "sakura", name: "sakura", line: "A cherry branch at night, petals on the wind.",
+          about: "A cherry branch at night, crossing the moon. The wind comes in gusts: the twigs sway, and petals tear loose and flutter down.",
+          message: "A blossom opens in the app's colour, sheds a few petals, and fades back to pink.",
+          waiting: "Each app keeps one big blossom lit in its colour. Rest your cursor on it for a moment to mark it seen: it drops its petals.",
+          flash: "The whole branch lights up.", hover: "None: the cursor only marks waiting apps as seen.",
+          options: [["palette", "natural"], ["moon", "on"]] },
+        { id: "constellation", name: "constellation", line: "Cats drawn in the stars.",
+          about: "Bright stars kindle one by one and lines draw between them until they make a cat, its Latin name underneath. It holds, fades, and the next one forms elsewhere.",
+          message: "A shooting star in the app's colour, its trail lingering.", waiting: "Each app is a bright star in its colour in the upper sky. Rest your cursor on it to mark it seen: it shoots off.",
+          flash: "Every star flares.", hover: "Sweep the cursor fast across the sky for a shooting star.",
+          options: [["palette", "natural"], ["cat", "all of them"]] },
+        { id: "startrails", name: "star trails", line: "A long exposure of the stars over mountains.",
+          about: "The sky turns slowly round the pole star, every star leaving a thin arc of light, above dark mountains.",
+          message: "One star's trail lights up in the app's colour, then fades.", waiting: "Each app keeps a trail glowing in its colour. Rest your cursor on its star to mark it seen.",
+          flash: "Every trail brightens.", hover: "None.", options: [["palette", "natural"]] },
+        { id: "radar", name: "radar", line: "A phosphor radar sweep.",
+          about: "The beam sweeps round; everything it passes flares and slowly fades, like an old radar screen. Range rings, bearings, a stretch of coast.",
+          message: "A new contact comes in from the rim in the app's colour.", waiting: "Each app is a contact labelled with its name, refreshed on every sweep. Rest your cursor on it to mark it seen.",
+          flash: "The whole screen flares.", hover: "None.", options: [["phosphor", "green"], ["scanlines", "on"]] },
+        { id: "circuit", name: "circuit board", line: "Light running along a circuit board.",
+          about: "A dark circuit board: chips and buses of traces, with packets of light running along them and the copper glowing behind.",
+          message: "A packet in the app's colour runs in from the edge and lights a chip.", waiting: "Each app takes a chip showing its name, with a blinking LED. Rest your cursor on it to mark it seen.",
+          flash: "Current surges through every trace.", hover: "None.", options: [["phosphor", "green"], ["scanlines", "on"]] },
+        { id: "impossible", name: "impossible", line: "Impossible shapes that close from one viewpoint.",
+          about: "A Penrose triangle (or stairs, or more) that is really there: it only closes from one viewpoint, and now and then the view swings to show it never was closed.",
+          message: "A band of light in the app's colour runs round the endless loop.", waiting: "Each app is a light going round the loop for ever. Rest your cursor on it to mark it seen.",
+          flash: "The edges flare.", hover: "None.", options: [["shape", "Penrose triangle"], ["phosphor", "green"], ["scanlines", "on"]] },
+      ];
+      const fit = (pv, ifr) => new ResizeObserver(([e]) => (ifr.style.transform = `scale(${e.contentRect.width / 960})`)).observe(pv);
+      const cards = document.getElementById("cards"), panel = document.getElementById("panel"), app = document.getElementById("app");
+      function open(w) {
+        document.querySelectorAll(".card").forEach((c) => c.classList.toggle("sel", c.dataset.id === w.id));
+        document.getElementById("cmd").textContent = w.id;
+        app.classList.remove("closed");
+        panel.innerHTML = `
+          <button class="close" id="close">close</button>
+          <h2>${w.name}</h2>
+          <div class="pv"><iframe src="/wallpapers/${w.id}.html" tabindex="-1"></iframe></div>
+          <p>${w.about}</p>
+          <h4>how it reacts</h4>
+          <dl>
+            <dt>new message</dt><dd>${w.message}</dd>
+            <dt>waiting apps</dt><dd>${w.waiting}</dd>
+            ${w.count ? `<dt>many unread</dt><dd>${w.count}</dd>` : ""}
+            <dt>flash</dt><dd>${w.flash}</dd>
+            <dt>hover</dt><dd>${w.hover}</dd>
+          </dl>
+          <h4>settings</h4>
+          ${w.options.map(([k, v]) => `<div class="opt"><span class="dim">${k}</span><b>${v}</b></div>`).join("")}
+          <div class="act"><button>use this</button><button>save a still</button></div>`;
+        fit(panel.querySelector(".pv"), panel.querySelector("iframe"));
+        document.getElementById("close").onclick = () => { app.classList.add("closed"); document.querySelectorAll(".card").forEach((c) => c.classList.remove("sel")); };
+      }
+      for (const w of W) {
+        const el = document.createElement("article");
+        el.className = "card";
+        el.dataset.id = w.id;
+        el.innerHTML = `<div class="pv"><iframe src="/wallpapers/${w.id}.html?preview" tabindex="-1" loading="lazy"></iframe></div>
+          <div class="body"><h3>${w.name}${w.id === "constellation" ? ' <span class="showing">● showing</span>' : ""}</h3><p class="dim">${w.line}</p></div>`;
+        el.onclick = () => open(w);
+        cards.append(el);
+        fit(el.querySelector(".pv"), el.querySelector("iframe"));
+      }
+      open(W.find((w) => w.id === "sakura"));
+    </script>
+  </body>
+</html>

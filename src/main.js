@@ -13,7 +13,7 @@
 
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
-import { WALLPAPERS, HUE_NAMES, TAGS, queryFor } from "./wallpapers/catalog.js";
+import { WALLPAPERS, HUE_NAMES, TAGS, DETAILS, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
 import { clockRows, STYLES as CLOCK_STYLES, validStyle } from "./wallpapers/hoverclock.js";
@@ -176,19 +176,62 @@ async function choose(id) {
   paintStatus();
 }
 
+// A card is small: a live preview, the name, one line. A click opens the side
+// panel with the rest: what it is, its options, use this / save a still, then
+// how it reacts (catalog.js DETAILS). Each wallpaper's panel contents are built
+// once, inside the panel, and only the open one shows (terminal.js turns every
+// select already in the page into a cycler when it starts).
+const panel = $("#wall-panel"), panelPreview = $("#panel-preview");
+let openId = null;
+const bigSrc = (id, options) => {
+  const q = queryFor(options);
+  return `/wallpapers/${id}.html?hover=0&fps=15${q ? `&${q}` : ""}`;
+};
+function openPanel(id) {
+  const card = cards.get(id);
+  if (!card) return;
+  openId = id;
+  for (const [cid, c] of cards) {
+    c.el.classList.toggle("open", cid === id);
+    c.detail.hidden = cid !== id;
+  }
+  panelPreview.src = bigSrc(id, optionsOf(card));
+  panel.hidden = false;
+  $(".wall-layout").classList.add("panel-open");
+}
+function closePanel() {
+  openId = null;
+  panel.hidden = true;
+  panelPreview.src = "about:blank";
+  $(".wall-layout").classList.remove("panel-open");
+  for (const c of cards.values()) c.el.classList.remove("open");
+}
+$("#panel-close").addEventListener("click", closePanel);
+const reactsRow = (label, text) => (text ? `<dt>${label}</dt><dd>${text}</dd>` : "");
+
 for (const w of WALLPAPERS) {
+  const d = DETAILS[w.id] ?? {};
   const el = document.createElement("article");
   el.className = "card";
+  el.tabIndex = 0;
   el.innerHTML = `
     <div class="preview"><iframe title="${w.name} preview" tabindex="-1" loading="lazy"></iframe></div>
     <div class="body">
       <h3>${w.name}</h3>
       <p class="dim about">${w.about}</p>
-      <p class="dim reacts">reacts: ${(w.reacts ?? []).join(" · ") || "nothing yet"}</p>
-      <div class="opts"></div>
-      <div class="actions"><button type="button" class="use"></button> <button type="button" class="still">save a still</button></div>
     </div>`;
-  const opts = $(".opts", el);
+  const detail = document.createElement("div");
+  detail.className = "wall-detail";
+  detail.hidden = true;
+  detail.innerHTML = `
+    <h3>${w.name}</h3>
+    <p class="long">${d.about ?? w.about}</p>
+    <h4>settings</h4>
+    <div class="opts"></div>
+    <div class="actions"><button type="button" class="use"></button> <button type="button" class="still">save a still</button></div>
+    <h4>how it reacts</h4>
+    <dl>${reactsRow("new message", d.message)}${reactsRow("waiting apps", d.waiting)}${reactsRow("many unread", d.many)}${reactsRow("flash", d.flash)}${reactsRow("hover", d.hover)}</dl>`;
+  const opts = $(".opts", detail);
   const selects = new Map();
   for (const o of w.options) {
     const label = document.createElement("label");
@@ -200,17 +243,21 @@ for (const w of WALLPAPERS) {
     selects.set(o.key, sel);
   }
   el.dataset.tag = w.tag ?? "";
-  const card = { el, preview: $("iframe", el), selects, button: $(".use", el) };
+  const card = { el, preview: $("iframe", el), selects, button: $(".use", detail), detail };
   cards.set(w.id, card);
   for (const sel of selects.values())
     sel.addEventListener("change", () => {
       nameHues(card);
       card.preview.src = previewSrc(w.id, optionsOf(card));
+      if (openId === w.id) panelPreview.src = bigSrc(w.id, optionsOf(card));
       if (settings.wallpaper === w.id) choose(w.id); // the one showing changes straight away
     });
   card.button.addEventListener("click", () => choose(w.id));
-  $(".still", el).addEventListener("click", (e) => saveStill(w.id, e.currentTarget));
+  $(".still", detail).addEventListener("click", (e) => saveStill(w.id, e.currentTarget));
+  el.addEventListener("click", () => openPanel(w.id));
+  el.addEventListener("keydown", (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), openPanel(w.id)));
   $("#cards").append(el);
+  $("#wall-details").append(detail);
 }
 
 // Coming soon: wallpapers on their way (from heywajih.com), as dim tiles
@@ -921,6 +968,7 @@ async function load() {
       nameHues(card);
       card.preview.src = previewSrc(id, optionsOf(card));
     }
+    openPanel(settings.wallpaper); // start with the one showing open
     first = false;
   }
   markShowing();

@@ -91,7 +91,7 @@ function flagOf(el) {
 }
 function commandFor(el) {
   const p = page();
-  const card = el.closest(".card")?.querySelector("h3")?.textContent;
+  const card = el.closest(".card, .wall-detail")?.querySelector("h3")?.textContent;
   const app = el.closest(".connector")?.dataset.id ?? el.closest("tr")?.querySelector(".src, .name")?.textContent;
   const where = [p, card && slug(card), !card && app && slug(app)].filter(Boolean).join(" ");
   if (el.matches("select")) {
@@ -111,7 +111,7 @@ function commandFor(el) {
 function buttonCommand(b) {
   const p = page();
   if (b.dataset.style) return `${p} --style ${b.dataset.style}`;
-  const card = b.closest(".card")?.querySelector("h3")?.textContent;
+  const card = b.closest(".card, .wall-detail")?.querySelector("h3")?.textContent;
   if (card && b.matches(".use")) return `${p} use ${slug(card)}`;
   if (card && b.matches(".still")) return `${p} still ${slug(card)} > ~/Pictures/AfterGlow/`;
   const app = b.closest(".connector")?.dataset.id;
