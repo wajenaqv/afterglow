@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AfterGlow: live ASCII wallpapers for Mac and Windows</title>
+  <meta name="description" content="Glowing text-art wallpapers behind your desktop icons that react when something happens in your apps. Free, for macOS and Windows.">
+  <meta property="og:title" content="AfterGlow">
+  <meta property="og:description" content="Your desktop, quietly aware. Live ASCII wallpapers that glow when something happens.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://afterglow.heywajih.com/">
+  <meta property="og:image" content="https://afterglow.heywajih.com/share.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="app.svg">
+  <link rel="stylesheet" href="brand.css">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1><span class="sr">AfterGlow</span><span class="art" aria-hidden="true">    ___    ______            ________
+   /   |  / __/ /____  _____/ ____/ /___ _      __
+  / /| | / /_/ __/ _ \/ ___/ / __/ / __ \ | /| / /
+ / ___ |/ __/ /_/  __/ /  / /_/ / / /_/ / |/ |/ /
+/_/  |_/_/  \__/\___/_/   \____/_/\____/|__/|__/</span></h1>
+      <p class="lead">Your desktop, quietly aware.</p>
+      <p>Live ASCII wallpapers that glow when something happens.<br>Free and open source, for macOS and Windows.</p>
+    </header>
+    <h2>Install</h2>
+    <div class="tabs" hidden>
+      <button type="button" data-os="mac">macOS</button>
+      <button type="button" data-os="win">Windows</button>
+    </div>
+
+    <section id="mac" aria-label="Install on macOS">
+      <h3>macOS</h3>
+      <ol>
+        <li>Copy this line:
+          <div class="cmd"><code>curl -fsSL https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.sh | sh</code><button type="button" class="copy" hidden>Copy</button></div>
+        </li>
+        <li>Press <kbd>⌘</kbd> <kbd>Space</kbd>, type <b>Terminal</b>, press <kbd>Return</kbd>.</li>
+        <li>Press <kbd>⌘</kbd> <kbd>V</kbd>, then <kbd>Return</kbd>.</li>
+      </ol>
+      <p class="note">AfterGlow opens in your menu bar. Apple Silicon and Intel. <a href="https://github.com/wajenaqv/afterglow/blob/main/install.sh">Read the script</a>.</p>
+    </section>
+
+    <section id="win" aria-label="Install on Windows">
+      <h3>Windows</h3>
+      <ol>
+        <li>Copy this line:
+          <div class="cmd"><code>irm https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.ps1 | iex</code><button type="button" class="copy" hidden>Copy</button></div>
+        </li>
+        <li>Press the <kbd>Windows</kbd> key, type <b>PowerShell</b>, press <kbd>Enter</kbd>.</li>
+        <li>Press <kbd>Ctrl</kbd> <kbd>V</kbd>, then <kbd>Enter</kbd>.</li>
+      </ol>
+      <p class="note">AfterGlow opens in your tray, by the clock. No admin needed. <a href="https://github.com/wajenaqv/afterglow/blob/main/install.ps1">Read the script</a>.</p>
+    </section>
+    <p class="note">Why a line to paste? AfterGlow is a free hobby project without paid signing, so a downloaded installer shows a security warning. You can still <a href="https://github.com/wajenaqv/afterglow/releases/latest">download it by hand</a>.</p>
+
+    <h2>How it feels</h2>
+    <video src="reaction.mp4" poster="poster.webp" muted loop playsinline controls preload="metadata" aria-label="A WhatsApp message arrives and a jellyfish glows green; more messages arrive and more jellyfish appear"></video>
+    <p>A message arrives, and the wallpaper lights up in that app's colour, then slowly fades. Things pile up, and the scene fills. No popups, no badges, no sounds.</p>
+
+    <h2>Pick a scene</h2>
+    <video src="reel.mp4" poster="reel-poster.webp" muted loop playsinline controls preload="metadata" aria-label="Several AfterGlow wallpapers, one after another"></video>
+    <p>Creatures, skies, old screens and clocks, each with its own palettes. More are on the way.</p>
+
+    <h2>Private by design</h2>
+    <p>AfterGlow has no server, no account and no telemetry. It keeps which app and how many, never what a message says. It only goes online for the accounts you connect yourself (Google, Microsoft, Spotify, Steam), straight from your computer, and sign-in tokens stay in your system's keychain.</p>
+
+    <h2>Questions</h2>
+    <details><summary>Will it slow down my games?</summary><p>It pauses while something is fullscreen, when windows cover it, and on battery.</p></details>
+    <details><summary>How do I update it?</summary><p>Run the same install line again.</p></details>
+    <details><summary>How do I remove it?</summary><p>Quit it first, which brings your desktop picture back. Then, on macOS, delete AfterGlow from Applications; on Windows, uninstall it in Settings → Apps.</p></details>
+    <details><summary>Why can't I see it?</summary><p>Quit other live wallpaper apps (Wallpaper Engine, Lively, Plash): they cover it.</p></details>
+
+    <footer><a href="https://github.com/wajenaqv/afterglow">Source on GitHub</a> · <a href="https://github.com/wajenaqv/afterglow/issues">Report a problem</a> · MIT</footer>
+    <p id="said" class="sr" role="status"></p>
+  </main>
+  <script src="site.js"></script>
+</body>
+</html>

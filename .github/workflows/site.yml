@@ -1,0 +1,37 @@
+name: site
+
+# The download page (site/) on GitHub Pages. Pages must be switched on once:
+# repo Settings -> Pages -> Source: GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "scripts/site.js", "src/brand.css", "assets/**", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun scripts/site.js
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist-site
+      - id: deploy
+        uses: actions/deploy-pages@v4
