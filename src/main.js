@@ -215,7 +215,6 @@ for (const w of WALLPAPERS) {
 // Coming soon: wallpapers on their way (from heywajih.com), as dim tiles
 // with a sketch, so the picker shows there's more to come
 const SOON = [
-  { name: "constellation", about: "A cat drawn in the stars: chart lines join the stars into a cat, then it dissolves and the next one forms.", art: "  *        *\n   \\      /\n    *----*\n    |    |\n    *    *--*" },
   { name: "black hole", about: "Light bending around a black hole, traced ray by ray: a glowing disk, its lensed halo and warped stars.", art: "  .   *    .\n   .-~~~~-.\n  ( ( @@ ) )\n   '-~~~~-'\n .    *   ." },
   { name: "cats", about: "Glowing text-art cats: one asleep in the corner, a whole family, and a troupe that dances.", art: "  /\\_/\\\n ( -.- )\n  > ^ <\n (__)_)~" },
 ];

@@ -21,6 +21,7 @@
 
 import { params, hash, seeded, STILL, HOVER, pointer, onReaction, seenLantern } from "./common.js";
 import { setPalette, startScene, reduced } from "./nightscene.js";
+import { cellBuffer } from "./cells.js";
 
 const TAU = Math.PI * 2;
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -220,26 +221,10 @@ const lamp = (y) => 0.35 + 0.85 * Math.exp(-(((y - 0.18 * SC) / 0.42) ** 2));
 
 // ---- per-cell buffers ----
 let dims = null, cols = 0, rows = 0, cwH = 0, chH = 0;
-let CELL = new Uint8Array(0), BC, BD, BI, BRIM, HR, HG, HB; // CELL: per cell r, g, b (0..255) and the glyph slot (0 blank)
-// Every character the scene draws; a cell's glyph slot is its place here + 1.
-// The GPU builds its glyph atlas from this string (scene-gl.js spec.ramp).
-const GLYPHS = ".:-=+*'`,~()oO\\|/v";
-const SLOT = Object.fromEntries([...GLYPHS].map((ch, k) => [ch, k + 1]));
-const q4 = (v) => Math.round(clamp01(v) * 63) * 4; // colours in steps of 4 (fewer canvas styles)
-const put = (i, g, c) => {
-  const k = i * 4;
-  CELL[k] = q4(c[0]);
-  CELL[k + 1] = q4(c[1]);
-  CELL[k + 2] = q4(c[2]);
-  CELL[k + 3] = SLOT[g];
-};
-const cssCache = new Map();
-function cssAt(k) {
-  const key = (CELL[k] << 16) | (CELL[k + 1] << 8) | CELL[k + 2];
-  let s = cssCache.get(key);
-  if (!s) cssCache.set(key, (s = `rgb(${CELL[k]},${CELL[k + 1]},${CELL[k + 2]})`));
-  return s;
-}
+let BC, BD, BI, BRIM, HR, HG, HB;
+// every character the scene draws (the GPU builds its glyph atlas from them)
+const cells = cellBuffer(".:-=+*'`,~()oO\\|/v");
+const put = (i, g, c) => cells.put(i, g, c);
 // visit the cells within a box (screen heights) around a point
 function cellsAround(x, y, rx, ry, fn) {
   const c0 = Math.max(0, Math.floor((x - rx) / cwH)), c1 = Math.min(cols - 1, Math.floor((x + rx) / cwH));
@@ -361,7 +346,7 @@ function drawPetal(x, y, c, fi, s, colour, k) {
         const cc = c0 + n, rr = r + dr;
         if (cc < 0 || cc >= cols || rr < 0 || rr >= rows) continue;
         const j = rr * cols + cc;
-        if (!CELL[j * 4 + 3]) put(j, ".", col.map((v) => v * 0.3));
+        if (!cells.has(j)) put(j, ".", col.map((v) => v * 0.3));
       }
 }
 function petals(t, layer) {
@@ -541,7 +526,7 @@ function frame(t) {
   pulses = pulses.filter((p) => T - p.t0 < p.tau * 6);
   sway(T);
   watchHover();
-  CELL.fill(0);
+  cells.clear();
   HR.fill(0);
   HG.fill(0);
   HB.fill(0);
@@ -551,7 +536,7 @@ function frame(t) {
   drawFlowers(T, light);
   // the glow around blossoms (and the moon): scattered dim dots on empty cells
   for (let i = 0; i < cols * rows; i++) {
-    if (CELL[i * 4 + 3]) continue;
+    if (cells.has(i)) continue;
     const m = Math.max(HR[i], HG[i], HB[i]);
     if (m < 0.05 + 0.22 * hash(i, 0, 17)) continue;
     const k = Math.min(1, m) / m;
@@ -560,37 +545,6 @@ function frame(t) {
   petals(T, "near");
   burstPetals(T);
 }
-
-const BLANK = [[0, 0, 0], " ", "-"];
-function sample(X, Y, t, cell) {
-  const k = (cell[1] * cols + cell[0]) * 4, s = CELL[k + 3];
-  return s ? [BLANK[0], GLYPHS[s - 1], cssAt(k)] : BLANK;
-}
-
-// The GPU draws the same cells: CELL goes up as a texture each frame, and the
-// light pass hands each cell's colour and glyph slot to the glyph pass
-let cellTex = null;
-const gpu = {
-  ramp: GLYPHS,
-  glsl: `
-uniform sampler2D uCells;
-vec4 sampleCell4(vec2 P) {
-  vec4 c = texelFetch(uCells, ivec2(floor(gl_FragCoord.xy)), 0);
-  return vec4(c.rgb, floor(c.a * 255.0 + 0.5));
-}`,
-  bind(gl, u, unit) {
-    if (!cellTex) {
-      cellTex = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, cellTex);
-      for (const [p, v] of [[gl.TEXTURE_MIN_FILTER, gl.NEAREST], [gl.TEXTURE_MAG_FILTER, gl.NEAREST], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, p, v);
-    }
-    gl.activeTexture(gl.TEXTURE0 + unit);
-    gl.bindTexture(gl.TEXTURE_2D, cellTex);
-    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, cols, rows, 0, gl.RGBA, gl.UNSIGNED_BYTE, CELL);
-    gl.uniform1i(u.uCells, unit);
-  },
-};
 
 function layout(d) {
   dims = d;
@@ -601,7 +555,7 @@ function layout(d) {
   RX = d.A;
   SC = Math.min(1, d.A / 1.15); // a portrait screen gets a smaller branch across its whole width
   const n = cols * rows;
-  CELL = new Uint8Array(n * 4);
+  cells.resize(cols, rows);
   BC = new Float32Array(n);
   BD = new Uint8Array(n);
   BI = new Float32Array(n);
@@ -620,6 +574,6 @@ startScene({
   fontPx: (H) => (STILL ? H / 150 : Math.max(5, Math.min(10, H / 150))),
   layout,
   frame,
-  sample,
-  gpu,
+  sample: cells.sample,
+  gpu: cells.gpu,
 });

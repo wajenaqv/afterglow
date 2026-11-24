@@ -63,6 +63,16 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
+    id: "constellation",
+    name: "constellation",
+    about: "Cats in the stars: chart lines join a few bright stars into a cat (sitting, asleep, pouncing, a loaf...), its Latin name fades in, then it dissolves and the next forms elsewhere. Sweep the cursor fast for a shooting star. A notification is a shooting star in the app's colour whose trail lingers; an app with something waiting is a bright star in its colour.",
+    options: [
+      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
+      { key: "pose", label: "cat", choices: [["", "all of them"], ["sitting", "sitting"], ["sleeping", "sleeping"], ["walking", "walking"], ["face", "face"], ["pouncing", "pouncing"], ["loaf", "loaf"], ["stretching", "stretching"]] },
+    ],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), light, a radar, an oscilloscope, or ASCII fonts (slant, big, lcd).",
