@@ -1,3 +1,5 @@
+**[afterglow.heywajih.com](https://afterglow.heywajih.com)** has the install lines with a Copy button.
+
 ### Windows
 
 Easiest: paste this into PowerShell. It downloads the installer below, installs AfterGlow for your user only (no admin) and starts it.
@@ -18,6 +20,6 @@ curl -fsSL https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.sh 
 
 Or download `AfterGlow_*_universal.dmg` below and drag AfterGlow to Applications. It isn't notarized by Apple, so the first time macOS says it can't check it: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
 
-For Dock badges, allow AfterGlow in **System Settings → Privacy & Security → Accessibility**.
+Want it to react to Dock badges? Switch them on in Settings → apps; macOS will ask for permission.
 
 Quit any other live wallpaper app (Wallpaper Engine, Lively, Plash) first, or it will cover AfterGlow.

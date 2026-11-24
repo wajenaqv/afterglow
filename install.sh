@@ -78,4 +78,4 @@ xattr -dr com.apple.quarantine "$DEST/$APP" 2>/dev/null || true
 echo "Opening AfterGlow (it lives in the menu bar)."
 open "$DEST/$APP"
 echo
-echo "For Dock badges: System Settings -> Privacy & Security -> Accessibility -> allow AfterGlow."
+echo "Want it to react to Dock badges? Switch them on in Settings -> apps; macOS will ask for permission."
