@@ -13,6 +13,10 @@ const PALETTE = {
   choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"]],
 };
 
+// The techy wallpapers (radar, life, circuit): the phosphor, and the CRT overlay
+const PHOSPHOR = { key: "tint", label: "phosphor", choices: [["", "green"], ["amber", "amber"], ["ice", "ice blue"], ["white", "white"]] };
+const CRT = { key: "crt", label: "scanlines", choices: [["", "on"], ["0", "off"]] };
+
 // The jellyfish's drifting specks ("marine snow"), or plain black water
 const SPECKS = { key: "specks", label: "background", choices: [["", "specks"], ["0", "black"]] };
 
@@ -70,6 +74,27 @@ export const WALLPAPERS = [
     name: "star trails",
     about: "A long exposure of the night sky: stars turn slowly around the pole star, leaving thin arcs of light above dark mountains. A notification lights one star's trail in the app's colour; an app with something waiting keeps a trail in its colour until you rest the cursor on its star.",
     options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["colour", "star colours"], ["cool", "cool"], ["warm", "warm"], ["green", "AfterGlow green"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "radar",
+    name: "radar",
+    about: "A phosphor radar screen: the beam sweeps round and everything it passes flares and slowly fades. Every app with something waiting is a contact labelled with its name, refreshed each pass; a new message comes in from the edge in the app's colour.",
+    options: [PHOSPHOR, CRT],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "life",
+    name: "phosphor life",
+    about: "Conway's Game of Life on a phosphor screen: cells live and die, and the dead fade slowly, leaving glowing trails. A new message launches gliders in the app's colour; an app with something waiting keeps a pulsar beating in its colour.",
+    options: [PHOSPHOR, CRT],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "circuit",
+    name: "circuit board",
+    about: "A dark circuit board: chips and buses of traces, with packets of light running along them and fading behind. A new message comes in from the edge of the board in the app's colour and lights a chip; an app with something waiting takes a chip with its name and a blinking LED.",
+    options: [PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {

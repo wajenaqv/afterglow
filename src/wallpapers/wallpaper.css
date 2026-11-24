@@ -17,3 +17,20 @@ body.canvas-page {
   width: 100%;
   height: 100%;
 }
+
+/* The techy wallpapers (radar, life, circuit): a CRT over the picture, the
+   same faint scanlines and vignette as the Settings window. ?crt=0 turns it off. */
+body.crt::before,
+body.crt::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+body.crt::before {
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, color-mix(in srgb, var(--bg) 26%, transparent) 2px 3px);
+}
+body.crt::after {
+  background: radial-gradient(ellipse at center, transparent 55%, color-mix(in srgb, var(--bg) 60%, transparent) 100%);
+}
