@@ -1,4 +1,4 @@
-// Impossible: impossible objects that are really there, in turn.
+// Impossible: an impossible object that is really there, the one the user picks.
 //
 // A Penrose triangle: three square beams in an open chain, along x, then y,
 // then z, so the far end of the last sits exactly (L, L, L) from the start of
@@ -13,8 +13,8 @@
 // on the start: a staircase that climbs for ever.
 //
 // The camera rocks slowly round each object's magic viewpoint: it closes,
-// holds (the illusion), drifts open so you can see it never was closed, and
-// closes again; the objects take turns every 92 s, switching while closed.
+// holds (the illusion), swings open now and then so you can see it never was
+// closed, and closes again.
 //
 // Reactions: a new message sends a band of light in the app's colour round the
 // endless loop, fading as it goes; every app with something waiting is a light
@@ -23,7 +23,7 @@
 //
 // Drawn through cells.js: faces filled with characters by how much light they
 // catch, edges in slope characters.
-// Options: ?object=triangle|stairs ?tint=green|amber|ice|white ?crt=0
+// Options: ?object=triangle|stairs|reutersvard|square|pentagon ?tint=green|amber|ice|white ?crt=0
 
 import { params, STILL, STILL_AT, onReaction } from "./common.js";
 import { startScene, reduced } from "./nightscene.js";
@@ -67,35 +67,66 @@ function boxFaces(bx, id) {
   return out;
 }
 
-// ---- the Penrose triangle ----
-function triangle() {
-  const L = 1, S = 0.2;
-  const boxes = [
-    { min: [0, 0, 0], max: [L, S, S] }, // along x
-    { min: [L - S, 0, 0], max: [L, L, S] }, // along y
-    { min: [L - S, L - S, 0], max: [L, L, L / 2], open: "max2" }, // along z, first half
-    { min: [L - S, L - S, L / 2], max: [L, L, L], open: "min2", behind: true }, // far half: always behind
-  ];
-  // the loop: the beams' centre lines
-  const pts = [[S / 2, S / 2, S / 2], [L - S / 2, S / 2, S / 2], [L - S / 2, L - S / 2, S / 2], [L - S / 2, L - S / 2, L - S / 2]];
+// ---- impossible chains ----
+// Square beams along the axes, one after another: [axis, sign, length] each.
+// Seen along the line from the chain's start to its end, the end lands on the
+// start and the chain closes into a loop that can't exist. The last beam is
+// split in half and its far half always drawn first, behind everything, so
+// where the ends meet the first beam passes in front: that reads as impossible
+// rather than as overlapping bars. `cubes`: built from separate cubes instead
+// (Reutersvard's figures).
+function chain(segs, { S = 0.2, roll = 0, cubes = false, edge = 1, speed = 0.3 } = {}) {
+  const pts = [[0, 0, 0]];
+  for (const [ax, sg, len] of segs) {
+    const p = pts[pts.length - 1].slice();
+    p[ax] += sg * len;
+    pts.push(p);
+  }
+  const n = segs.length, boxes = [];
+  const box = (a, b, extra) => ({ min: [0, 1, 2].map((k) => Math.min(a[k], b[k]) - S / 2), max: [0, 1, 2].map((k) => Math.max(a[k], b[k]) + S / 2), ...extra });
+  segs.forEach(([ax], i) => {
+    const a = pts[i], b = pts[i + 1];
+    if (cubes) {
+      const m = Math.max(2, Math.round(Math.abs(b[ax] - a[ax]) / (S * 1.3)));
+      for (let j = i ? 1 : 0; j < (i === n - 1 ? m : m + 1); j++) {
+        const c = lerp3(a, b, j / m);
+        boxes.push(box(c, c, { behind: i === n - 1 && j > m / 2 }));
+      }
+    } else if (i === n - 1) {
+      const mid = lerp3(a, b, 0.5), up = b[ax] > a[ax];
+      const near = box(a, mid), far = box(mid, b, { behind: true });
+      // no faces where the two halves meet
+      near[up ? "max" : "min"][ax] = mid[ax];
+      far[up ? "min" : "max"][ax] = mid[ax];
+      near.open = (up ? "max" : "min") + ax;
+      far.open = (up ? "min" : "max") + ax;
+      boxes.push(near, far);
+    } else boxes.push(box(a, b));
+  });
   return {
     faces: boxes.flatMap(boxFaces),
-    magic: [1, 1, 1],
-    roll: Math.PI / 2, // apex up, the classic pose
-    centre: [L * 0.55, L * 0.45, L * 0.4],
-    zoom: 1.15,
-    byBox: false,
-    loopLen: 3,
+    magic: sub(pts[n], pts[0]),
+    roll,
+    byBox: cubes,
+    loopLen: n,
     loopAt: (u) => {
-      u = ((u % 3) + 3) % 3;
+      u = ((u % n) + n) % n;
       const k = Math.floor(u);
       return lerp3(pts[k], pts[k + 1], u - k);
     },
     glowR: S * 0.9,
-    edge: 1,
-    speed: 0.12, // loop units (beams) per second
+    edge,
+    speed, // beams per second
   };
 }
+const triangle = () => chain([[0, 1, 1], [1, 1, 1], [2, 1, 1]], { roll: Math.PI / 2 });
+const reutersvard = () => chain([[0, 1, 1], [1, 1, 1], [2, 1, 1]], { roll: Math.PI / 2, cubes: true, S: 0.17, edge: 0.75 });
+// four beams: 2 along +x, 1 along +y, 1 back along -x, 1 up +z: the ends are
+// (1, 1, 1) apart, so it is seen on the diagonal, every beam showing its sides (seen
+// along (0, 1, 1) instead, only the fronts showed and it read as a flat frame)
+const square = () => chain([[0, 1, 2], [1, 1, 1], [0, -1, 1], [2, 1, 1]], { roll: Math.PI / 2, S: 0.2 });
+// five beams whose ends are (1, 1, 1) apart
+const pentagon = () => chain([[0, 1, 1.6], [1, 1, 1.6], [2, 1, 1], [0, -1, 0.6], [1, -1, 0.6]], { roll: Math.PI / 2, S: 0.18 });
 
 // ---- Penrose stairs ----
 function stairs() {
@@ -126,13 +157,10 @@ function stairs() {
   // that shift, it is the first step again
   const N = k, shift = [x, y, N * h];
   const loop = [...tops, [tops[0][0] + shift[0], tops[0][1] + shift[1], tops[0][2] + shift[2]]];
-  const c = tops.reduce((s, p) => [s[0] + p[0] / N, s[1] + p[1] / N, s[2] + p[2] / N], [0, 0, 0]);
   return {
     faces: boxes.flatMap(boxFaces),
     magic: shift,
     roll: 0,
-    centre: [c[0], c[1], c[2] - D * 0.3],
-    zoom: 1.25,
     byBox: true,
     loopLen: N,
     loopAt: (u) => {
@@ -143,20 +171,17 @@ function stairs() {
     },
     glowR: W * 0.45,
     edge: 0.5, // dimmer edges: on a staircase full-bright outlines become a lattice
-    speed: 0.9, // steps per second: a slow climb
+    speed: 1.8, // steps per second
   };
 }
 
-const OBJECTS = { triangle: triangle(), stairs: stairs() };
-const ONLY = OBJECTS[params.get("object")];
-const CYCLE = 92; // seconds each object shows (two rocks of the camera), switching while closed
-function current(t) {
-  if (ONLY) return [ONLY, 1];
-  const order = [OBJECTS.triangle, OBJECTS.stairs];
-  const k = Math.floor(t / CYCLE), into = t - k * CYCLE;
-  const fade = sstep(0, 1.8, into) * sstep(0, 1.8, CYCLE - into); // dark for a moment at the switch
-  return [order[((k % 2) + 2) % 2], fade];
-}
+const OBJECTS = { triangle: triangle(), stairs: stairs(), reutersvard: reutersvard(), square: square(), pentagon: pentagon() };
+// the shape is the user's choice (?object=, Settings), the Penrose triangle by default
+const SHAPE = OBJECTS[params.get("object")] ?? OBJECTS.triangle;
+// Every SHOW seconds: held closed most of the time, swinging open and shut
+// twice (SWINGS: start, length)
+const SHOW = 44, SWINGS = [[9, 6], [29, 6]];
+const current = () => [SHAPE, 1];
 
 // ---- the camera: orthographic, rocking round the object's magic viewpoint ----
 let dims = null, cols = 0, rows = 0, cwH = 0, chH = 0, SX = 1, SY = 0.5, ZOOM = 0.42;
@@ -173,11 +198,15 @@ function layout(d) {
 }
 // how far off the magic viewpoint: lingers at zero (closed), swings open between
 function offAngle(t) {
-  const s = Math.sin((TAU * t) / 46);
-  return 0.42 * Math.sign(s) * Math.pow(Math.abs(s), 2.2);
+  const into = t - Math.floor(t / SHOW) * SHOW;
+  for (let i = 0; i < SWINGS.length; i++) {
+    const [s, d] = SWINGS[i];
+    if (into > s && into < s + d) return (i % 2 ? 1 : -1) * 0.45 * Math.pow(Math.sin((Math.PI * (into - s)) / d), 1.3);
+  }
+  return 0; // closed: the illusion holds
 }
-function camera(obj, t) {
-  const a = offAngle(t);
+function camera(obj, t, magic = false) {
+  const a = magic ? 0 : offAngle(t);
   const base = norm(obj.magic);
   const c = Math.cos(a), s = Math.sin(a);
   const d = norm([base[0] * c - base[1] * s, base[0] * s + base[1] * c, base[2] + 0.08 * Math.sin((TAU * t) / 31) * Math.abs(Math.sin(a * 3))]);
@@ -187,9 +216,25 @@ function camera(obj, t) {
   const up = [u0[0] * cr - r0[0] * sr, u0[1] * cr - r0[1] * sr, u0[2] * cr - r0[2] * sr];
   return { d, right, up, obj };
 }
+// fit a shape to the screen: its extent seen from the magic viewpoint, once
+function fitObj(o) {
+  const cam = camera(o, 0, true);
+  let r0 = 1e9, r1 = -1e9, u0 = 1e9, u1 = -1e9;
+  for (const f of o.faces)
+    for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      const p = [f.o[0] + f.e1[0] * a + f.e2[0] * b, f.o[1] + f.e1[1] * a + f.e2[1] * b, f.o[2] + f.e1[2] * a + f.e2[2] * b];
+      const r = dot(p, cam.right), u = dot(p, cam.up);
+      (r0 = Math.min(r0, r)), (r1 = Math.max(r1, r)), (u0 = Math.min(u0, u)), (u1 = Math.max(u1, u));
+    }
+  o.mid = [(r0 + r1) / 2, (u0 + u1) / 2];
+  o.ext = [r1 - r0, u1 - u0];
+}
+const FIT = 0.64; // share of the screen's height a shape fills
 const project = (p, cam) => {
-  const q = sub(p, cam.obj.centre), z = ZOOM * cam.obj.zoom;
-  return [SX + dot(q, cam.right) * z, SY - dot(q, cam.up) * z];
+  const o = cam.obj;
+  if (!o.ext) fitObj(o);
+  const z = Math.min(FIT / o.ext[1], (dims.A * 0.5) / o.ext[0]);
+  return [SX + (dot(p, cam.right) - o.mid[0]) * z, SY - (dot(p, cam.up) - o.mid[1]) * z];
 };
 const LIGHT = norm([-0.4, 0.3, 1]); // from the top left
 

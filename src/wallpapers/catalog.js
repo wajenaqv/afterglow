@@ -100,8 +100,8 @@ export const WALLPAPERS = [
   {
     id: "impossible",
     name: "impossible",
-    about: "Impossible objects that are really there, in turn: a Penrose triangle and Penrose stairs, glowing, that only close from one viewpoint. The view rocks slowly, so each closes, holds, opens and closes again. A new message sends a band of light round the endless loop; an app with something waiting is a light going round it forever.",
-    options: [{ key: "object", label: "object", choices: [["", "both, in turn"], ["triangle", "triangle"], ["stairs", "stairs"]] }, PHOSPHOR, CRT],
+    about: "An impossible object that is really there, glowing, that only closes from one viewpoint: pick a Penrose triangle, Penrose stairs, a triangle of cubes, an impossible frame or pentagon. It holds closed, swings open now and then, and closes again. A new message sends a band of light round the endless loop; an app with something waiting is a light going round it forever.",
+    options: [{ key: "object", label: "shape", choices: [["", "Penrose triangle"], ["stairs", "Penrose stairs"], ["reutersvard", "triangle of cubes"], ["square", "impossible frame"], ["pentagon", "impossible pentagon"]] }, PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
