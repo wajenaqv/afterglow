@@ -40,7 +40,7 @@ const add = (a, b, f = 1) => [a[0] + b[0] * f, a[1] + b[1] * f, a[2] + b[2] * f]
 
 // ---- palettes ----
 const TINTS = {
-  natural: { sky: C(1, 2, 6), dust: C(70, 60, 130), star: C(225, 232, 255), bright: C(255, 244, 220), line: C(120, 160, 235), label: C(110, 130, 180) },
+  natural: { sky: C(1, 2, 6), dust: C(70, 60, 130), star: C(225, 232, 255), bright: C(255, 244, 220), line: C(120, 160, 235), label: C(215, 170, 85) }, // the names in a chart's gold
   cool: { sky: C(0, 3, 8), dust: C(40, 80, 140), star: C(200, 230, 255), bright: C(225, 245, 255), line: C(80, 185, 255), label: C(90, 140, 190) },
   warm: { sky: C(6, 2, 2), dust: C(130, 70, 60), star: C(255, 235, 210), bright: C(255, 225, 175), line: C(255, 160, 90), label: C(190, 135, 100) },
   grey: { sky: C(3, 3, 3), dust: C(90, 90, 95), star: C(225, 225, 230), bright: C(250, 250, 250), line: C(160, 165, 175), label: C(130, 132, 138) },
@@ -51,14 +51,14 @@ const COL = TINTS[params.get("tint")] ?? TINTS.natural;
 // ---- the cats: stars (x right, y down, about -1..1) and the lines between them ----
 const POSES = [
   {
-    name: "felis sedens", // sitting, facing right
-    stars: [[0.2, -0.72], [0.28, -1.0], [0.45, -0.84], [0.62, -0.98], [0.68, -0.68], [0.5, -0.52], [0.42, -0.18], [0.5, 0.58], [0.0, -0.42], [-0.38, 0.06], [-0.36, 0.58], [-0.78, 0.46], [-0.86, 0.06]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0], [0, 8], [8, 9], [9, 10], [10, 7], [7, 6], [6, 5], [10, 11], [11, 12]],
+    name: "felis sedens", // sitting, facing left: ears, head, chest down to a front paw, the back sloping to the haunch, the tail curling up from the base
+    stars: [[-0.55, -0.5], [-0.62, -1.0], [-0.44, -0.78], [-0.24, -1.0], [-0.14, -0.6], [-0.46, -0.12], [-0.42, 0.75], [0.16, -0.24], [0.46, 0.28], [0.34, 0.75], [0.78, 0.7], [0.98, 0.4]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [4, 7], [7, 8], [8, 9], [9, 6], [9, 10], [10, 11]],
   },
   {
-    name: "felis dormiens", // curled up asleep, facing left
-    stars: [[-0.95, 0.08], [-0.92, -0.28], [-0.86, -0.56], [-0.66, -0.38], [-0.46, -0.56], [-0.34, -0.3], [0.2, -0.44], [0.76, -0.2], [0.92, 0.24], [0.4, 0.58], [-0.4, 0.6], [0.1, 0.4], [-0.5, 0.36], [-0.84, 0.26]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 0], [8, 11], [11, 12], [12, 13]],
+    name: "felis dormiens", // curled up asleep: an oval, the head with its ears at one end, the tail wrapping round to meet it
+    stars: [[-0.88, -0.22], [-0.86, -0.64], [-0.67, -0.47], [-0.5, -0.72], [-0.05, -0.64], [0.45, -0.5], [0.82, -0.06], [0.68, 0.42], [0.2, 0.7], [-0.35, 0.66], [-0.72, 0.4], [-0.62, 0.08]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11]],
   },
   {
     name: "felis ambulans", // strolling, tail up
@@ -71,9 +71,9 @@ const POSES = [
     lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 0], [14, 5], [14, 15], [14, 16], [14, 17], [14, 18]],
   },
   {
-    name: "felis saliens", // pouncing to the right, front paws reaching
-    stars: [[1.0, -0.32], [0.86, -0.62], [0.72, -0.44], [0.6, -0.7], [0.5, -0.4], [0.0, -0.3], [-0.5, -0.16], [-0.86, -0.46], [-1.12, -0.38], [0.68, -0.12], [-0.3, 0.06], [1.12, 0.12], [0.94, 0.26], [-0.78, 0.4], [-1.0, 0.28]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [0, 9], [9, 10], [10, 6], [9, 11], [9, 12], [6, 13], [10, 14]],
+    name: "felis saliens", // leaping to the right: head and ears in front, the spine level, front legs reaching, back legs pushing off, the tail streaming behind
+    stars: [[0.7, -0.66], [0.88, -0.64], [1.04, -0.4], [0.72, -0.34], [0.45, -0.24], [-0.05, -0.3], [-0.5, -0.2], [-0.95, -0.48], [-1.22, -0.36], [0.66, 0.06], [1.02, 0.24], [-0.72, 0.16], [-1.06, 0.42], [0.02, 0.04]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 0], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [4, 9], [9, 10], [6, 11], [11, 12], [9, 13], [13, 11]],
   },
   {
     name: "felis panis", // a loaf: paws tucked in, tail wrapped round
@@ -81,9 +81,9 @@ const POSES = [
     lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 0], [7, 11], [11, 12]],
   },
   {
-    name: "felis extensa", // a long stretch: front low, rump high, tail up
-    stars: [[-0.95, 0.16], [-0.98, -0.14], [-0.84, 0.0], [-0.72, -0.16], [-0.6, 0.08], [0.0, -0.16], [0.5, -0.46], [0.76, -0.8], [0.6, -1.04], [-0.55, 0.4], [-1.18, 0.6], [-0.72, 0.6], [0.48, 0.6], [0.68, 0.6], [0.18, 0.02]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [0, 9], [9, 10], [9, 11], [9, 14], [14, 12], [6, 13]],
+    name: "felis extensa", // the long stretch, facing left: head low with its ears, front paws reaching forward, the rump high, the tail up, a back leg down
+    stars: [[-0.95, 0.18], [-0.98, -0.08], [-1.0, -0.34], [-0.85, -0.2], [-0.7, -0.36], [-0.6, -0.06], [-0.5, 0.3], [-0.8, 0.5], [-1.2, 0.58], [0.1, -0.18], [0.52, -0.48], [0.74, -0.88], [0.6, -1.1], [0.66, 0.06], [0.62, 0.6], [0.1, 0.3]],
+    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 9], [0, 6], [6, 7], [7, 8], [6, 15], [15, 13], [9, 10], [10, 11], [11, 12], [10, 13], [13, 14]],
   },
 ];
 // The order they come in, so neighbours look different
@@ -140,66 +140,27 @@ function tone(col) {
   const f = 0.3 + 0.85 * T, hot = Math.max(0, T - 0.8) * 2.5;
   return { T, rgb: col.map((v) => { const c = (v / top) * f; return c + (1 - c) * hot * 0.6; }) };
 }
+// a light-only cell: blank below a dithered cut-off, else a character by brightness
+function light(c, r, col) {
+  const { T, rgb } = tone(col);
+  if (T < 0.045 + 0.06 * hash(c, r, 5)) return;
+  cells.putAt(c, r, RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(T * (RAMP.length - 1))))], rgb);
+}
 const draw = (c, r, chr, col) => cells.putAt(c, r, chr, tone(col).rgb);
+// - | / \ by the slope of a line on screen (cells are taller than wide)
+function slopeChar(dx, dy) {
+  const ang = Math.atan2(dy, dx * (cellH / cellW) * 0.6);
+  const a = Math.abs(ang) > Math.PI / 2 ? ang - Math.sign(ang) * Math.PI : ang; // fold to -90..90
+  return Math.abs(a) < 0.4 ? "-" : Math.abs(a) > 1.17 ? "|" : a < 0 ? "/" : "\\";
+}
 
-// ---- glow: soft light round the lines and stars, not characters ----
-// A halo made of characters (. : - = round each star) read as broken bits of
-// line, so the glow is light instead: lit cells add their colour to a tiny
-// canvas, one pixel per cell, which CSS stretches over the scene, blurs and
-// adds on top (mix-blend-mode: screen). Each thing glows in its own colour,
-// and it's the same over the GPU and the CPU renderer. (Not in saved stills:
-// those are the scene canvas alone.)
-const GLOW_BLUR = 1.5; // blur radius, in character widths
-let GLOW = new Float32Array(0), glowCv = null, glowCtx = null, glowImg = null;
-function glowAt(c, r, rgb, amt) {
-  if (c < 0 || r < 0 || c >= cols || r >= rows || amt <= 0) return;
-  const k = (r * cols + c) * 3;
-  GLOW[k] += rgb[0] * amt;
-  GLOW[k + 1] += rgb[1] * amt;
-  GLOW[k + 2] += rgb[2] * amt;
-}
-// a character that glows: amt in its own cell, a little in the cells beside
-// it for the brighter things (spread > 0), so a lone star isn't lost in the blur
-function shine(c, r, chr, col, amt, spread = 0) {
-  const { rgb } = tone(col);
-  cells.putAt(c, r, chr, rgb);
-  glowAt(c, r, rgb, amt);
-  if (spread > 0)
-    for (const [i, j] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) glowAt(c + i, r + j, rgb, amt * spread);
-}
-function glowLayout(d) {
-  if (!glowCv) {
-    glowCv = document.createElement("canvas");
-    glowCv.setAttribute("aria-hidden", "true");
-    Object.assign(glowCv.style, { position: "fixed", left: "0", top: "0", pointerEvents: "none", mixBlendMode: "screen" });
-    document.body.appendChild(glowCv);
-    glowCtx = glowCv.getContext("2d");
-  }
-  glowCv.width = d.cols;
-  glowCv.height = d.rows;
-  Object.assign(glowCv.style, { width: `${d.cols * d.cw}px`, height: `${d.rows * d.ch}px`, filter: `blur(${(GLOW_BLUR * d.cw).toFixed(1)}px)` });
-  glowImg = glowCtx.createImageData(d.cols, d.rows);
-  GLOW = new Float32Array(d.cols * d.rows * 3);
-}
-function glowFlush() {
-  const px = glowImg.data;
-  for (let i = 0, k = 0; i < GLOW.length; i += 3, k += 4) {
-    px[k] = Math.min(255, GLOW[i] * 255);
-    px[k + 1] = Math.min(255, GLOW[i + 1] * 255);
-    px[k + 2] = Math.min(255, GLOW[i + 2] * 255);
-    px[k + 3] = 255;
-  }
-  glowCtx.putImageData(glowImg, 0, 0);
-}
-// A line one character wide, the way you'd draw it by hand in ASCII. Walk
-// the long axis (in cells, which are taller than wide) one cell at a time.
-// Steep: | with a slash where it steps sideways; near 45 degrees in cells
-// every cell is a slash. Shallow: the character follows where the line
-// crosses the cell, top to bottom ' - . _ , so a gentle slope reads as a
-// smooth curve (_.-' ) rather than stairs. Flat lines are plain -.
-// (A distance test, every cell near the line, made steep and diagonal lines
-// two characters wide: || and //.) fn(c, r, chr, k, n) per cell, start to end.
-const SUBROW = "'-._"; // where a shallow line crosses its cell, top to bottom
+// A line one character wide, the way you'd draw it by hand: walk the long axis
+// (in cells, taller than wide) one cell at a time; steep = | with a slash at
+// each sideways step (all slashes near 45 degrees), shallow = ' - . _ by where
+// the line crosses the cell, so long shallow lines curve gently. (A distance
+// test, every cell near the line, drew steep and diagonal lines two characters
+// wide: || and //.) fn(c, r, chr, k, n) per cell, start to end.
+const SUBROW = "'-._";
 function rasterLine(ax, ay, bx, by, fn) {
   const x0 = ax / cellW, y0 = ay / cellH, x1 = bx / cellW, y1 = by / cellH;
   const dx = x1 - x0, dy = y1 - y0;
@@ -215,7 +176,7 @@ function rasterLine(ax, ay, bx, by, fn) {
     const c0 = Math.floor(x0), c1 = Math.floor(x1), s = c1 >= c0 ? 1 : -1;
     for (let c = c0; c !== c1 + s; c += s) {
       const xc = clamp(c + 0.5, Math.min(x0, x1), Math.max(x0, x1));
-      const y = y0 + ((xc - x0) * dy) / dx;
+      const y = y0 + ((xc - x0) * dy) / (dx || 1e-9);
       pts.push([c, Math.floor(y), y - Math.floor(y)]);
     }
   }
@@ -231,6 +192,8 @@ function rasterLine(ax, ay, bx, by, fn) {
     fn(c, r, chr, k, n);
   });
 }
+// a star's magnitude, like a chart's: 2 bright (bigger, a wider halo), 1, 0 faint
+const magnitude = (pose, i) => (hash(i, pose.stars.length, 3) < 0.25 ? 2 : hash(i, pose.stars.length, 4) < 0.45 ? 1 : 0);
 
 const cells = cellBuffer(RAMP.slice(1) + "|/\\_'ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
@@ -244,7 +207,6 @@ function layout(d) {
   cols = d.cols;
   rows = d.rows;
   cells.resize(cols, rows);
-  glowLayout(d);
   SKY = [];
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
@@ -256,9 +218,6 @@ function layout(d) {
 }
 function drawSky(t, flash) {
   for (const [c, r, h, band, X, Y] of SKY) {
-    const k = r * cols + c;
-    // never break a chart line, sit right beside one, or crowd a cat's star
-    if (cells.has(k) || (c > 0 && cells.has(k - 1)) || (c < cols - 1 && cells.has(k + 1)) || CLEAR.has(k)) continue;
     const tw = reduced ? 0.7 : 0.55 + 0.45 * Math.sin(t * (0.4 + h * 300) + h * 900);
     let col = add(COL.sky, COL.dust, 0.03 * band * (0.7 + 0.3 * Math.sin(X * 23 + Y * 31)));
     col = add(col, COL.star, (0.12 + 0.5 * ((h * 250) % 1)) * tw * (1 + 2.5 * flash));
@@ -267,37 +226,39 @@ function drawSky(t, flash) {
   }
 }
 
-// ---- a cat: its chart lines, drawn one after another ----
-// One character wide, a touch dimmer mid-line so the stars read as joints.
-// No halo of characters round the stars any more: at character resolution a
-// halo is a ring of . : - = that reads as broken bits of line. The stars
-// glow in their own cell instead (drawCatStars), and the cells round them are
-// kept clear of background stars (CLEAR).
-const CLEAR = new Set();
-// keep background stars out of the 5 x 3 cells round a bright star
-const clearAround = (c, r) => {
-  for (let j = -1; j <= 1; j++) for (let i = -2; i <= 2; i++) CLEAR.add((r + j) * cols + c + i);
-};
+// ---- a cat: glow round its named stars, then its chart lines ----
 function drawCat(cat, t) {
   const { pose, u, fade } = cat;
   if (fade <= 0 || u <= 0) return;
-  const starCells = new Set();
-  for (const s of pose.stars) {
-    const [c, r] = toCell(...place(cat, s));
-    starCells.add(r * cols + c);
-    clearAround(c, r);
-  }
+  // soft glow around the named stars, summed per cell
+  const glow = new Map();
+  pose.stars.forEach((s, i) => {
+    const a = clamp((u - i * STAR_STEP) / STAR_FADE) * fade;
+    if (a <= 0) return;
+    const [sx, sy] = place(cat, s);
+    const [c0, r0] = toCell(sx, sy);
+    const m = magnitude(pose, i), k = [0.12, 0.2, 0.32][m], spread = [0.00004, 0.00006, 0.0001][m]; // bright stars glow wider
+    for (let r = r0 - 3; r <= r0 + 3; r++)
+      for (let c = c0 - 4; c <= c0 + 4; c++) {
+        const X = (c + 0.5) * cellW, Y = (r + 0.5) * cellH;
+        const g = a * k * Math.exp(-((X - sx) ** 2 + ((Y - sy) * 0.8) ** 2) / spread);
+        if (g > 0.002) glow.set(r * cols + c, (glow.get(r * cols + c) ?? 0) + g);
+      }
+  });
+  for (const [k, g] of glow) if (g > 0.01) light(k % cols, Math.floor(k / cols), add(COL.sky, COL.star, g));
+  // the constellation's lines, drawn one after another, one character wide,
+  // stopping a cell short of the stars
   pose.lines.forEach(([ia, ib], i) => {
     const p = clamp((u - lineTime(i, pose.lines.length)) / LINE_DRAW);
     if (p <= 0) return;
     const [ax, ay] = place(cat, pose.stars[ia]);
-    const [bx, by] = place(cat, pose.stars[ib]);
-    const shimmer = reduced ? 1 : 0.9 + 0.1 * Math.sin(t * 1.3 + i);
+    const [bx0, by0] = place(cat, pose.stars[ib]);
+    const bx = ax + (bx0 - ax) * p, by = ay + (by0 - ay) * p;
+    const shimmer = reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 1.3 + i);
+    const col = add(COL.sky, COL.line, 0.8 * fade * shimmer);
     rasterLine(ax, ay, bx, by, (c, r, chr, k, n) => {
-      // not drawn this far yet, or a star's own cell (the star goes there)
-      if (k + 0.5 > n * p || starCells.has(r * cols + c)) return;
-      const mid = 1 - 0.2 * Math.sin((Math.PI * (k + 0.5)) / n);
-      shine(c, r, chr, add(COL.sky, COL.line, 0.75 * fade * shimmer * mid), 0.5 * fade);
+      if (k === 0 || (p >= 1 && k === n - 1)) return;
+      draw(c, r, chr, col);
     });
   });
 }
@@ -310,13 +271,8 @@ function drawCatStars(cat, t, flash) {
     if (a <= 0) return;
     const [c, r] = toCell(...place(cat, s));
     const tw = reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 1.7 + i * 2.1);
-    const big = hash(i, pose.stars.length, 3) < 0.35;
-    // a star kindles . -> + -> * as it fades in (and back as it goes), with
-    // a brief brightening while it lights: its glow, kept to its own cell
-    const rise = clamp((u - i * STAR_STEP) / STAR_FADE);
-    const kindle = reduced ? 0 : 0.6 * Math.sin(Math.PI * rise);
-    const chr = a < 0.3 ? "." : a < 0.65 || !big ? "+" : "*";
-    shine(c, r, chr, scale(COL.bright, (big ? 1.5 : 1.05) * Math.max(a, 0.35) * (tw + kindle) * (1 + flash)), (big ? 1.5 : 1.1) * a * (tw + kindle), 0.5);
+    const m = magnitude(pose, i);
+    draw(c, r, m ? "*" : "+", scale(COL.bright, [0.85, 1.25, 1.7][m] * a * tw * (1 + flash)));
   });
   const la = smooth(5.5, 7, u) * fade;
   if (la > 0) {
@@ -353,13 +309,17 @@ function drawShots(t) {
     const fade = moving ? (s.linger ? 1 - 0.35 * (age / s.life) : 1 - age / s.life) : 0.65 * Math.exp(-(age - s.life) / s.linger);
     if (fade < 0.02) continue;
     const len = Math.min(head, s.tail);
-    const hx = s.x + s.dx * head, hy = s.y + s.dy * head;
-    // one character wide like the chart lines, tail end to head
-    rasterLine(hx - s.dx * len, hy - s.dy * len, hx, hy, (c, r, chr, k, n) => {
-      const isHead = k === n - 1 && moving;
-      const along = 1 - ((n - 1 - k) / Math.max(1, n - 1)) * (len / s.tail); // bright at the head, fading down the tail
-      shine(c, r, isHead ? "*" : chr, scale(s.colour, (isHead ? 1.8 : 1.2 * along) * fade), (isHead ? 1 : 0.6 * along) * fade, isHead ? 0.35 : 0);
-    });
+    const chr = slopeChar(s.dx, s.dy);
+    const seen = new Set();
+    for (let d = 0; d <= len; d += cellW * 0.6) {
+      const [c, r] = toCell(s.x + s.dx * (head - d), s.y + s.dy * (head - d));
+      const k = r * cols + c;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const along = 1 - d / s.tail; // bright at the head, fading down the tail
+      const isHead = d === 0 && moving;
+      draw(c, r, isHead ? "*" : chr, scale(s.colour, (isHead ? 1.8 : 1.2 * along) * fade));
+    }
   }
 }
 
@@ -373,11 +333,16 @@ function lanternSpot(i) {
 function drawLanterns(t) {
   lanterns.forEach((l, i) => {
     const [c0, r0] = toCell(l.x, l.y);
-    // the star alone, breathing, its glow kept to its own cell like the
-    // cats' stars (a halo of . : - = characters round it looked like noise);
-    // the sky round it is kept clear (clearAround, from frame())
-    const breathe = reduced ? 1 : 0.75 + 0.25 * Math.sin((t * Math.PI * 2) / 4 + i * 1.7);
-    shine(c0, r0, "*", scale(mixWhite(l.colour, 0.3), 1.9 * breathe), 1.8 * breathe, 0.6);
+    const breathe = reduced ? 1 : 0.8 + 0.2 * Math.sin((t * Math.PI * 2) / 4 + i * 1.7);
+    // a soft halo, then the star itself
+    for (let r = r0 - 2; r <= r0 + 2; r++)
+      for (let c = c0 - 4; c <= c0 + 4; c++) {
+        if (c === c0 && r === r0) continue;
+        const X = (c + 0.5) * cellW, Y = (r + 0.5) * cellH;
+        const g = 0.5 * breathe * Math.exp(-((X - l.x) ** 2 + ((Y - l.y) * 0.8) ** 2) / 0.00012);
+        if (g > 0.03) light(c, r, scale(l.colour, g));
+      }
+    draw(c0, r0, "*", scale(mixWhite(l.colour, 0.3), 1.8 * breathe));
   });
   // rest the cursor on one for 0.8 s: seen
   if (!HOVER || !pointer.on || !lanterns.length) return void (overSince = null);
@@ -420,16 +385,12 @@ function frame(t) {
   if (!dims) return;
   const flash = Math.max(0, 1 - (t - flashAt) / 0.8);
   cells.clear();
-  GLOW.fill(0);
-  CLEAR.clear();
   const cats = current(t);
   for (const cat of cats) drawCat(cat, t);
-  for (const l of lanterns) clearAround(...toCell(l.x, l.y));
-  drawSky(t, flash); // after the lines, only into cells they left empty
+  drawSky(t, flash); // background stars sit over the lines, as on heywajih
   for (const cat of cats) drawCatStars(cat, t, flash);
   drawLanterns(t);
   drawShots(t);
-  glowFlush();
 }
 
 setPalette();
@@ -441,15 +402,3 @@ startScene({
   sample: cells.sample,
   gpu: cells.gpu,
 });
-
-// ?debug: the character grid as text, rows r0..r1 and columns c0..c1 (dev aid)
-if (params.has("debug"))
-  window.__sky = (c0 = 0, c1 = cols - 1, r0 = 0, r1 = rows - 1) => {
-    const out = [];
-    for (let r = r0; r <= r1; r++) {
-      let line = "";
-      for (let c = c0; c <= c1; c++) line += cells.sample(0, 0, 0, [c, r])[1];
-      out.push(line);
-    }
-    return out.join("\n");
-  };
