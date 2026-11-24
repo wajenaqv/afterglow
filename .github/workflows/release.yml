@@ -36,16 +36,20 @@ jobs:
             echo "Run this on a version tag (v0.1.0), not a branch." >&2
             exit 1
           fi
-          find_id() {
-            gh api "repos/${{ github.repository }}/releases" --paginate \
-              --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n 1
-          }
-          id=$(find_id)
+          # Re-run: reuse this tag's draft. The list can lag a just-created
+          # release, so a new one's id comes straight from the create reply.
+          id=$(gh api "repos/${{ github.repository }}/releases" \
+            --jq "[.[] | select(.tag_name == \"$TAG\")][0].id // empty")
           if [ -z "$id" ]; then
-            gh release create "$TAG" --draft --verify-tag \
-              --title "AfterGlow $TAG" --notes-file .github/release-notes.md
-            id=$(find_id)
+            id=$(gh api -X POST "repos/${{ github.repository }}/releases" \
+              -f tag_name="$TAG" -f name="AfterGlow $TAG" -F draft=true \
+              -F body=@.github/release-notes.md --jq .id)
           fi
+          if [ -z "$id" ]; then
+            echo "Couldn't create or find the draft release." >&2
+            exit 1
+          fi
+          echo "Draft release id: $id"
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   windows:
