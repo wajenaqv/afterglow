@@ -33,18 +33,8 @@
         <section id="page-wallpaper" data-page="wallpaper">
           <h2>wallpaper</h2>
           <p class="dim hint">Every monitor shows the one you pick. Click one to see what it does and set it up.</p>
-          <div class="wall-layout">
-            <div class="wall-list">
-              <div id="wall-tabs" class="tabs" role="tablist" aria-label="wallpaper kinds"></div>
-              <div id="cards" class="cards"></div>
-            </div>
-            <!-- the side panel: the wallpaper you clicked, in detail (main.js openPanel) -->
-            <aside id="wall-panel" class="wall-panel" hidden>
-              <button type="button" class="close" id="panel-close">close</button>
-              <div class="preview big"><iframe id="panel-preview" title="preview" tabindex="-1"></iframe></div>
-              <div id="wall-details"></div>
-            </aside>
-          </div>
+          <div id="wall-tabs" class="tabs" role="tablist" aria-label="wallpaper kinds"></div>
+          <div id="cards" class="cards"></div>
 
           <h3 class="sub">hover</h3>
           <div class="list">
@@ -200,6 +190,14 @@
           </table>
         </section>
       </main>
+
+      <!-- the wallpaper you clicked, in detail (main.js openPanel): a column of
+           the window beside the page, or in place of it on a narrow window -->
+      <aside id="wall-panel" class="wall-panel" hidden>
+        <button type="button" class="close" id="panel-close"><span class="wide-only">close</span><span class="narrow-only">&lt; all wallpapers</span></button>
+        <div class="preview big"><iframe id="panel-preview" title="preview" tabindex="-1"></iframe></div>
+        <div id="wall-details"></div>
+      </aside>
       <footer class="statusbar" id="status" aria-live="off"><span class="st-mode"></span><span class="st-apps"></span><span class="st-wall"></span></footer>
     </div>
   </body>

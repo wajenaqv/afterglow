@@ -910,33 +910,53 @@ input[type="password"]:focus {
 }
 
 /* ---- wallpaper: compact cards and the side panel (main.js openPanel) ----
-   The cards only help you pick: preview, name, one line. The panel on the
-   right holds the rest for the one you clicked: what it is, its options,
-   use / save a still, then how it reacts. */
-.wall-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
+   The cards only help you pick: preview, name, one line. The panel holds the
+   rest for the one you clicked: what it is, its options, use / save a still,
+   then how it reacts. It is a column of the window like the sidebar (from the
+   top down to the status bar, its own scrolling); on a narrow window it takes
+   the page's place instead, with "< all wallpapers" to go back. The width
+   where that switches (1000px) is WIDE in main.js. */
+.wall-panel {
+  --panel-w: clamp(360px, 30vw, 520px);
+  grid-row: 1;
+  grid-column: 3;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px 22px 28px;
+  border-left: 1px solid color-mix(in srgb, var(--dim) 35%, var(--bg));
 }
-.wall-layout.panel-open {
-  grid-template-columns: minmax(0, 1fr) 400px;
+body.panel-open[data-page="wallpaper"] .shell {
+  grid-template-columns: 196px minmax(0, 1fr) var(--panel-w, clamp(360px, 30vw, 520px));
 }
-.wall-layout .cards {
+body:not([data-page="wallpaper"]) .wall-panel {
+  display: none;
+}
+.wall-panel .close {
+  float: right;
+}
+.wall-panel .narrow-only {
+  display: none;
+}
+.wall-panel .preview.big {
+  clear: both;
+  margin: 30px 0 12px;
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, transparent);
+}
+.cards {
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 12px;
 }
-.wall-layout .card {
+.card {
   cursor: pointer;
 }
-.wall-layout .card .body {
+.card .body {
   padding: 8px 10px 10px;
   gap: 4px;
 }
-.wall-layout .card h3 {
+.card h3 {
   font-size: 13.5px;
 }
-.wall-layout .card .about {
+.card .about {
   font-size: 12px;
 }
 .card.open {
@@ -948,22 +968,6 @@ input[type="password"]:focus {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
-.wall-panel {
-  position: sticky;
-  top: 0;
-  max-height: calc(100vh - 110px);
-  overflow-y: auto;
-  border-left: 1px solid color-mix(in srgb, var(--dim) 40%, transparent);
-  padding: 0 4px 12px 18px;
-}
-.wall-panel .close {
-  float: right;
-}
-.wall-panel .preview.big {
-  clear: both;
-  margin: 28px 0 10px;
-  border: 1px solid color-mix(in srgb, var(--dim) 45%, transparent);
-}
 .wall-detail h3 {
   margin: 4px 0 8px;
   font-size: 16px;
@@ -973,7 +977,7 @@ input[type="password"]:focus {
   margin: 0 0 4px;
 }
 .wall-detail h4 {
-  margin: 14px 0 6px;
+  margin: 16px 0 6px;
   font-size: 13px;
   font-weight: 400;
   color: var(--accent);
@@ -1005,24 +1009,42 @@ input[type="password"]:focus {
 .wall-detail .actions {
   margin-top: 14px;
 }
-/* a narrow window: the panel slides over the cards instead of beside them */
-@media (max-width: 980px) {
-  .wall-layout.panel-open {
-    grid-template-columns: minmax(0, 1fr);
+.wall-detail .actions + h4 {
+  margin-top: 20px;
+}
+/* a narrow window: the panel in the page's place, not beside it */
+@media (max-width: 999px) {
+  body.panel-open[data-page="wallpaper"] .shell {
+    grid-template-columns: 196px minmax(0, 1fr);
+  }
+  body.panel-open[data-page="wallpaper"] main {
+    display: none;
   }
   .wall-panel {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(400px, 92vw);
-    max-height: none;
-    z-index: 20;
-    padding: 14px 16px;
-    background: var(--bg);
-    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.8);
+    grid-column: 2;
+    border-left: 0;
+    padding: 22px clamp(18px, 3vw, 40px) 28px;
+  }
+  .wall-panel .close {
+    float: none;
+    display: block;
+  }
+  .wall-panel .wide-only {
+    display: none;
+  }
+  .wall-panel .narrow-only {
+    display: inline;
+  }
+  .wall-panel .preview.big {
+    margin-top: 16px;
+    max-width: 640px;
+  }
+  .wall-detail {
+    max-width: 640px;
   }
 }
-.wall-detail .actions + h4 {
-  margin-top: 18px;
+@media (max-width: 760px) {
+  body.panel-open[data-page="wallpaper"] .shell {
+    grid-template-columns: 150px minmax(0, 1fr);
+  }
 }

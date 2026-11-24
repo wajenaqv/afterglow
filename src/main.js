@@ -123,6 +123,7 @@ function show() {
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
   for (const a of $$(".side a")) a.setAttribute("aria-current", a.dataset.page === page ? "page" : "false");
   $("#cmd").textContent = page;
+  document.body.dataset.page = page; // the wallpaper panel shows on its page only
   $("main").scrollTop = 0;
   if (page === "apps") refreshApps();
   if (page === "activity") refreshActivity();
@@ -197,16 +198,18 @@ function openPanel(id) {
   }
   panelPreview.src = bigSrc(id, optionsOf(card));
   panel.hidden = false;
-  $(".wall-layout").classList.add("panel-open");
+  document.body.classList.add("panel-open");
+  panel.scrollTop = 0;
 }
 function closePanel() {
   openId = null;
   panel.hidden = true;
   panelPreview.src = "about:blank";
-  $(".wall-layout").classList.remove("panel-open");
+  document.body.classList.remove("panel-open");
   for (const c of cards.values()) c.el.classList.remove("open");
 }
 $("#panel-close").addEventListener("click", closePanel);
+const WIDE = matchMedia("(min-width: 1000px)"); // keep in step with style.css
 const reactsRow = (label, text) => (text ? `<dt>${label}</dt><dd>${text}</dd>` : "");
 
 for (const w of WALLPAPERS) {
@@ -968,7 +971,9 @@ async function load() {
       nameHues(card);
       card.preview.src = previewSrc(id, optionsOf(card));
     }
-    openPanel(settings.wallpaper); // start with the one showing open
+    // start with the one showing open, when there's room for the panel beside
+    // the cards (on a narrow window it would hide them)
+    if (WIDE.matches) openPanel(settings.wallpaper);
     first = false;
   }
   markShowing();
