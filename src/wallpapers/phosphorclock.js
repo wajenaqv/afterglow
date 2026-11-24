@@ -63,32 +63,43 @@ const FADE = 9; // how long the old digits take to fade (seconds, e-folding)
 const HEAD = 0.07; // how long the beam's hot head lasts at a point
 
 // ---- layout: the text as segments along the beam's path ----
+// Wide screens: one line, "4:43". Tall screens (a portrait monitor): hours
+// above minutes, no colon, so the digits stay big and fill the height. Either
+// way the time is fitted to the width (sized by height alone, it ran off the
+// sides of a portrait monitor).
 function build(text, A, cy = 0.43) {
-  const hd = 0.25 * SIZE; // digit height
+  const tall = A < 0.9;
+  const lines = tall ? text.split(":") : [text];
+  const lineW = (line) => [...line].reduce((w, c) => w + (c === ":" ? 0.3 : 1 / 1.4), 0) + 0.3 * (line.length - 1); // in digit heights
+  const hd = Math.min(0.25 * SIZE, (0.86 * A) / Math.max(...lines.map(lineW))); // digit height
   const dw = hd / 1.4;
-  const gap = hd * 0.3, colon = hd * 0.3;
-  const widths = [...text].map((c) => (c === ":" ? colon : dw));
-  const total = widths.reduce((a, b) => a + b, 0) + gap * (text.length - 1);
-  let x = A / 2 - total / 2;
-  const top = cy - hd / 2;
+  const gap = hd * 0.3, colon = hd * 0.3, rowGap = hd * 0.35;
+  const blockH = lines.length * hd + (lines.length - 1) * rowGap;
   const segs = [], dots = [];
-  let s = 0;
-  [...text].forEach((c, i) => {
-    if (c === ":") {
-      for (const fy of [0.42, 1.0]) dots.push({ x: x + colon / 2, y: top + (fy / 1.4) * hd, s });
-      s += hd * 0.2;
-    } else
-      for (const poly of DIGITS[c])
-        for (let k = 0; k + 1 < poly.length; k++) {
-          const ax = x + poly[k][0] * dw, ay = top + (poly[k][1] / 1.4) * hd;
-          const bx = x + poly[k + 1][0] * dw, by = top + (poly[k + 1][1] / 1.4) * hd;
-          const len = Math.hypot(bx - ax, by - ay);
-          segs.push({ ax, ay, bx, by, len, s, x0: Math.min(ax, bx), x1: Math.max(ax, bx), y0: Math.min(ay, by), y1: Math.max(ay, by) });
-          s += len;
-        }
-    x += widths[i] + gap;
+  let s = 0, left = A, right = 0;
+  lines.forEach((line, row) => {
+    const total = lineW(line) * hd;
+    let x = A / 2 - total / 2;
+    left = Math.min(left, x);
+    right = Math.max(right, x + total);
+    const top = cy - blockH / 2 + row * (hd + rowGap);
+    [...line].forEach((c) => {
+      if (c === ":") {
+        for (const fy of [0.42, 1.0]) dots.push({ x: x + colon / 2, y: top + (fy / 1.4) * hd, s });
+        s += hd * 0.2;
+      } else
+        for (const poly of DIGITS[c])
+          for (let k = 0; k + 1 < poly.length; k++) {
+            const ax = x + poly[k][0] * dw, ay = top + (poly[k][1] / 1.4) * hd;
+            const bx = x + poly[k + 1][0] * dw, by = top + (poly[k + 1][1] / 1.4) * hd;
+            const len = Math.hypot(bx - ax, by - ay);
+            segs.push({ ax, ay, bx, by, len, s, x0: Math.min(ax, bx), x1: Math.max(ax, bx), y0: Math.min(ay, by), y1: Math.max(ay, by) });
+            s += len;
+          }
+      x += (c === ":" ? colon : dw) + gap;
+    });
   });
-  return { segs: segs.slice(0, MAXSEG), dots, L: s, w: hd * 0.045, box: [A / 2 - total / 2, top, A / 2 + total / 2, top + hd] };
+  return { segs: segs.slice(0, MAXSEG), dots, L: s, w: hd * 0.045, box: [left, cy - blockH / 2, right, cy + blockH / 2] };
 }
 
 // ---- state, worked out once per frame (shared by the CPU and GPU) ----
@@ -144,7 +155,8 @@ function buildDate(dims) {
   if (!dims || !cur) return;
   // big enough that each letter is several character rows tall (smaller, the
   // letters smeared into blobs)
-  const fpx = Math.max(7 * dims.ch, 0.055 * dims.H * SIZE);
+  // ... and never wider than the screen (a portrait monitor cut it off)
+  const fpx = Math.min(Math.max(7 * dims.ch, 0.055 * dims.H * SIZE), (0.9 * dims.W) / (label.length * 0.62));
   const c = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
   const font = `600 ${fpx}px "JetBrains Mono", ui-monospace, Consolas, monospace`;
   c.font = font;
