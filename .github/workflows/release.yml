@@ -1,20 +1,55 @@
 name: release
 
-# Push a version tag to publish a Windows installer:
+# Push a version tag to build AfterGlow for Windows and macOS:
 #   git tag v0.1.0 && git push origin v0.1.0
-# This builds AfterGlow_<version>_x64-setup.exe and attaches it to a draft
-# GitHub Release; review the draft and press Publish.
+# This creates a DRAFT GitHub Release and attaches
+#   AfterGlow_<version>_x64-setup.exe   (Windows installer, unsigned)
+#   AfterGlow_<version>_universal.dmg   (macOS, Apple Silicon + Intel, not notarized)
+# Review the draft and press Publish. install.sh (the macOS one-liner) always
+# fetches the latest PUBLISHED release, so nothing reaches users before that.
+# Steps and the optional macOS certificate: docs/releasing.md.
 
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
+  workflow_dispatch: # run it on a tag ("Use workflow from" -> the tag)
 
 permissions:
   contents: write
 
 jobs:
+  # One draft release that both builds upload to (two jobs each creating
+  # their own draft would race and make two drafts).
+  draft:
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            echo "Run this on a version tag (v0.1.0), not a branch." >&2
+            exit 1
+          fi
+          find_id() {
+            gh api "repos/${{ github.repository }}/releases" --paginate \
+              --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n 1
+          }
+          id=$(find_id)
+          if [ -z "$id" ]; then
+            gh release create "$TAG" --draft --verify-tag \
+              --title "AfterGlow $TAG" --notes-file .github/release-notes.md
+            id=$(find_id)
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
   windows:
+    needs: draft
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -31,20 +66,62 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      # Unsigned for now: Windows SmartScreen shows "Windows protected your PC"
-      # until the installer is code-signed (see CLAUDE.md, Distribution).
+      # Unsigned: Windows shows "Windows protected your PC" (More info -> Run anyway).
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: AfterGlow ${{ github.ref_name }}
-          releaseBody: |
-            Windows installer: download `AfterGlow_*_x64-setup.exe` below and run it.
-            It installs for your user only (no admin needed).
-
-            This build isn't code-signed yet, so Windows may show "Windows protected your PC".
-            Click **More info**, then **Run anyway**.
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.draft.outputs.id }}
           args: --bundles nsis
+
+  macos:
+    needs: draft
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      # Both Mac chips: one "universal" app for Apple Silicon and Intel.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: bun install --frozen-lockfile
+
+      # Signing. No Apple Developer account (hobby project), so no notarization.
+      # With the APPLE_CERTIFICATE secrets set (a self-signed certificate, see
+      # docs/releasing.md) every release carries the same signature, so macOS
+      # keeps the Accessibility permission across updates. Without them the app
+      # is signed ad hoc ("-"): it runs, but Accessibility must be granted again
+      # after each update.
+      - name: Choose the signing identity
+        env:
+          CERT: ${{ secrets.APPLE_CERTIFICATE }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          if [ -n "$CERT" ] && [ -n "$IDENTITY" ]; then
+            echo "Signing with the self-signed certificate."
+            {
+              echo "APPLE_CERTIFICATE=$(printf %s "$CERT" | tr -d '\n\r ')"
+              echo "APPLE_CERTIFICATE_PASSWORD=$CERT_PASSWORD"
+              echo "APPLE_SIGNING_IDENTITY=$IDENTITY"
+            } >> "$GITHUB_ENV"
+          else
+            echo "No certificate secrets: signing ad hoc."
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+          fi
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.draft.outputs.id }}
+          args: --target universal-apple-darwin --bundles app,dmg

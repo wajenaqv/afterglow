@@ -57,12 +57,18 @@ You decide what each app does in **Settings → apps**: light up, flash or nothi
 
 ## ↓ Download
 
-**Windows**: the first release is coming soon. It will be `AfterGlow_<version>_x64-setup.exe` on the [releases page](https://github.com/wajenaqv/afterglow/releases), installs just for you, no admin needed. Until then, [build it from source](#-build-from-source).
+**Windows**: download `AfterGlow_<version>_x64-setup.exe` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest) and run it. It installs just for you, no admin needed.
 
 > [!NOTE]
-> The installer isn't code-signed yet, so Windows may say *"Windows protected your PC"*. Click **More info → Run anyway**.
+> The installer isn't code-signed (AfterGlow is a hobby project), so Windows may say *"Windows protected your PC"*. Click **More info → Run anyway**.
 
-**macOS**: build from source for now ([below](#-build-from-source)).
+**macOS** (Apple Silicon and Intel): paste this into Terminal. It installs or updates AfterGlow in Applications and opens it ([read the script](install.sh)).
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.sh | sh
+```
+
+Or download `AfterGlow_<version>_universal.dmg` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest). It isn't notarized by Apple, so the first time open **System Settings → Privacy & Security** and click **Open Anyway**. For Dock badges, allow AfterGlow under **Privacy & Security → Accessibility**.
 
 > [!IMPORTANT]
 > Quit any other live wallpaper app (Wallpaper Engine, Lively, Plash) first, or it will cover AfterGlow.
