@@ -106,6 +106,10 @@ pub struct Host {
     pub settings: Mutex<Settings>,
     /// Paused from the tray menu (not saved: AfterGlow always starts running)
     pub user_paused: AtomicBool,
+    /// The tray menu is open or just closing (macOS, see menu_tracking)
+    menu_busy: AtomicBool,
+    /// Bumped each time the menu opens or closes, so an old delayed resume is ignored
+    menu_turn: AtomicUsize,
     /// What each window was last told (to log changes)
     pub(crate) last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
     /// Bumped on every rebuild, so new windows get fresh labels (a label
@@ -134,8 +138,39 @@ pub fn start(app: &AppHandle) -> tauri::Result<()> {
     {
         let a = app.clone();
         thread::spawn(move || fullscreen_loop(a));
+        let _ = MENU_APP.set(app.clone());
+        platform::watch_menus(menu_tracking);
     }
     Ok(())
+}
+
+#[cfg(target_os = "macos")]
+static MENU_APP: std::sync::OnceLock<AppHandle> = std::sync::OnceLock::new();
+
+/// macOS: hold the wallpapers still while AfterGlow's menu is open and while
+/// it fades out, so drawing them doesn't compete with the menu (opening and
+/// closing it stalled the screen for up to 0.9 s).
+/// Called on the main thread when the menu opens (true) and closes (false).
+#[cfg(target_os = "macos")]
+fn menu_tracking(open: bool) {
+    let Some(app) = MENU_APP.get() else { return };
+    let host = app.state::<Host>();
+    let turn = host.menu_turn.fetch_add(1, Ordering::SeqCst) + 1;
+    if open {
+        host.menu_busy.store(true, Ordering::SeqCst);
+        emit_to_walls(app, "paused", true);
+        return;
+    }
+    let app = app.clone();
+    thread::spawn(move || {
+        thread::sleep(Duration::from_millis(900));
+        let host = app.state::<Host>();
+        // opened again meanwhile: that menu's own close will resume
+        if host.menu_turn.load(Ordering::SeqCst) == turn {
+            host.menu_busy.store(false, Ordering::SeqCst);
+            apply_pause(&app);
+        }
+    });
 }
 
 pub fn stop(_app: &AppHandle) {
@@ -299,7 +334,11 @@ pub fn apply_pause(app: &AppHandle) {
                 last.insert(wall.label.clone(), flags.clone());
             }
         }
-        let _ = app.emit_to(EventTarget::webview_window(&wall.label), "paused", flags);
+        // the menu's hold isn't in last_paused: you're still watching, so
+        // messages must not count as missed
+        let menu = host.menu_busy.load(Ordering::SeqCst);
+        let told: Vec<bool> = flags.iter().map(|&f| f || menu).collect();
+        let _ = app.emit_to(EventTarget::webview_window(&wall.label), "paused", told);
     }
 }
 
@@ -315,7 +354,8 @@ fn fullscreen_loop(app: AppHandle) {
         thread::sleep(Duration::from_millis(250));
         // about once a second: black system wallpaper on the Space we're on
         tick += 1;
-        if tick % 4 == 0 {
+        // (not while the menu is open: the check waits on the window server)
+        if tick % 4 == 0 && !app.state::<Host>().menu_busy.load(Ordering::SeqCst) {
             let _ = app.run_on_main_thread(platform::keep_desktop_black);
         }
         let walls = app.state::<Host>().walls.lock().unwrap().clone();

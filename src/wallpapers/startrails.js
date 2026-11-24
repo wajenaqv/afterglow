@@ -21,7 +21,7 @@
 //
 // Options: ?tint=natural|warm|cool|green|colour ?fps
 
-import { params, num, seeded, hash, STILL, STILL_AT, HOVER, pointer, onReaction, seenLantern, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
+import { params, num, seeded, hash, STILL, STILL_AT, HOVER, pointer, onReaction, seenLantern, fontReady, sendStill, paceFrames } from "./common.js";
 
 const TAU = Math.PI * 2;
 const reduced = !STILL && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -367,15 +367,5 @@ if (STILL) {
     resize();
     render(performance.now());
   });
-  const fps = reduced ? 1 : preview ? 8 : num("fps", 20, 10, 30);
-  const interval = 1000 / fps;
-  let last = 0;
-  const tick = (now) => {
-    if (isPaused()) return whenResumed(() => requestAnimationFrame(tick));
-    requestAnimationFrame(tick);
-    if (document.hidden || now - last < interval - 2) return;
-    last = now;
-    render(now);
-  };
-  requestAnimationFrame(tick);
+  paceFrames(reduced ? 1 : preview ? 8 : num("fps", 20, 10, 30), render);
 }

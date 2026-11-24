@@ -34,7 +34,7 @@
 //          ?hue=1-6: the big jelly's colour in the palette (default: the
 //          moment's for stills, random live)
 
-import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern } from "./common.js";
+import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, onReaction, seenLantern, paceFrames } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createJellyGL } from "./jellyfish-gl.js";
 import { TINTS } from "./palettes.js";
@@ -671,33 +671,9 @@ function style(r, g, b) {
 
 const start = performance.now();
 let last = 0;
-// Even pacing: frames are a whole number of screen refreshes apart (every
-// 2nd at 60 Hz, 4th at 120 Hz, 5th at 144 Hz), so each stays up the same
-// time; a fixed 24 fps timer juddered (frames alternated 3 and 2 refreshes
-// at 60 Hz). The refresh interval is the median of the first second's
-// ticks (robust to jitter), and frames run off a deadline that advances by
-// a fixed step, so timing noise never piles up.
 // ?fps=15-30 (AfterGlow performance setting; 30 = the original)
-const TARGET_MS = 1000 / (reduced ? 1 : preview ? 8 : num("fps", 30, 10, 30));
-let frameMs = TARGET_MS, due = 0, prevRaf = 0;
-const ticks = [];
+const FPS = reduced ? 1 : preview ? 8 : num("fps", 30, 10, 30);
 function frame(now) {
-  // Paused by the app: stop scheduling frames entirely (no CPU) until resumed
-  if (isPaused()) {
-    prevRaf = 0;
-    return whenResumed(() => requestAnimationFrame(frame));
-  }
-  requestAnimationFrame(frame);
-  if (prevRaf && ticks.length < 60) {
-    ticks.push(now - prevRaf);
-    if (ticks.length === 60) {
-      const refresh = ticks.slice().sort((x, y) => x - y)[30];
-      if (refresh > 3 && refresh < 40) frameMs = Math.max(1, Math.round(TARGET_MS / refresh)) * refresh;
-    }
-  }
-  prevRaf = now;
-  if (document.hidden || now < due - 2) return;
-  due = now - due > frameMs * 2 ? now + frameMs : due + frameMs; // fixed steps; resync after a stall
   const dt = Math.min(0.2, (now - last) / 1000);
   last = now;
   render(now, dt);
@@ -859,5 +835,5 @@ if (STILL) {
     resize();
     render(performance.now(), 0);
   });
-  requestAnimationFrame(frame);
+  paceFrames(FPS, frame);
 }
