@@ -1,11 +1,9 @@
 // Generates src/wallpapers/clock-fonts.json: the digits and colon of the
 // figlet fonts the clock offers (hover clock and the clock wallpaper):
 //   slant        Slant, the AfterGlow banner's font (the default)
-//   small-slant  Small Slant, a compact slant
 //   big          Big, rounded
-//   colossal     Colossal, large and detailed
-//   banner       Banner3, made of #
-// Only fonts drawn with plain ASCII: block-character fonts (Electronic)
+// (Small Slant, Colossal and Banner3 were removed with their clock styles,
+// 2026-11-24.) Only fonts drawn with plain ASCII: block-character fonts (Electronic)
 // fall back to another font in the webview and break, like the first
 // density clock did. Each character is rendered on its own at full width,
 // so the clock can join them in any order; trailing blank rows are cut.
@@ -13,7 +11,7 @@
 import figlet from "figlet";
 import { writeFileSync } from "node:fs";
 
-const FONTS = { slant: "Slant", "small-slant": "Small Slant", big: "Big", colossal: "Colossal", banner: "Banner3" };
+const FONTS = { slant: "Slant", big: "Big" };
 const out = {};
 for (const [id, font] of Object.entries(FONTS)) {
   const glyphs = {};

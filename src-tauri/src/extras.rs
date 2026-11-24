@@ -171,7 +171,10 @@ impl Default for Clock {
     }
 }
 
-pub const CLOCK_STYLES: &[&str] = &["slant", "heywajih", "nixie", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
+/// Keep in step with hoverclock.js STYLES. (nixie, small-slant, colossal,
+/// banner, density and plain were removed, 2026-11-24: an old saved setting
+/// naming one shows slant, and the next save from Settings replaces it.)
+pub const CLOCK_STYLES: &[&str] = &["slant", "heywajih", "big", "lcd"];
 pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-left"];
 
 /// Save the clock's settings and tell the wallpapers straight away

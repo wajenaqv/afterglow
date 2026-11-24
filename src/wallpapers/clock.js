@@ -4,14 +4,15 @@
 // that change scramble into place, left to right, like heywajih's clock.
 //
 // Options (Settings card; also plain URL options):
-//   ?style=   slant (default) | small-slant | big | colossal | banner |
-//             heywajih | nixie | density | lcd | plain | radar | scope | light
-//             | phosphor
+//   ?style=   slant (default) | big | lcd (page text) | phosphor | heywajih |
+//             light | radar | scope (drawn on a canvas)
 //             (phosphor: phosphorclock.js, digits drawn by a CRT beam, GPU and
 //             CPU; heywajih: heyclock.js, heywajih.com's clock as it is)
 //             (light: lightclock.js, the time drawn as light like the jellies)
 //             (radar and scope animate: crtclock.js draws them with the
-//             night-scene renderer, GPU and CPU; nixie's tubes are HTML)
+//             night-scene renderer, GPU and CPU)
+//             (nixie, small-slant, colossal, banner, density and plain were
+//             removed, owner 2026-11-24; those values fall back to slant)
 //   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade)
 //   ?fill=    gradient (default) | solid
 //   ?hours=   auto (the system's setting) | 12 | 24
@@ -30,7 +31,7 @@
 // a canvas for "save a still".
 
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
-import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES, NIXIE_CSS, nixieHTML } from "./hoverclock.js";
+import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES } from "./hoverclock.js";
 
 // drawn on a canvas, not as page text: radar, scope and light by a scene
 // renderer (GPU and CPU); heywajih by heyclock.js (heywajih.com's clock)
@@ -52,7 +53,7 @@ const [TOP, LOW] = COLOURS;
 const rowColour = (i, n) => `color-mix(in srgb, ${LOW} ${FILL === "solid" ? 85 : n > 1 ? Math.round((i / (n - 1)) * 100) : 55}%, ${TOP})`;
 
 // the font size per style, relative to the others, before fitting
-const FONT = { nixie: 300, heywajih: 700, slant: 700, "small-slant": 700, big: 700, colossal: 700, banner: 700, density: 700, lcd: 700, plain: 300 };
+const FONT = { slant: 700, big: 700, lcd: 700 };
 
 // ---- the page ----
 const style = document.createElement("style");
@@ -69,8 +70,7 @@ style.textContent = `
   @media (prefers-reduced-motion: reduce) { .clock-wall .glow { animation: none; } }
   .clock-wall.crt { position: fixed; left: 0; right: 0; z-index: 1; }
   .clock-wall.crt .glow { display: none; }
-  .clock-wall.crt .date { margin-top: 0; }
-  ${NIXIE_CSS}`;
+  .clock-wall.crt .date { margin-top: 0; }`;
 document.head.append(style);
 
 const wall = document.createElement("div");
@@ -83,9 +83,7 @@ if (!STILL) document.body.append(wall);
 
 // ---- drawing the text ----
 let shown = []; // the rows on screen now
-let nixieCycle = 0;
 function setRows(rows) {
-  if (STYLE === "nixie") return setNixie(rows[0]);
   shown = rows;
   pre.textContent = "";
   rows.forEach((row, i) => {
@@ -96,39 +94,19 @@ function setRows(rows) {
   });
 }
 
-// nixie: the tubes; when the minute turns, a changing tube runs through its
-// numerals for a moment first (cathode cycling, as real nixie clocks do)
-function setNixie(text) {
-  const before = shown[0] ?? "";
-  shown = [text];
-  clearInterval(nixieCycle);
-  const changed = [...text].map((ch, i) => ch !== ":" && before && ch !== before[i]);
-  if (reduced || isPaused() || !changed.some(Boolean)) return void (pre.innerHTML = nixieHTML(text));
-  const t0 = performance.now();
-  nixieCycle = setInterval(() => {
-    const done = performance.now() - t0 > 700;
-    pre.innerHTML = nixieHTML(text, done ? null : [...text].map((ch, i) => (changed[i] ? String(Math.floor(Math.random() * 10)) : ch)));
-    if (done) clearInterval(nixieCycle);
-  }, 55);
-}
-
 // Fit: the block of characters takes about 55% of the width (85% on a
 // portrait screen), times ?size, and at most 45% of the height
 function fit() {
   pre.style.font = `${FONT[STYLE]} 10px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace`;
-  // nixie: measure the tubes themselves (the block is as wide as the date
-  // line when that's wider)
-  const box = STYLE === "nixie" && pre.firstElementChild ? pre.firstElementChild.getBoundingClientRect() : null;
-  const w = (box ? box.width : pre.scrollWidth) || 1;
-  const h = (box ? box.height : pre.scrollHeight) || 1;
+  const w = pre.scrollWidth || 1;
+  const h = pre.scrollHeight || 1;
   const portrait = innerHeight > innerWidth;
   const target = Math.min((innerWidth * (portrait ? 0.85 : 0.55) * SIZE) / w, (innerHeight * 0.45 * SIZE) / h) * 10;
   pre.style.fontSize = `${target}px`;
   pre.style.fontVariantLigatures = "none"; // the font shorthand turned them back on: == and != would merge
-  wall.style.fontSize = `${Math.max(12, Math.min(28, target * (STYLE === "plain" ? 0.18 : 1.1)))}px`; // the date
+  wall.style.fontSize = `${Math.max(12, Math.min(28, target * 1.1))}px`; // the date
   pre.style.textShadow = `0 0 ${Math.max(6, target * 0.9)}px color-mix(in srgb, ${LOW} 55%, transparent)`;
   dateEl.style.color = `color-mix(in srgb, ${LOW} 70%, #000)`;
-  if (STYLE === "nixie") dateEl.style.color = "#a8623a"; // the tubes' amber, whatever the palette
 }
 
 // ---- the minute turning over: changed characters scramble into place ----
@@ -273,7 +251,7 @@ async function still() {
   const charW = ctx.measureText("M").width;
   const lineH = px * 1.05;
   const x0 = (W - cols * charW) / 2;
-  const datePx = Math.max(12, Math.min(28, px * (STYLE === "plain" ? 0.18 : 1.1)));
+  const datePx = Math.max(12, Math.min(28, px * 1.1));
   const blockH = rows.length * lineH + datePx * 2.6;
   const y0 = (H - blockH) / 2;
   ctx.textBaseline = "top";

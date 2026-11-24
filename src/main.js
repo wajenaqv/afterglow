@@ -16,7 +16,7 @@ import "@fontsource/jetbrains-mono/700.css";
 import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
-import { clockRows, STYLES as CLOCK_STYLES, NIXIE_CSS, nixieHTML } from "./wallpapers/hoverclock.js";
+import { clockRows, STYLES as CLOCK_STYLES, validStyle } from "./wallpapers/hoverclock.js";
 import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
@@ -282,17 +282,14 @@ for (const id of CLOCK_STYLES) {
   b.dataset.style = id;
   b.setAttribute("role", "radio");
   b.innerHTML = '<pre></pre><span class="dim"></span>';
-  if (id === "nixie") b.querySelector("pre").innerHTML = nixieHTML("4:43");
-  else b.querySelector("pre").textContent = clockRows(id).join("\n");
-  b.querySelector(":scope > span").textContent = id.replace("-", " "); // (nixie's tubes are spans too)
+  b.querySelector("pre").textContent = clockRows(id).join("\n");
+  b.querySelector(":scope > span").textContent = id;
   b.addEventListener("click", () => {
     clockStyle = id;
     saveClock();
   });
   $("#clock-styles").append(b);
 }
-// the nixie preview's tubes
-document.head.append(Object.assign(document.createElement("style"), { textContent: NIXIE_CSS }));
 function markClock() {
   for (const b of $$(".clock-style")) {
     const on = b.dataset.style === clockStyle;
@@ -313,7 +310,7 @@ function saveClock() {
 function showClock(c = {}) {
   const show = c.on === false ? "never" : c.always ? "always" : "hover";
   clockShowInputs.forEach((i) => (i.checked = i.value === show));
-  clockStyle = c.style ?? "slant";
+  clockStyle = validStyle(c.style); // a removed style (nixie, plain, ...) falls back to slant
   clockCorner.value = c.corner ?? "top-right";
   clockColour.value = c.colour ?? "wallpaper";
   clockFill.value = c.fill ?? "gradient";

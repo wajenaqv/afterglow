@@ -8,14 +8,9 @@
 // Settings → wallpaper → clock (extras.rs Clock, live through the "clock"
 // event): off, on hover or always, style, corner and colour:
 //   style   slant    figlet's Slant digits, the AfterGlow banner's font
-//           small-slant, big, colossal, banner: more figlet fonts
-//                    (all in clock-fonts.json, made by scripts/clock-font.js)
-//           density  3x5 pixel digits in shading blocks, softer at the ends
+//           big      figlet's Big (both in clock-fonts.json, made by
+//                    scripts/clock-font.js)
 //           lcd      seven segments drawn with _ and |
-//           plain    the time in a large, thin mono font
-//           nixie    glass tubes: the lit numeral glows orange in front of
-//                    the other nine, faintly stacked behind it (neon orange
-//                    always: it's what the tubes look like)
 //           heywajih heywajih.com's clock: 5x7 pixel digits, each pixel 3
 //                    characters by 2 rows, filled with the logo's characters
 //                    (solid inside a stroke, lighter at its edges) that
@@ -46,21 +41,6 @@ export const PALETTES = {
   cool: ["#d9f5ff", "#3f8cff"],
   grey: ["#f5f5f5", "#8e949c"],
   warm: ["#ffe3cf", "#ff7a4d"],
-};
-
-// 3 x 5 pixel digits for "density"
-const PIXELS = {
-  0: ["###", "# #", "# #", "# #", "###"],
-  1: [" # ", "## ", " # ", " # ", "###"],
-  2: ["###", "  #", "###", "#  ", "###"],
-  3: ["###", "  #", " ##", "  #", "###"],
-  4: ["# #", "# #", "###", "  #", "  #"],
-  5: ["###", "#  ", "###", "  #", "###"],
-  6: ["###", "#  ", "###", "# #", "###"],
-  7: ["###", "  #", "  #", " # ", " # "],
-  8: ["###", "# #", "###", "# #", "###"],
-  9: ["###", "# #", "###", "  #", "###"],
-  ":": [" ", "#", " ", "#", " "],
 };
 
 // 5 x 7 pixel digits for "heywajih" (heywajih.com's clock wallpaper font)
@@ -113,23 +93,6 @@ function heywajih(text, now = Date.now()) {
   );
 }
 
-// ---- nixie: built as HTML (not rows of characters), styled by NIXIE_CSS ----
-export const NIXIE_CSS = `
-  .nixie-tubes { display: inline-flex; gap: 0.14em; align-items: center; font: 300 1em/1 "JetBrains Mono", ui-monospace, monospace; font-variant-ligatures: none; white-space: nowrap; text-shadow: none; }
-  .nixie-tubes .tube { position: relative; display: inline-block; width: 0.8em; height: 1.34em; border: 0.03em solid rgba(255, 170, 100, 0.24); border-radius: 0.38em 0.38em 0.1em 0.1em; background: radial-gradient(ellipse at 50% 45%, rgba(255, 120, 40, 0.09), transparent 70%); }
-  .nixie-tubes .tube > span { position: absolute; inset: 0; display: grid; place-items: center; }
-  .nixie-tubes .ghost { color: rgba(255, 138, 60, 0.08); }
-  .nixie-tubes .lit { color: #ffcfa3; text-shadow: 0 0 0.05em #fff4e6, 0 0 0.16em #ff8a3c, 0 0 0.42em #ff6a1c; }
-  .nixie-tubes .colon { display: inline-grid; gap: 0.28em; }
-  .nixie-tubes .colon i { width: 0.1em; height: 0.1em; border-radius: 50%; background: #ffb070; box-shadow: 0 0 0.12em #ff8a3c, 0 0 0.3em #ff6a1c; }`;
-/** The nixie tubes for "4:43" (lit: optional digit shown per position, for cathode cycling) */
-export function nixieHTML(text, lit = null) {
-  const ghosts = [..."0123456789"].map((d) => `<span class="ghost">${d}</span>`).join("");
-  return `<span class="nixie-tubes">${[...text]
-    .map((ch, i) => (ch === ":" ? '<span class="colon"><i></i><i></i></span>' : `<span class="tube">${ghosts}<span class="lit">${lit?.[i] ?? ch}</span></span>`))
-    .join("")}</span>`;
-}
-
 // Seven segments for "lcd": a top, b top-right, c bottom-right, d bottom,
 // e bottom-left, f top-left, g middle
 const SEGMENTS = { 0: "abcdef", 1: "bc", 2: "abdeg", 3: "abcdg", 4: "bcfg", 5: "acdfg", 6: "acdefg", 7: "abc", 8: "abcdefg", 9: "abcdfg" };
@@ -157,29 +120,6 @@ function lcd(text) {
   return rows;
 }
 
-// Pixel digits drawn with ASCII density characters from AfterGlow's own font
-// (like heywajih's logo): "@@" inside a stroke and "%%" at its ends.
-// (A faint ".." beside the strokes looked messy inside the digits. Shading blocks
-// ░▒▓ aren't in JetBrains Mono's subset: the browser drew them from another
-// font, a different size, and the digits came out broken.)
-function density(text) {
-  return [0, 1, 2, 3, 4].map((r) =>
-    [...text]
-      .map((ch) => {
-        const g = PIXELS[ch];
-        const at = (rr, cc) => g[rr]?.[cc] === "#";
-        return [...g[r]]
-          .map((p, c) => {
-            const n = [at(r - 1, c), at(r + 1, c), at(r, c - 1), at(r, c + 1)].filter(Boolean).length;
-            if (p !== "#") return "  ";
-            return n <= 1 ? "%%" : "@@";
-          })
-          .join("");
-      })
-      .join("  "),
-  );
-}
-
 // A figlet font from clock-fonts.json: each character's rows side by side
 function figlet(text, font) {
   const glyphs = FONTS[font];
@@ -187,7 +127,10 @@ function figlet(text, font) {
 }
 
 /** Every style, in the order Settings shows them */
-export const STYLES = ["slant", "heywajih", "nixie", "small-slant", "big", "colossal", "banner", "density", "lcd", "plain"];
+// (owner, 2026-11-24: nixie, small-slant, colossal, banner, density and plain
+// were removed; a saved setting naming one of them falls back to slant)
+export const STYLES = ["slant", "heywajih", "big", "lcd"];
+export const validStyle = (s) => (STYLES.includes(s) ? s : "slant");
 /** Styles whose characters shimmer: drawn again every second while shown */
 export const SHIMMERS = ["heywajih"];
 /** Sizes: how much bigger than the base size (CSS zoom) */
@@ -223,7 +166,7 @@ export function dateText(now, hours = "auto") {
 export function clockRows(style, text = "4:43", now = Date.now()) {
   if (FONTS[style]) return figlet(text, style);
   if (style === "heywajih") return heywajih(text, now);
-  return style === "density" ? density(text) : style === "lcd" ? lcd(text) : [text];
+  return style === "lcd" ? lcd(text) : [text];
 }
 
 function css() {
@@ -239,16 +182,9 @@ function css() {
     .hover-clock pre { margin: 0; letter-spacing: 0; line-height: 1.05; font-variant-ligatures: none !important; } /* !important: each style sets the font shorthand, which turns ligatures back on (== and != would merge) */
     .hover-clock .under { white-space: nowrap; margin-top: 10px; font: 400 13px/1.2 "JetBrains Mono", ui-monospace, monospace; text-shadow: none; }
     .hover-clock.slant pre { font: 700 14px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.small-slant pre { font: 700 16px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.big pre { font: 700 12px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.colossal pre { font: 700 9px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.banner pre { font: 700 9px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.density pre { font: 700 12px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
     .hover-clock.lcd pre { font: 700 15px/1 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.nixie pre { font-size: 40px; }
-    ${NIXIE_CSS}
     .hover-clock.heywajih pre { font: 700 6px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace; }
-    .hover-clock.plain pre { font: 300 52px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 2px; }
     @media (prefers-reduced-motion: reduce) { .hover-clock { transition: none; } }`;
   document.head.append(style);
 }
@@ -261,6 +197,7 @@ function css() {
 export function hoverClock(frames, config = {}, tint = "") {
   css();
   let cfg = { on: true, always: false, style: "slant", corner: "top-right", colour: "wallpaper", fill: "gradient", size: "medium", hours: "auto", ...config };
+  cfg.style = validStyle(cfg.style);
   let palette = tint || "natural";
 
   const clocks = frames.map((fr) => {
@@ -280,14 +217,6 @@ export function hoverClock(frames, config = {}, tint = "") {
     const now = new Date();
     const [top, low] = colours();
     const pre = c.el.querySelector("pre");
-    if (cfg.style === "nixie") {
-      pre.innerHTML = nixieHTML(timeText(now, cfg.hours));
-      pre.style.textShadow = "none";
-      const u = c.el.querySelector(".under");
-      u.textContent = dateText(now, cfg.hours);
-      u.style.color = "#a8623a";
-      return;
-    }
     const rows = clockRows(cfg.style, timeText(now, cfg.hours));
     pre.textContent = "";
     rows.forEach((row, i) => {
@@ -298,7 +227,7 @@ export function hoverClock(frames, config = {}, tint = "") {
       line.textContent = row + (i < rows.length - 1 ? "\n" : "");
       pre.append(line);
     });
-    pre.style.textShadow = `0 0 ${cfg.style === "plain" ? 16 : 8}px color-mix(in srgb, ${low} 60%, transparent)`;
+    pre.style.textShadow = `0 0 8px color-mix(in srgb, ${low} 60%, transparent)`;
     const u = c.el.querySelector(".under");
     u.textContent = dateText(now, cfg.hours);
     u.style.color = `color-mix(in srgb, ${low} 65%, #000)`;
@@ -367,6 +296,7 @@ export function hoverClock(frames, config = {}, tint = "") {
     },
     configure(next) {
       cfg = { ...cfg, ...next };
+      cfg.style = validStyle(cfg.style);
       clocks.forEach(hide); // shown again by mode() with the right tick
       place();
       mode();

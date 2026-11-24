@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>All clocks</title>
+    <style>
+      body { margin: 0; background: #111; color: #9c9; font: 13px/1.3 "JetBrains Mono", Consolas, monospace; }
+      .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; }
+      figure { margin: 0; }
+      .frame { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; position: relative; background: #000; }
+      iframe { border: 0; width: 640px; height: 360px; transform-origin: 0 0; position: absolute; }
+      figcaption { padding: 3px 0 0; }
+    </style>
+  </head>
+  <body>
+    <div class="grid" id="g"></div>
+    <script>
+      const styles = ["slant", "phosphor", "heywajih", "light", "radar", "scope", "big", "lcd"];
+      const g = document.getElementById("g");
+      styles.forEach((s, i) => {
+        const f = document.createElement("figure");
+        f.innerHTML = `<div class="frame"><iframe src="/wallpapers/clock.html?style=${s}&hover=0"></iframe></div><figcaption>${i + 1}. ${s}</figcaption>`;
+        g.append(f);
+      });
+      const fit = () => document.querySelectorAll(".frame").forEach((fr) => (fr.firstChild.style.transform = `scale(${fr.clientWidth / 640})`));
+      addEventListener("resize", fit);
+      fit();
+    </script>
+  </body>
+</html>

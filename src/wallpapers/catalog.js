@@ -55,12 +55,12 @@ export const WALLPAPERS = [
   {
     id: "clock",
     name: "clock",
-    about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), nixie tubes, a radar, an oscilloscope, or ASCII fonts.",
+    about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), light, a radar, an oscilloscope, or ASCII fonts (slant, big, lcd).",
     options: [
       {
         key: "style",
         label: "style",
-        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["nixie", "nixie"], ["radar", "radar"], ["scope", "oscilloscope"], ["small-slant", "small slant"], ["big", "big"], ["colossal", "colossal"], ["banner", "banner"], ["density", "density"], ["lcd", "lcd"], ["plain", "plain"]],
+        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["radar", "radar"], ["scope", "oscilloscope"], ["big", "big"], ["lcd", "lcd"]],
       },
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"]] },
       { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },
