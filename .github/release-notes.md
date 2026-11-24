@@ -1,3 +1,10 @@
+### What's new in 0.1.1
+
+- **OLED care** (Settings → performance, off until you switch it on): shifts the picture slowly, and goes black when paused for a minute or after 5 minutes away. It lowers the risk of burn-in; it can't rule it out.
+- **Settings:** compact wallpaper cards with a side panel for the details, and buttons and selectors that stand out.
+
+To update, run the install line below again.
+
 **[afterglow.heywajih.com](https://afterglow.heywajih.com)** has the install lines with a Copy button.
 
 ### Windows

@@ -100,6 +100,9 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 - **A clock** that fades in when you rest the cursor in a corner, or stays on
 - **Stills**: save any wallpaper as a PNG at your screen's size
 - **Frame rate** and rendering, to suit your machine
+- **OLED care**: an option that lowers the risk of burn-in
+
+<p align="center"><img src="assets/readme/settings.png" alt="AfterGlow Settings: wallpapers to pick from, and the jellyfish options" width="100%"></p>
 
 ### Send your own signals
 

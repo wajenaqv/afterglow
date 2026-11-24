@@ -4,7 +4,7 @@ No paid licences: Windows is unsigned, macOS is self-signed (or ad hoc) and not 
 
 ## Each release
 
-1. Bump `version` in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` (the same number in all three).
+1. Bump `version` in `package.json`, `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json` (the same number in all three; `src-tauri/Cargo.lock` follows), and rewrite "What's new" at the top of `.github/release-notes.md`.
 2. Commit, then tag and push:
    ```sh
    git tag v0.1.0
