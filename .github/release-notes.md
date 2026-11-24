@@ -1,10 +1,7 @@
 ### What's new
 
-- **Apps:** Settings lists every app AfterGlow hears from, each allowed or blocked, with a step-by-step guide for every connection. Your old rules are converted; noisy ones such as OneDrive and Windows Security start blocked unless you had changed them. A rule for "every app" is kept only if it said "nothing".
-- **Do Not Disturb:** messages are held and shown when it ends, instead of being dropped.
-- **Power:** see why each monitor is paused, what draws it and how much CPU AfterGlow uses, and choose how long OLED care waits.
-- **Clock:** 15 new styles, colours taken from the wallpaper that's showing, and a colour of your own.
-- **Activity:** plain words, and a replayed message is no longer counted twice.
+- **Keep awake:** stop the computer going to sleep, for 30 minutes to 2 hours, until you turn it off, or while the apps you choose are running or in front. In the menu and Settings → awake. It's off until you switch it on.
+- **A shorter menu:** wallpapers, pausing and keep awake. Frame rate, Do Not Disturb and start at login are in Settings; the pause rules are under Pause.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
