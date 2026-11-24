@@ -1,4 +1,5 @@
 // The tray (Windows) / menu bar (macOS) icon and its menu:
+//   0.1.2 is ready: restart to update   (only while an update waits, updates.rs)
 //   Wallpaper ▸        jellyfish / big jellyfish / paw prints (one ticked)
 //   Frame rate ▸       smooth 30 / light 20 / eco 15 fps (one ticked)
 //   Try a signal ▸     the simulator: a message, things waiting, a flash
@@ -130,6 +131,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         ],
     )?;
 
+    crate::updates::set_menu(app, menu.clone());
     app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates), rotate: Mutex::new(Some(rotate.clone())),
         checks: Mutex::new(vec![("pause-covered", covered.clone()), ("pause-fullscreen", fullscreen.clone()), ("pause-battery", battery.clone()), ("quiet-dnd", quiet.clone()), ("autostart", autostart.clone())]),
     });
@@ -209,6 +211,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                     crate::alog!("afterglow: {e}");
                 }
             }
+            crate::updates::MENU_ID => crate::updates::install(app),
             "settings" => show_settings(app),
             "quit" => {
                 crate::alog!("afterglow: quit from the tray");

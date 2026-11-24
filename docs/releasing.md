@@ -17,6 +17,22 @@ No paid licences: Windows is unsigned, macOS is self-signed (or ad hoc) and not 
 
 `install.sh` (macOS) and `install.ps1` (Windows), the one-liners, always take the latest **published** release, so drafts never reach anyone. Publishing also runs `.github/workflows/winget.yml`, which sends the new version to winget (once the first version is in, see below).
 
+## Update key (once, required)
+
+In-app updates are signed with their own key; installed copies refuse anything else. **If it's lost, they can never update themselves again** (everyone would have to run the install line once more), so keep it and its password in your password manager.
+
+1. Make the key (choose a password; on Windows in the repo folder):
+   ```sh
+   bun run tauri signer generate -w afterglow-update.key
+   ```
+   `*.key` is git-ignored. Move the file to your password manager and delete it here afterwards.
+2. Put the contents of `afterglow-update.key.pub` (it isn't secret) into `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
+3. Repo → Settings → Secrets and variables → Actions, two secrets:
+   - `TAURI_SIGNING_PRIVATE_KEY`: the contents of `afterglow-update.key`
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: its password
+
+The release workflow stops at once if either half is missing. Its last job writes `latest.json` (`scripts/latest-json.js`). Publishing a release makes it reach everyone within a day, so try both builds from the draft first.
+
 ## winget
 
 The first version goes in by hand, once:

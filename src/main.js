@@ -60,6 +60,11 @@ function standIn(cmd, a) {
     case "set_oled":
       s.oled = a.on;
       return save();
+    case "set_check_updates":
+      s.check_updates = a.on;
+      return save();
+    case "update_state":
+      return { state: "ready", version: "9.9.9", text: "9.9.9 is ready: restart to update" };
     case "set_rotation":
       s.rotate = { on: a.on, minutes: a.minutes, walls: a.walls };
       return save();
@@ -967,6 +972,26 @@ if (IN_APP)
     $("#version").textContent = v.toLowerCase();
     $("#about-version").textContent = v;
   });
+// Updates (updates.rs): what it's doing, read every 2 s while about is showing
+const updateText = $("#update-text");
+async function showUpdate() {
+  const u = await invoke("update_state").catch(() => null);
+  if (!u) return;
+  updateText.textContent = u.text;
+  $("#update-install").hidden = u.state !== "ready";
+  $("#update-check").hidden = ["ready", "off"].includes(u.state);
+  $("#update-check").disabled = ["checking", "downloading"].includes(u.state);
+}
+$("#update-check").addEventListener("click", () => invoke("check_update").then(() => setTimeout(showUpdate, 200)).catch((e) => (updateText.textContent = String(e))));
+$("#update-install").addEventListener("click", (e) => {
+  e.currentTarget.disabled = true;
+  updateText.textContent = "restarting…";
+  invoke("install_update").catch((err) => (updateText.textContent = String(err)));
+});
+$("#check-updates").addEventListener("change", (e) => invoke("set_check_updates", { on: e.target.checked }).catch(() => (e.target.checked = !e.target.checked)));
+showUpdate();
+setInterval(() => !$("#page-about").hidden && !$("#update-install").disabled && showUpdate(), 2000);
+
 $("#open-log").addEventListener("click", () => invoke("open_log").catch((e) => ($("#log-note").textContent = String(e))));
 $("#copy-curl").addEventListener("click", async (e) => {
   try {
@@ -998,6 +1023,7 @@ async function load() {
   showClock(saved.clock);
   $("#scramble").checked = saved.scramble ?? true;
   $("#oled").checked = saved.oled ?? false;
+  $("#check-updates").checked = saved.check_updates ?? true;
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {

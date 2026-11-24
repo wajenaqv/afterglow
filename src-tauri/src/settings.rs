@@ -55,6 +55,8 @@ pub struct Settings {
     pub scramble: bool,
     /// OLED care (src/wallpapers/oled.js; host.rs apply_pause says when to rest)
     pub oled: bool,
+    /// Look for a newer version once a day (updates.rs)
+    pub check_updates: bool,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -81,6 +83,7 @@ impl Default for Settings {
             clock: Default::default(),
             scramble: true,
             oled: false,
+            check_updates: true,
         }
     }
 }

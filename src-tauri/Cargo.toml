@@ -1,6 +1,6 @@
 [package]
 name = "afterglow"
-version = "0.1.1"
+version = "0.1.2"
 description = "Live ASCII wallpapers that glow when something happens"
 authors = ["Mohammad Wajih"]
 license = "MIT"
@@ -23,6 +23,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-single-instance = "2"
+tauri-plugin-updater = "2"
 tiny_http = "0.12"
 ureq = { version = "2", features = ["json"] }
 keyring = { version = "3", features = ["windows-native", "apple-native"] }

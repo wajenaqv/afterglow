@@ -5,6 +5,8 @@ name: release
 # This creates a DRAFT GitHub Release and attaches
 #   AfterGlow_<version>_x64-setup.exe   (Windows installer, unsigned)
 #   AfterGlow_<version>_universal.dmg   (macOS, Apple Silicon + Intel, not notarized)
+# plus what in-app updates use: the Mac app as .app.tar.gz, a .sig for each
+# system, and latest.json (signed with the TAURI_SIGNING_PRIVATE_KEY secret).
 # Review the draft and press Publish. install.sh (the macOS one-liner) always
 # fetches the latest PUBLISHED release, so nothing reaches users before that.
 # Steps and the optional macOS certificate: docs/releasing.md.
@@ -31,9 +33,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
+          UPDATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           if [ "${{ github.ref_type }}" != "tag" ]; then
             echo "Run this on a version tag (v0.1.0), not a branch." >&2
+            exit 1
+          fi
+          # In-app updates: without the key and its public half, stop now
+          # rather than after a long build (docs/releasing.md)
+          if [ -z "$UPDATE_KEY" ] || [ -z "$(jq -r '.plugins.updater.pubkey' src-tauri/tauri.conf.json)" ]; then
+            echo "Set the TAURI_SIGNING_PRIVATE_KEY secret and plugins.updater.pubkey in tauri.conf.json." >&2
             exit 1
           fi
           # Re-run: reuse this tag's draft. The list can lag a just-created
@@ -74,9 +83,12 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.draft.outputs.id }}
-          args: --bundles nsis
+          includeUpdaterJson: false # the updates job writes it for both systems
+          args: --bundles nsis --config src-tauri/tauri.release.conf.json
 
   macos:
     needs: draft
@@ -154,9 +166,31 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.draft.outputs.id }}
-          args: --target universal-apple-darwin --bundles app,dmg
+          includeUpdaterJson: false # the updates job writes it for both systems
+          args: --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.release.conf.json
 
       - name: Show the signature
         run: codesign -dv --verbose=2 src-tauri/target/universal-apple-darwin/release/bundle/macos/AfterGlow.app 2>&1 | grep -E "Authority|Signature|TeamIdentifier|Identifier"
+
+  # latest.json, once both builds are up: what installed copies read
+  updates:
+    needs: [draft, windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release download "$TAG" --pattern "*.sig" --dir sigs
+          bun scripts/latest-json.js "$TAG" sigs
+          gh release upload "$TAG" sigs/latest.json --clobber

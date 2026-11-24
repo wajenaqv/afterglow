@@ -19,6 +19,8 @@ dist-site
 !.env.example
 *.pfx
 *.p12
+*.key
+*.key.pub
 *.cer
 certs/
 

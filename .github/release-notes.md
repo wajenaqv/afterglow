@@ -1,9 +1,10 @@
-### What's new in 0.1.1
+### What's new in 0.1.2
 
-- **OLED care** (Settings → performance, off until you switch it on): shifts the picture slowly, and goes black when paused for a minute or after 5 minutes away. It lowers the risk of burn-in; it can't rule it out.
-- **Settings:** compact wallpaper cards with a side panel for the details, and buttons and selectors that stand out.
+- **Updates from the menu:** AfterGlow looks for a new version once a day. When one is ready, a line at the top of its menu says so; click it to restart into it. No popups, and you can switch it off in Settings → about.
+- **Lighter on macOS:** wallpapers use less graphics power, and hold still while AfterGlow's menu is open.
+- **Settings:** wallpaper previews only run while you can see them.
 
-To update, run the install line below again.
+On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
 **[afterglow.heywajih.com](https://afterglow.heywajih.com)** has the install lines with a Copy button.
 

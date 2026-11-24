@@ -8,6 +8,7 @@
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
 //   connectors/  watchers that turn other apps' activity into signals
 //   extras.rs    wallpaper rotation and saving a still as a PNG
+//   updates.rs   in-app updates: daily check, the tray line, restart to update
 //   platform/    the per-OS part of putting a window behind the desktop icons
 //   logfile.rs   the log (afterglow.log in the settings folder) and the alog! macro
 
@@ -21,6 +22,7 @@ mod platform;
 mod settings;
 mod signals;
 mod tray;
+mod updates;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -35,6 +37,8 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(updates::Updates::default())
         .manage(host::Host::default())
         .manage(signals::Bus::default())
         .manage(connectors::Connectors::default())
@@ -65,6 +69,10 @@ pub fn run() {
             extras::set_clock,
             settings::set_scramble,
             settings::set_oled,
+            updates::update_state,
+            updates::check_update,
+            updates::install_update,
+            updates::set_check_updates,
             logfile::open_log,
             connectors::connectors_state,
             connectors::set_connector,
@@ -83,6 +91,7 @@ pub fn run() {
             endpoint::start(app.handle());
             connectors::start(app.handle());
             extras::start_rotation(app.handle());
+            updates::start(app.handle());
             Ok(())
         })
         .build(tauri::generate_context!())
