@@ -17,12 +17,12 @@ permissions:
 concurrency:
   group: pages
 
+# Two jobs, not one: right after an upload GitHub may not list the page yet, and
+# deploy-pages then fails with "No artifacts named github-pages". Starting a
+# second job gives it a few seconds; the second try covers a longer delay.
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -33,5 +33,19 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist-site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.retry.outputs.page_url || steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+      - if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+      - id: retry
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v5
