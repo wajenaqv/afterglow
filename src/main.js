@@ -191,10 +191,18 @@ const bigSrc = (id, options) => {
   const q = queryFor(options);
   return `/wallpapers/${id}.html?hover=0&fps=15${q ? `&${q}` : ""}`;
 };
+// "2/5" beside each selector: which choice of how many
+function positions(card) {
+  for (const sel of card.selects.values()) {
+    const shown = [...sel.options].filter((o) => !o.hidden);
+    sel.closest("label").dataset.pos = `${shown.indexOf(sel.selectedOptions[0]) + 1}/${shown.length}`;
+  }
+}
 function openPanel(id) {
   const card = cards.get(id);
   if (!card) return;
   openId = id;
+  positions(card);
   for (const [cid, c] of cards) {
     c.el.classList.toggle("open", cid === id);
     c.detail.hidden = cid !== id;
@@ -254,6 +262,7 @@ for (const w of WALLPAPERS) {
   for (const sel of selects.values())
     sel.addEventListener("change", () => {
       nameHues(card);
+      positions(card);
       card.preview.src = previewSrc(w.id, optionsOf(card));
       if (openId === w.id) panelPreview.src = bigSrc(w.id, optionsOf(card));
       if (settings.wallpaper === w.id) choose(w.id); // the one showing changes straight away
@@ -976,6 +985,7 @@ async function load() {
       const mine = settings.options[id] ?? {};
       for (const [key, sel] of card.selects) sel.value = mine[key] ?? "";
       nameHues(card);
+      positions(card);
       card.preview.src = previewSrc(id, optionsOf(card));
     }
     // start with the one showing open, when there's room for the panel beside

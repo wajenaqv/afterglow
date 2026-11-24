@@ -319,7 +319,7 @@ button.still {
 }
 .connector .status[data-state="setup"],
 .connector .status[data-state="error"] {
-  color: var(--bright);
+  color: var(--fg);
 }
 .connector .how {
   font-size: 12px;
@@ -347,7 +347,7 @@ button.still {
   color: var(--accent);
 }
 .guide b {
-  color: var(--bright);
+  color: var(--fg);
   font-weight: 700;
 }
 .guide code {
@@ -734,28 +734,41 @@ input[type="radio"]:focus-visible {
   outline-offset: 1px;
 }
 
-/* ---- selects: < value > ---- */
+/* ---- controls: what you can click is a filled block ----
+   The fill and edge below belong to controls only, so they stand out from the
+   text; hovering one inverts it (reverse video). */
+:root {
+  --ctl: color-mix(in srgb, var(--fg) 13%, var(--bg));
+  --ctl-faint: color-mix(in srgb, var(--fg) 8%, var(--bg));
+  --ctl-edge: color-mix(in srgb, var(--fg) 45%, var(--bg));
+  --quiet: color-mix(in srgb, var(--fg) 72%, var(--bg)); /* text beside controls */
+}
+
+/* selects: < value >, one block with lit arrows */
 .cyc {
   display: inline-flex;
-  align-items: baseline;
+  align-items: stretch;
   white-space: nowrap;
+  background: var(--ctl);
+  border: 1px solid var(--ctl-edge);
 }
 .cyc-b {
-  color: var(--dim);
+  color: var(--accent);
   cursor: pointer;
-  padding: 0 0.35ch;
+  padding: 1px 1.1ch;
+  font-weight: 700;
   user-select: none;
   text-shadow: none;
 }
 .cyc-b:hover {
-  color: var(--bright);
-  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+  background: var(--fg);
+  color: var(--bg);
 }
 .cyc select {
   appearance: none;
   -webkit-appearance: none;
   border: 0;
-  padding: 0 0.2ch;
+  padding: 1px 0.6ch;
   background: none;
   color: var(--bright);
   cursor: pointer;
@@ -765,67 +778,117 @@ input[type="radio"]:focus-visible {
 .cyc select:hover {
   text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
 }
+.cyc select:focus {
+  outline: none; /* the whole block is outlined instead */
+}
+.cyc:has(select:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .cyc select option {
   background: var(--bg);
   color: var(--fg);
 }
 
-/* ---- buttons: [ label ] ---- */
+/* buttons */
 button {
-  border: 0;
-  background: none;
+  border: 1px solid var(--ctl-edge);
+  background: var(--ctl);
   color: var(--bright);
-  padding: 0 2px;
-}
-button::before {
-  content: "[ ";
-  color: var(--dim);
-}
-button::after {
-  content: " ]";
-  color: var(--dim);
+  padding: 2px 10px;
+  cursor: pointer;
+  text-shadow: none;
 }
 button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--fg) 14%, var(--bg));
-  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
 }
-button:hover:not(:disabled)::before,
-button:hover:not(:disabled)::after {
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* the one primary button; "● showing" in its place is only text */
+button.use:not(:disabled) {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+  font-weight: 700;
+}
+button.use:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+button.use:disabled {
+  background: none;
+}
+button.still {
+  background: none;
+}
+/* inline in the setup guides: smaller, so the steps stay readable */
+.guide button.copy {
+  background: var(--ctl-faint);
+  border-color: transparent;
   color: var(--accent);
+  line-height: 1.3;
 }
-/* "● showing" and the clock's style tiles aren't bracketed */
-button.use:disabled::before,
-button.use:disabled::after,
-.clock-style::before,
-.clock-style::after {
-  content: none;
+.guide button.copy:hover {
+  background: var(--fg);
+  color: var(--bg);
 }
+
+/* the apps table: faint until the cursor is on the row */
+#apps .cyc,
+#apps button {
+  background: var(--ctl-faint);
+  border-color: transparent;
+}
+#apps tr:hover .cyc,
+#apps tr:focus-within .cyc,
+#apps tr:hover button,
+#apps tr:focus-within button {
+  background: var(--ctl);
+  border-color: var(--ctl-edge);
+}
+#apps tr button:hover:not(:disabled) {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* the clock's style tiles */
 .clock-style {
-  border: 1px dashed color-mix(in srgb, var(--dim) 55%, var(--bg));
+  border: 1px dashed var(--ctl-edge);
+  background: none;
   color: var(--fg);
 }
-.clock-style:hover:not(:disabled) {
-  background: none;
+button.clock-style:hover:not(:disabled) {
+  background: var(--ctl-faint);
   border-color: var(--fg);
+  color: var(--fg);
 }
 .clock-style.on {
   border-style: solid;
 }
 
-/* ---- text fields: an underlined blank ---- */
+/* ---- text fields ---- */
 input:not([type]),
 input[type="text"],
 input[type="password"] {
-  border: 0;
-  border-bottom: 1px dashed var(--dim);
-  background: color-mix(in srgb, var(--fg) 5%, var(--bg));
-  padding: 1px 6px;
+  border: 1px solid var(--ctl-edge);
+  background: var(--ctl-faint);
+  padding: 3px 8px;
 }
 input:not([type]):focus,
 input[type="text"]:focus,
 input[type="password"]:focus {
-  border-bottom-color: var(--accent);
+  border-color: var(--accent);
   outline: none;
+}
+/* a checkbox or radio line lights up under the cursor */
+label:has(> input[type="checkbox"]):hover,
+label:has(> input[type="radio"]):hover {
+  background: var(--ctl-faint);
 }
 
 /* ---- cards: dashed boxes, solid and glowing when showing ---- */
@@ -891,19 +954,23 @@ input[type="password"]:focus {
 }
 
 /* The wallpaper picker's tabs (main.js showTab): one kind of wallpaper at a
-   time. Unpicked tabs dim, the picked one lit. */
+   time. The picked one filled, the others underlined. */
 .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem 0.8rem;
   margin: 0.2rem 0 1rem;
 }
-.tabs button[aria-selected="false"] {
-  color: var(--dim);
-  text-shadow: none;
+.tabs button {
+  background: none;
+  border-color: transparent;
+  border-bottom-color: var(--ctl-edge);
+  color: var(--fg);
 }
 .tabs button[aria-selected="true"] {
-  color: var(--bright);
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
 }
 .cards > [hidden] {
   display: none !important;
@@ -959,6 +1026,22 @@ body:not([data-page="wallpaper"]) .wall-panel {
 .card .about {
   font-size: 12px;
 }
+.card[tabindex]:hover {
+  border: 1px solid var(--fg);
+  background: var(--ctl-faint);
+}
+/* cards open the panel: say so (the coming-soon cards don't) */
+.card[tabindex] .body::after {
+  content: "configure >";
+  margin-top: auto;
+  padding-top: 4px;
+  color: var(--accent);
+  font-size: 12px;
+}
+.card.open[tabindex] .body::after {
+  content: "open >";
+  color: var(--bright);
+}
 .card.open {
   border-style: solid;
   border-color: var(--accent);
@@ -975,6 +1058,13 @@ body:not([data-page="wallpaper"]) .wall-panel {
 }
 .wall-detail .long {
   margin: 0 0 4px;
+}
+/* text you can't click steps back */
+.wall-detail .long,
+.wall-detail dd,
+.guide li {
+  color: var(--quiet);
+  text-shadow: none;
 }
 .wall-detail h4 {
   margin: 16px 0 6px;
@@ -1006,8 +1096,31 @@ body:not([data-page="wallpaper"]) .wall-panel {
   margin: 0;
   padding: 0;
 }
+/* the selectors line up: name, block, which choice of how many (main.js) */
+.wall-detail .opts label {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr) 5ch;
+  gap: 10px;
+}
+.wall-detail .opts .cyc select {
+  flex: 1;
+  min-width: 0;
+}
+.wall-detail .opts label::after {
+  content: attr(data-pos);
+  color: var(--dim);
+  font-size: 12px;
+  text-shadow: none;
+}
 .wall-detail .actions {
   margin-top: 14px;
+}
+.wall-detail .actions button {
+  padding: 4px 13px;
+  font-size: inherit;
+}
+.wall-detail .actions button.use:disabled {
+  padding-left: 0;
 }
 .wall-detail .actions + h4 {
   margin-top: 20px;

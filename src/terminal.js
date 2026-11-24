@@ -6,8 +6,8 @@
 //   - a vim-style status bar along the bottom
 //   - a short boot sequence when the window first opens (skippable, off in
 //     about, never with reduced motion)
-// Checkboxes, radios and buttons are drawn as [x], (•) and [ button ] in
-// terminal.css; the native controls stay underneath, so nothing else changes.
+// Checkboxes and radios are drawn as [x] and (•), selects and buttons as filled
+// blocks, in style.css; the native controls stay underneath, so nothing else changes.
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
