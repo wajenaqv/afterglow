@@ -604,7 +604,7 @@ table.apps {
 }
 
 /* =====================================================================
-   The terminal look (with src/terminal.js): heywajih's CRT feel without
+   The terminal look (with src/terminal.js): a CRT feel without
    anything to type. Scanlines and a vignette over the window, the sidebar
    as a folder tree, controls drawn as text ([x] (•) < value > [ button ]),
    square corners, a vim-style status bar and short boot lines.

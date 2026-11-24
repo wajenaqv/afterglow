@@ -8,7 +8,6 @@
 //     sibling right after the one that holds the icons (SHELLDLL_DefView)
 //   - 24H2 and later: the WorkerW is a child of Progman itself
 // We look for the first, then fall back to the second.
-// (Same approach as Lively Wallpaper and Wallpaper Engine; no code copied.)
 
 use std::ffi::c_void;
 
@@ -63,7 +62,7 @@ pub fn attach(window: &tauri::WebviewWindow, x: i32, y: i32, w: u32, h: u32) -> 
     // Tauri's HWND comes from its own copy of the `windows` crate; rebuild ours
     // from the raw pointer
     let raw = window.hwnd().map_err(|e| e.to_string())?;
-    let hwnd = HWND(raw.0 as *mut c_void);
+    let hwnd = HWND(raw.0);
     let layer = wallpaper_layer().ok_or("could not find the desktop's wallpaper layer (WorkerW)")?;
     unsafe {
         // never take focus, never appear in Alt+Tab
@@ -227,7 +226,7 @@ pub fn set_taskbar_icon(window: &tauri::WebviewWindow) {
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
     use windows::Win32::UI::WindowsAndMessaging::{LoadImageW, SendMessageW, ICON_BIG, IMAGE_ICON, LR_DEFAULTCOLOR, SM_CXICON, SM_CYICON, WM_SETICON};
     let Ok(raw) = window.hwnd() else { return };
-    let hwnd = HWND(raw.0 as *mut c_void);
+    let hwnd = HWND(raw.0);
     unsafe {
         let Ok(module) = GetModuleHandleW(None) else { return };
         let icon = LoadImageW(

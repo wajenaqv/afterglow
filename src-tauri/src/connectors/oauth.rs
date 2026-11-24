@@ -9,9 +9,9 @@
 // kept in the OS credential store (Windows Credential Manager / macOS
 // Keychain), never in a file. Access tokens live in memory only.
 //
-// Each provider needs an app registration of the owner's own (a client id;
+// Each provider needs an app registration of the user's own (a client id;
 // Google also gives a client secret, which for desktop apps isn't secret):
-// see the README, "Connect Gmail, Outlook and Spotify".
+// Settings → apps has a step-by-step guide (src/guides.js).
 
 use std::collections::HashMap;
 use std::io::Read;
@@ -75,7 +75,7 @@ pub fn redirect_uri(p: &Provider) -> String {
     format!("http://{}:{CALLBACK_PORT}/callback", p.host)
 }
 
-/// The owner's app registration for a provider
+/// The user's app registration for a provider
 #[derive(Clone, Default, Debug, serde::Serialize, Deserialize)]
 #[serde(default)]
 pub struct Client {
@@ -150,7 +150,7 @@ fn token_request(p: &Provider, client: &Client, form: &[(&str, &str)]) -> Result
 /// Stores the refresh token and returns Ok on success.
 pub fn sign_in(p: &Provider, client: &Client) -> Result<(), String> {
     if client.client_id.trim().is_empty() {
-        return Err("add the app's client id first (see the README)".into());
+        return Err("add the app's client id first (see the guide)".into());
     }
     let server = tiny_http::Server::http(("127.0.0.1", CALLBACK_PORT)).map_err(|e| format!("couldn't listen on port {CALLBACK_PORT}: {e}"))?;
     let verifier = random_string(64);

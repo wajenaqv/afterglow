@@ -4,12 +4,11 @@
 // window goes one step below, at desktop level, so it sits between the
 // system wallpaper and the icons. It also joins every Space, stays put when
 // switching Spaces, skips Cmd+Tab/Mission Control cycling and lets clicks
-// through to the desktop. (The approach Plash uses; no code copied.)
+// through to the desktop.
 //
-// These are plain Objective-C messages to the NSWindow (like calling methods
-// through an interface{} in Go): setLevel:, setCollectionBehavior:,
-// setIgnoresMouseEvents:. They must run on the main thread, which is where
-// Tauri's setup and run_on_main_thread run.
+// These are plain Objective-C messages to the NSWindow: setLevel:,
+// setCollectionBehavior:, setIgnoresMouseEvents:. They must run on the main
+// thread, which is where Tauri's setup and run_on_main_thread run.
 
 use objc2::msg_send;
 use objc2::runtime::AnyObject;
@@ -99,7 +98,7 @@ pub fn watch_menus(f: fn(bool)) {
 // undocumented) is copied aside first and put back on quit, then
 // WallpaperAgent is restarted to read it. Tested on macOS 26.6; if a future
 // macOS moves the store, black_desktop does nothing rather than risk losing
-// the owner's wallpaper.
+// the user's wallpaper.
 //
 // The backup stays in AfterGlow's config folder until quit, so after a crash
 // the next launch keeps the original backup instead of backing up "black".
@@ -192,7 +191,7 @@ fn set_black(only_if_needed: bool) {
     }
 }
 
-/// On quit: put the owner's wallpaper back (see black_desktop).
+/// On quit: put the user's wallpaper back (see black_desktop).
 pub fn restore_desktop() {
     let (Some(backup), Some(store)) = (BACKUP.get(), wallpaper_store()) else { return };
     match std::fs::copy(backup, &store) {
@@ -219,8 +218,7 @@ pub fn restore_desktop() {
 // the main display, y down. Tauri gives monitors in physical pixels, so they
 // are divided by each display's scale.
 //
-// These are C functions from Apple's frameworks, declared by hand below
-// (like cgo's `import "C"` in Go).
+// These are C functions from Apple's frameworks, declared by hand below.
 
 use std::ffi::{c_char, c_void};
 
@@ -745,14 +743,14 @@ mod tests {
         CGRect { origin: CGPoint { x, y }, size: CGSize { width: w, height: h } }
     }
 
-    // The owner's MacBook: 1920 x 1243 pt at 2x, notch strip 38 pt tall
+    // A MacBook with a notch: 1920 x 1243 pt at 2x, notch strip 38 pt tall
     const BUILT_IN: (i32, i32, u32, u32, f64) = (0, 0, 3840, 2486, 2.0);
     // An external display to the left, 1x, at a negative origin
     const LEFT: (i32, i32, u32, u32, f64) = (-2560, 0, 2560, 1440, 1.0);
 
     #[test]
     fn fullscreen_under_the_notch() {
-        let app = rect(0.0, 38.0, 1920.0, 1205.0); // as measured on the owner's Mac
+        let app = rect(0.0, 38.0, 1920.0, 1205.0); // as measured on a real one
         assert_eq!(fullscreen_on_by(&[BUILT_IN, LEFT], &[app]), vec![true, false]);
     }
 
@@ -772,8 +770,7 @@ mod tests {
 
     #[test]
     fn covered_per_display() {
-        // 38 pt menu bar and a default-size Dock (~80 pt; the owner's is a
-        // small 38 pt one, which happened to stay under the old 95% limit)
+        // 38 pt menu bar and a default-size Dock (~80 pt)
         let visible = [
             (rect(0.0, 0.0, 1920.0, 1243.0), rect(0.0, 38.0, 1920.0, 1125.0)),
             (rect(-2560.0, 0.0, 2560.0, 1440.0), rect(-2560.0, 25.0, 2560.0, 1415.0)),

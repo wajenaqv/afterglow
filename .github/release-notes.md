@@ -30,4 +30,4 @@ Or download `AfterGlow_*_universal.dmg` below and drag AfterGlow to Applications
 
 Want it to react to Dock badges? Switch them on in Settings → apps; macOS will ask for permission.
 
-Quit any other live wallpaper app (Wallpaper Engine, Lively, Plash) first, or it will cover AfterGlow.
+Quit any other live wallpaper app first, or it will cover AfterGlow.

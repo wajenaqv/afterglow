@@ -165,7 +165,7 @@ function billow(x, y, A, t, out, pix) {
 
 /** The light at screen point (x, y) (y down, 0..1; x across in screen heights);
  *  pix is how wide one cell is, in screen heights */
-export function seaLight(x, y, A, t, out, pix = 0.006) {
+function seaLight(x, y, A, t, out, pix = 0.006) {
   setDusk(t);
   if (!(y > HZ && billow(x, y, A, t, out, pix))) {
     // sky: the glow along the horizon, fading up to deep blue-black. No sun.
@@ -247,7 +247,7 @@ const GLYPH = GLYPHS[params.get("glyphs")] ?? GLYPHS.ascii;
 const SHADES = GLYPH.chars;
 const EDGES = GLYPH.edges;
 const MIN_TONE = EDGES[0];
-const GAIN = 1; // (a brighter ASCII version, gain 1.9, was tried: owner preferred it dim)
+const GAIN = 1; // dim on purpose
 const EXPOSURE = 2.2 * 1.1;
 let dims = null;
 const out = [0, 0, 0];

@@ -1,5 +1,5 @@
-// The animated clock styles of the clock wallpaper, after real CRT displays
-// (docs/ideas/crt-afterglow-effects.html), drawn as glowing characters with
+// The animated clock styles of the clock wallpaper, after real CRT displays,
+// drawn as glowing characters with
 // the night-scene renderer (nightscene.js startScene: a GPU and a CPU
 // renderer from the same maths, sampleCell in GLSL and sample() in JS):
 //

@@ -192,7 +192,7 @@ function layout(d) {
   rows = d.rows;
   cwH = d.cw / d.H;
   chH = d.ch / d.H;
-  SX = d.A / 2; // centred (owner's choice, over keeping the left fifth clear for icons)
+  SX = d.A / 2; // centred
   SY = 0.5;
   ZOOM = Math.min(0.5, d.A * 0.45);
   cells.resize(cols, rows);

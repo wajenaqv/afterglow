@@ -1,6 +1,6 @@
 // Which renderer a wallpaper uses: the GPU (WebGL2) or the CPU (canvas 2D).
 //
-// Every wallpaper has both (CLAUDE.md, rules for wallpapers). The choice is
+// Every wallpaper has both (docs/architecture.md). The choice is
 // the Settings → performance "Rendering" setting, passed to wallpaper pages
 // as ?render=gpu|cpu (no parameter = automatic):
 //   automatic  the GPU when WebGL2 works on real hardware, else the CPU
@@ -10,13 +10,13 @@
 // update, GPU reset), hands over to the CPU renderer (see each wallpaper).
 
 const params = new URLSearchParams(location.search);
-export const RENDER_PREF = ["gpu", "cpu"].includes(params.get("render")) ? params.get("render") : "auto";
+const RENDER_PREF = ["gpu", "cpu"].includes(params.get("render")) ? params.get("render") : "auto";
 
 let cached;
 // What this machine's WebGL2 can do: null when there's no WebGL2 at all,
 // else { name, software, floatTargets } (floatTargets: can render into
 // 16-bit float textures, which the GPU renderers need to add up light)
-export function gpuInfo() {
+function gpuInfo() {
   if (cached !== undefined) return cached;
   cached = null;
   try {
@@ -38,7 +38,7 @@ export function gpuInfo() {
 
 // "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 (0x00002786) Direct3D11 vs_5_0 ps_5_0, D3D11)"
 //   -> "NVIDIA GeForce RTX 4070"
-export function prettyName(raw) {
+function prettyName(raw) {
   const angle = /^ANGLE \(([^,]+),\s*(.+?)(?:\s*\(0x[0-9a-f]+\))?\s*(?:Direct3D|OpenGL|Metal|Vulkan|,|$)/i.exec(raw);
   const name = angle ? angle[2] : raw;
   return name.replace(/\s+/g, " ").trim();

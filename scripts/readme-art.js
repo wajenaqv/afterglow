@@ -1,5 +1,5 @@
 // Generates assets/readme/banner.svg: the AfterGlow wordmark in figlet's Slant
-// font (heywajih.com's first WAJIH style), white on the top row fading to brand
+// font, white on the top row fading to brand
 // green, with a glow that slowly breathes.
 // Run: bun scripts/readme-art.js
 // (The README jellyfish GIF comes from tools/record.html, under bun run dev.)
@@ -21,7 +21,7 @@ const LH = 30; // px per row
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-// heywajih's logo fade: white on the top row to brand green on the bottom
+// The logo fade: white on the top row to brand green on the bottom
 function rowColor(i, n) {
   const t = n > 1 ? i / (n - 1) : 1;
   const mix = (a, b) => Math.round(a + (b - a) * t);

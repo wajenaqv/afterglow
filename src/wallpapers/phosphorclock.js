@@ -64,8 +64,7 @@ const HEAD = 0.07; // how long the beam's hot head lasts at a point
 
 // ---- layout: the text as segments along the beam's path ----
 // Always one line, "4:43", fitted to the width as well as the height (sized
-// by height alone, it ran off the sides of a portrait monitor; hours stacked
-// above minutes was tried there and the owner preferred one line).
+// by height alone, it would run off the sides of a portrait monitor).
 function build(text, A, cy = 0.43) {
   const lines = [text];
   const lineW = (line) => [...line].reduce((w, c) => w + (c === ":" ? 0.3 : 1 / 1.4), 0) + 0.3 * (line.length - 1); // in digit heights

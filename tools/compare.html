@@ -50,7 +50,7 @@
         const [qa, qb, la, lb] =
           mode.value === "renderer"
             ? ["render=cpu", "render=gpu", "CPU (canvas 2D)", "GPU (WebGL2)"]
-            : ["detail=1&render=cpu", "detail=0.5&render=cpu", "detail 1 (heywajih's original)", "detail 0.5 (default)"];
+            : ["detail=1&render=cpu", "detail=0.5&render=cpu", "detail 1 (full)", "detail 0.5 (default)"];
         document.getElementById("capA").textContent = la;
         document.getElementById("capB").textContent = lb;
         a.src = `/wallpapers/${wall.value}.html?hover=0&${qa}${still}`;

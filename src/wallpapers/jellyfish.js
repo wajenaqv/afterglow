@@ -1,7 +1,6 @@
 // wallpapers/jellyfish: glowing, see-through ASCII jellyfish drifting up
-// through dark water, drawn on a canvas. Ported from heywajih.com's jellyfish
-// wallpaper; the look is unchanged. AfterGlow additions: the frame loop stops
-// while the app pauses wallpapers (common.js isPaused/whenResumed).
+// through dark water, drawn on a canvas, after the one on heywajih.com. The frame
+// loop stops while the app pauses wallpapers (common.js isPaused/whenResumed).
 //
 // Jellyfish are translucent, so there is no depth test: every surface point
 // ADDS its light to the character cell it lands in, and overlapping parts
@@ -19,13 +18,11 @@
 // ("marine snow") drift through the water. The view is fixed: a wallpaper,
 // not an interactive scene.
 //
-// Hover (common.js pointer): touch a jelly with the cursor and it responds
-// like a real one: a bright bioluminescent flash and a quick contraction,
-// fading back over a second or two.
+// Hover (common.js pointer): the jelly under the cursor dissolves into
+// shading blocks (see SCRAMBLE).
 //
 // Options: ?count=6 jellyfish (1-10) ?tint=natural|cool|grey|warm (palette)
-//          ?theme=<name> (theme colours instead of
-//          natural ones) ?size=<0.3-2.5> ?preview (gallery: low frame rate)
+//          ?size=<0.3-2.5> ?preview (gallery: low frame rate)
 //          ?still=<id>&at=<s> (one frame for the stills page, see common.js)
 //          ?hero: one big jellyfish, placed for the screen's shape (on a
 //          phone the bell sits up behind the lock-screen clock), pulsing in
@@ -34,7 +31,7 @@
 //          ?hue=1-6: the big jelly's colour in the palette (default: the
 //          moment's for stills, random live)
 
-import { params, num, hash, seeded, cssRGB, THEME_NAMES, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, onReaction, seenLantern, paceFrames } from "./common.js";
+import { params, num, hash, seeded, cssRGB, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, onReaction, seenLantern, paceFrames } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createJellyGL } from "./jellyfish-gl.js";
 import { TINTS } from "./palettes.js";
@@ -46,9 +43,7 @@ const SIZE = num("size", 1, 0.3, 2.5);
 // Default count follows the screen's shape: wider screens get more jellyfish
 // (about 7 at 16:9, 9 on ultrawide, 5 on a square window)
 const COUNT = HERO ? 1 : Math.round(num("count", Math.max(4, Math.min(10, Math.round(2.5 + 2.5 * (innerWidth / innerHeight)))), 1, 10));
-const themeName = params.get("theme");
-const themed = THEME_NAMES.includes(themeName) && themeName !== "green";
-// Sampling detail (AfterGlow): 1 = heywajih's original density, about 8 light
+// Sampling detail: 1 = full density, about 8 light
 // samples per character cell; the default 0.5 takes half as many. Each
 // sample's area weight grows to match, so brightness per cell stays the same.
 // 2D surfaces (the bell) thin out in both directions, lines (tentacles,
@@ -59,7 +54,7 @@ const BELL_RING = 70 * Math.sqrt(DETAIL); // samples per unit of ring length
 const LINE_STEP = 0.03 / DETAIL; // units between samples down arms and tentacles
 
 // ---- canvas grid ----
-// Two renderers (AfterGlow): the GPU one (jellyfish-gl.js, WebGL2) when the
+// Two renderers: the GPU one (jellyfish-gl.js, WebGL2) when the
 // Rendering setting allows it (gpu.js), else this file's canvas 2D one. Both
 // draw the same picture from the same per-jelly state (jellyState below).
 function newCanvas() {
@@ -137,17 +132,12 @@ const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[
 // original look.
 // TINTS: palettes.js (shared with the light clock)
 const TINT = TINTS[params.get("tint")] ?? TINTS.natural;
-const HUES = TINT.hues.slice();
+const HUES = TINT.hues;
 let BG = [0, 0, 0];
 let DEEP = TINT.deep; // the colour of distance under water
 const SNOW_COL = TINT.snow; // the drifting particles
 function setPalette() {
   BG = cssRGB("--bg");
-  if (themed) {
-    // Theme mode: every jelly in the theme's colours, alternating accents
-    const fg = cssRGB("--fg"), accent = cssRGB("--accent"), bright = cssRGB("--bright"), dim = cssRGB("--dim");
-    HUES.splice(0, HUES.length, { bell: fg, glow: accent, tent: dim }, { bell: accent, glow: bright, tent: fg }, { bell: bright, glow: fg, tent: dim });
-  }
 }
 
 // ---- camera: fixed, looking down a little to see into the bells ----
@@ -163,8 +153,8 @@ function glow(x, y, z, b, rgb, isTent, area) {
   glowRGB(x, y, z, b, rgb[0], rgb[1], rgb[2], isTent, area);
 }
 // The same with the colour as three numbers. This runs ~60,000 times a frame,
-// so it allocates nothing (AfterGlow: the per-sample colour arrays kept the
-// garbage collector busy; the maths is unchanged).
+// so it allocates nothing: per-sample colour arrays kept the garbage collector
+// busy.
 function glowRGB(x, y, z, b, R, G, B, isTent, area) {
   if (PERF) PERF.samples++;
   const x1 = x * cy - z * sy;
@@ -235,7 +225,7 @@ const SNOW = Array.from({ length: 600 }, () => [random() * 2 - 1, random() * 20 
 const SPECKS = params.get("specks") !== "0";
 let HALF_W = 10; // half the visible width in world units (10 = half the height)
 
-// ---- reactions (AfterGlow; common.js onReaction, signals.rs) ----
+// ---- reactions (common.js onReaction, signals.rs) ----
 //   pulse  the on-screen jelly pulsed longest ago contracts and glows in the
 //          app's colour, fading over the afterglow
 //   count  extra jellies drift in as things wait: one per 3, up to 10 in all.
@@ -391,11 +381,10 @@ function reactionsTick(dt) {
 }
 
 // Hover (both renderers): the characters of the jelly under the cursor
-// dissolve into shading blocks ░▒▓ (by brightness, like heywajih's logo),
+// dissolve into shading blocks ░▒▓ (by brightness),
 // densest at the cursor (SCRAMBLE, from j.stir, which eases in and settles
 // over about a second). No light and no change to its path: light on the
-// wallpaper only ever means something is waiting. (Tried first: a tentacle
-// sway, too subtle; glitch symbols / \ < > [ ] ..., owner preferred blocks.)
+// wallpaper only ever means something is waiting.
 // Resting the cursor on a lantern for 0.8 s marks it seen; its colour
 // drains away meanwhile (j.drain), and comes back if you move off.
 // (j.excite is now only the flash reaction's contraction and glow.)
@@ -529,7 +518,7 @@ function drawJelly(j, t) {
   const R = j.r * SIZE * (1 - 0.18 * p); // narrower when contracted
   const Hb = j.r * SIZE * (0.5 + 0.25 * p); // a shallow umbrella, taller when contracted
   const ct = Math.cos(j.tilt), st = Math.sin(j.tilt);
-  const col = colOf(j); // its hue (theme mode has fewer), tinted while a pulse glows
+  const col = colOf(j); // its hue, tinted while a pulse glows
   // Local -> world: tilt the jelly a little around the z axis
   const put = (lx, ly, lz, b, R_, G_, B_, isTent, area) =>
     glowRGB(cx + lx * ct - ly * st, y + lx * st + ly * ct, cz + lz, b * fade, R_, G_, B_, isTent, area);
@@ -544,7 +533,7 @@ function drawJelly(j, t) {
   // Bell: a dome. Brightness from the rim (grazing angle), canals and gonads.
   const view = [Math.sin(yaw), 0, -Math.cos(yaw)];
   const TH_MAX = 1.3;
-  // (AfterGlow: per-ring values are worked out once per ring instead of per
+  // (per-ring values are worked out once per ring instead of per
   // sample, and colours are passed as numbers; same maths, same picture.)
   const [bellR, bellG, bellB] = col.bell;
   const [gloR, gloG, gloB] = col.glow;
@@ -671,7 +660,7 @@ function style(r, g, b) {
 
 const start = performance.now();
 let last = 0;
-// ?fps=15-30 (AfterGlow performance setting; 30 = the original)
+// ?fps=15-30 (Settings → performance)
 const FPS = reduced ? 1 : preview ? 8 : num("fps", 30, 10, 30);
 function frame(now) {
   const dt = Math.min(0.2, (now - last) / 1000);

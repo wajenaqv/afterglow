@@ -25,7 +25,7 @@ pub enum Problem {
 }
 
 const NO_IDENTITY: &str =
-    "needs AfterGlow registered as a package: run scripts\\windows\\register-package.ps1 once (see the README)";
+    "needs AfterGlow registered as a package: run scripts\\windows\\register-package.ps1 once";
 
 fn listener() -> Result<UserNotificationListener, Problem> {
     UserNotificationListener::Current().map_err(|_| Problem::Setup(NO_IDENTITY.into()))
@@ -33,7 +33,7 @@ fn listener() -> Result<UserNotificationListener, Problem> {
 
 /// Every notification id seen so far (None until the first read). A new
 /// notification is one whose id wasn't seen before: counting alone missed
-/// apps that replace their last notification with the new one (Claude does),
+/// apps that replace their last notification with the new one,
 /// where the count stays the same.
 static SEEN: Mutex<Option<HashSet<u32>>> = Mutex::new(None);
 

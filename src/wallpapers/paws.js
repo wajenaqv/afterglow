@@ -1,12 +1,11 @@
-// wallpapers/paws (ported unchanged from heywajih.com; pausing is handled by
-// nightscene.js): an invisible cat walking across the screen. Glowing paw
+// wallpapers/paws: an invisible cat walking across the screen. Glowing paw
 // prints appear one at a time, left and right, along a wandering path that
 // comes in from any edge, curves and turns, and leaves by another. Each
 // lands with a soft whiter flash, glows in its walk's colour, then cools
 // towards violet and fades. Now and then the cat stops, feet side by side,
 // before walking on, and sometimes a second cat crosses on its own path.
 //
-// The print's shape follows the owner's reference (a cat's paw icon): two
+// The print's shape is a cat's paw icon: two
 // tall oval toes in the middle, two smaller round toes lower at the sides,
 // and a rounded triangular pad with a flat base. The look is the
 // wallpapers' own (like the jellyfish): each bean is translucent light,
@@ -23,7 +22,7 @@
 // ?trail (for stills): one long walk across the whole screen, every print
 // visible, its colour stepping through the palette, newest end brightest.
 //
-// Options: ?tint=natural|cool|grey|warm (palette) ?theme=<name> ?trail
+// Options: ?tint=natural|cool|grey|warm (palette) ?trail
 //          ?still=<id>&at=<s> (one frame for the stills page, see common.js)
 //          ?size=<0.3-2.5> (print size) ?preview
 
@@ -32,8 +31,8 @@ const TRAIL = params.has("trail");
 import { C, setPalette, startScene, scale, add, mix, smooth, ellipse, circle, reduced } from "./nightscene.js";
 
 const SIZE = num("size", 1, 0.3, 2.5);
-let BG = C(3, 3, 8);
-let FLASH = C(255, 240, 230);
+const BG = C(3, 3, 8);
+const FLASH = C(255, 240, 230);
 // Palettes (?tint=): one colour per walk, and what prints cool to as they
 // fade. natural is the original mix.
 const PALETTES = {
@@ -67,15 +66,9 @@ const PALETTES = {
   },
 };
 const PALETTE = PALETTES[params.get("tint")] ?? PALETTES.natural;
-let OLD = PALETTE.old; // what a print cools to as it fades
-let TINTS = PALETTE.tints;
-setPalette(({ fg, accent, bright, dim }) => {
-  BG = scale(dim, 0.04);
-  FLASH = bright;
-  OLD = dim;
-  TINTS = [accent, fg, bright];
-  return {};
-});
+const OLD = PALETTE.old; // what a print cools to as it fades
+const TINTS = PALETTE.tints;
+setPalette();
 
 const STEP = 0.62; // seconds between prints
 const LIFE = 11; // seconds a print takes to fade away
@@ -263,7 +256,7 @@ function trailPrints(t) {
   });
 }
 
-// ---- reactions (AfterGlow; common.js onReaction, signals.rs) ----
+// ---- reactions (common.js onReaction, signals.rs) ----
 //   pulse  a messenger cat walks in from an edge, in the app's colour
 //   flash  every glowing print brightens for a moment
 const messengers = []; // walks started by pulses
@@ -319,7 +312,7 @@ function sample(X, Y) {
   return [col, null];
 }
 
-// ---- the GPU version of sample() (AfterGlow, scene-gl.js) ----
+// ---- the GPU version of sample() (scene-gl.js) ----
 // The prints that are glowing go to the GPU each frame as a small float
 // texture (row 0: x, y, cos, sin of the heading; row 1: colour, glow), and
 // this shader does sample()'s maths per cell: printLight()'s beans and pad,

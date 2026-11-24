@@ -1,20 +1,17 @@
-// Shared building blocks for the canvas wallpapers (paws.js; on heywajih also
-// constellation.js): soft-shape maths, theme colours, and the renderer that
-// turns light into coloured characters. Ported from heywajih.com; AfterGlow
-// adds the pause hook (the frame loop stops while the app pauses wallpapers).
+// Shared building blocks for the canvas wallpapers: soft-shape maths,
+// colours, and the renderer that turns light into coloured characters. The
+// frame loop stops while the app pauses wallpapers.
 //
 // Units: screen heights (y runs 0..1 down the screen). Light is roughly
 // 0..1 per channel; ink() tone-maps it, picks a character by brightness and
 // keeps the light's colour, the way jellyfish.js does it.
 
-import { params, num, hash, cssRGB, THEME_NAMES, STILL, STILL_AT, fontReady, sendStill, paceFrames } from "./common.js";
+import { params, num, hash, cssRGB, STILL, STILL_AT, fontReady, sendStill, paceFrames } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createSceneGL } from "./scene-gl.js";
 
 export const reduced = !STILL && matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const preview = params.has("preview");
-const themeName = params.get("theme");
-export const themed = THEME_NAMES.includes(themeName) && themeName !== "green";
 
 // ---- small maths ----
 export const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -37,19 +34,6 @@ export function segment(x, y, ax, ay, bx, by) {
   const h = clamp((px * dx + py * dy) / (dx * dx + dy * dy));
   return [Math.hypot(px - dx * h, py - dy * h), h];
 }
-// Signed distance to a triangle (negative inside)
-export function tri(x, y, a, b, c) {
-  let d = Infinity, s = 0;
-  for (const [p, q] of [[a, b], [b, c], [c, a]]) {
-    d = Math.min(d, segment(x, y, p[0], p[1], q[0], q[1])[0]);
-    s += (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]) > 0 ? 1 : -1;
-  }
-  return Math.abs(s) === 3 ? -d : d;
-}
-export const smin = (a, b, k) => {
-  const h = clamp(0.5 + (0.5 * (b - a)) / k);
-  return b + (a - b) * h - k * h * (1 - h);
-};
 export const norm = (v) => {
   const l = Math.hypot(...v);
   return v.map((c) => c / l);
@@ -58,14 +42,8 @@ export const norm = (v) => {
 // ---- colours ----
 export const C = (r, g, b) => [r / 255, g / 255, b / 255];
 export let BG = [0, 0, 0];
-// The background from the theme. In theme mode (?theme=), `extra(t)` is
-// called with the theme colours { fg, accent, bright, dim } (0..1) so the
-// scene can swap its own colours for them.
-export function setPalette(extra) {
+export function setPalette() {
   BG = cssRGB("--bg");
-  if (!themed || !extra) return;
-  const n = (v) => v.map((x) => x / 255);
-  extra({ fg: n(cssRGB("--fg")), accent: n(cssRGB("--accent")), bright: n(cssRGB("--bright")), dim: n(cssRGB("--dim")) });
 }
 
 // ---- the renderer ----
@@ -216,7 +194,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     resize();
     render(performance.now());
   });
-  // ?fps lowers the rate (AfterGlow performance setting), never raises it
+  // ?fps lowers the rate (Settings → performance), never raises it
   paceFrames(reduced ? 1 : preview ? 8 : Math.min(fps, num("fps", fps, 10, 60)), render);
   return dims;
 }

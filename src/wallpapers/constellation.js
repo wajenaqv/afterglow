@@ -1,4 +1,4 @@
-// Constellation: cats in the stars (ported from heywajih.com). On a quiet
+// Constellation: cats in the stars. On a quiet
 // starfield with a faint band of milky way, a handful of brighter stars fade
 // in somewhere in the sky, then faint lines draw from star to star like a
 // star chart until they make a small cat: sitting, asleep, strolling, its
@@ -14,11 +14,10 @@
 // bright star in its colour, twinkling in the upper sky, until you rest the
 // cursor on it (it then shoots off); a flash lights up every star.
 //
-// Drawing: the scene is sparse, so instead of working out every cell's light
-// (heywajih's sample()), each frame puts only the cells that hold something
+// Drawing: the scene is sparse, so instead of working out every cell's light,
+// each frame puts only the cells that hold something
 // into a cell buffer (cells.js), which the CPU draws as text and the GPU from
-// a texture. Colours go through the same tone map as nightscene.js ink(), so
-// it looks like the heywajih version.
+// a texture. Colours go through the same tone map as nightscene.js ink().
 //
 // Options: ?tint=natural|cool|warm|grey|green ?pose=sitting|sleeping|walking|
 // face|pouncing|loaf|stretching (keep to one) ?side=any (use the whole sky;
@@ -387,7 +386,7 @@ function frame(t) {
   cells.clear();
   const cats = current(t);
   for (const cat of cats) drawCat(cat, t);
-  drawSky(t, flash); // background stars sit over the lines, as on heywajih
+  drawSky(t, flash); // background stars sit over the lines
   for (const cat of cats) drawCatStars(cat, t, flash);
   drawLanterns(t);
   drawShots(t);

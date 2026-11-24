@@ -32,7 +32,7 @@ pub fn poll(app: &AppHandle, id: &str) -> Duration {
     let Some(p) = oauth::provider(id) else { return Duration::from_secs(60) };
     let client = client_for(app, id);
     if client.client_id.trim().is_empty() {
-        set_status(app, id, "setup", "add your app's client id below, then sign in (see the README)");
+        set_status(app, id, "setup", "add your app's client id below, then sign in (see the guide)");
         return Duration::from_secs(5);
     }
     if !oauth::signed_in(p) {

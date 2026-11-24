@@ -94,8 +94,8 @@ function standIn(cmd, a) {
       const now = Date.now();
       const e = (ago, source, kind, count, result) => ({ at: now - ago * 1000, source, kind, count, result });
       return [
-        e(8, "claude", "new", null, "pulse #f20707"),
-        e(8, "claude", "unread", 2, "counted (5 waiting in all)"),
+        e(8, "slack", "new", null, "pulse #e01e5a"),
+        e(8, "slack", "unread", 2, "counted (5 waiting in all)"),
         e(95, "whatsapp", "new", null, "held (you're away)"),
         e(140, "spotify", "new", null, "flash"),
         e(300, "windows-security", "new", null, "ignored (its rule says nothing)"),
@@ -280,7 +280,7 @@ for (const w of WALLPAPERS) {
   $("#wall-details").append(detail);
 }
 
-// Coming soon: wallpapers on their way (from heywajih.com), as dim tiles
+// Coming soon: wallpapers on their way, as dim tiles
 // with a sketch, so the picker shows there's more to come
 const SOON = [
   { name: "black hole", tag: "sky", about: "Light bending round a black hole, traced ray by ray.", art: "  .   *    .\n   .-~~~~-.\n  ( ( @@ ) )\n   '-~~~~-'\n .    *   ." },
@@ -421,7 +421,7 @@ function saveClock() {
 function showClock(c = {}) {
   const show = c.on === false ? "never" : c.always ? "always" : "hover";
   clockShowInputs.forEach((i) => (i.checked = i.value === show));
-  clockStyle = validStyle(c.style); // a removed style (nixie, plain, ...) falls back to slant
+  clockStyle = validStyle(c.style); // an unknown style falls back to slant
   clockCorner.value = c.corner ?? "top-right";
   clockColour.value = c.colour ?? "wallpaper";
   clockFill.value = c.fill ?? "gradient";

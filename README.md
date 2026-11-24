@@ -52,7 +52,7 @@ irm https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.ps1 | iex
 Free, no admin needed. Run the same line again to update. Read [install.sh](install.sh) or [install.ps1](install.ps1) first if you like.
 
 > [!IMPORTANT]
-> Quit other live wallpaper apps (Wallpaper Engine, Lively, Plash) first, or they cover AfterGlow.
+> Quit other live wallpaper apps first, or they cover AfterGlow.
 
 <details>
 <summary>Download by hand instead</summary>
@@ -131,6 +131,8 @@ AfterGlow listens on your own computer only, and refuses requests from web pages
 Ideas and bugs are welcome in [issues](https://github.com/wajenaqv/afterglow/issues).
 
 ## ⌘ Build from source
+
+How it fits together: [docs/architecture.md](docs/architecture.md). Fonts: [third-party notices](public/third-party.txt).
 
 You need [Bun](https://bun.sh), [Rust](https://rustup.rs) (stable) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system.
 

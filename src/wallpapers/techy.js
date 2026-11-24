@@ -12,7 +12,6 @@ export const PHOSPHORS = {
   white: { ink: [0.88, 0.9, 0.95], dim: [0.32, 0.34, 0.38], flash: [1, 1, 1] },
 };
 export const PH = PHOSPHORS[params.get("tint")] ?? PHOSPHORS.green;
-export const TINT_CHOICES = [["", "green"], ["amber", "amber"], ["ice", "ice blue"], ["white", "white"]];
 
 // the CRT overlay (wallpaper.css body.crt): scanlines and a vignette
 export function crt() {

@@ -34,3 +34,11 @@ certs/
 *.njsproj
 *.sln
 *.sw?
+
+# Private working notes and recordings, kept out of the repo
+CLAUDE.md
+.claude/
+docs/ideas/
+docs/mac-test.md
+docs/handover-windows.md
+docs/demo/

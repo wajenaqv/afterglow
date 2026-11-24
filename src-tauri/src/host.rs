@@ -10,7 +10,7 @@
 //     macOS, where a window can't span Spaces on different displays): one
 //     window per monitor.
 //
-// Three background loops (plain threads, like goroutines with a ticker):
+// Three background loops (plain threads):
 //   cursor    every 33 ms: windows behind the icons get no mouse events, so we
 //             read the cursor position and send it to the window under it as
 //             a "cursor" event ({x, y} in CSS px within that window, or null)
@@ -239,7 +239,7 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
     for wall in &walls {
         let window = WebviewWindowBuilder::new(app, &wall.label, WebviewUrl::App("wallpapers/host.html".into()))
             .title("AfterGlow wallpaper")
-            .initialization_script(&wall.init_script(&showing))
+            .initialization_script(wall.init_script(&showing))
             .decorations(false)
             .resizable(false)
             .skip_taskbar(true)

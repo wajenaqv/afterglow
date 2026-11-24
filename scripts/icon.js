@@ -11,7 +11,7 @@
 //                              that macOS tints for light and dark menu bars)
 //
 // Run: bun scripts/icon.js && bun run tauri icon assets/icon/app.svg && bun scripts/icon-ico.js
-// (src-tauri/icons/ then holds every size; tray PNGs: see CLAUDE.md)
+// (src-tauri/icons/ then holds every size; tray PNGs: see docs/architecture.md)
 
 import { mkdirSync, writeFileSync } from "node:fs";
 
@@ -57,7 +57,7 @@ const BOX = (() => {
 })();
 // Optical nudge to the right, as a share of the tile: the letters lean right,
 // and the A's foot reaching out bottom-left makes the eye read the whole AG
-// as sitting left of centre (owner: "a bit to the right"). The macOS menu
+// as sitting left of centre. The macOS menu
 // bar icon has no tile and is cropped to the letters, so it isn't nudged.
 const NUDGE = 0.015;
 // The (ox, oy) for path() that puts the strokes' centre at (cx, cy)

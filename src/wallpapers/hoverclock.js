@@ -127,14 +127,12 @@ function figlet(text, font) {
 }
 
 /** Every style, in the order Settings shows them */
-// (owner, 2026-11-24: nixie, small-slant, colossal, banner, density and plain
-// were removed; a saved setting naming one of them falls back to slant)
 export const STYLES = ["slant", "heywajih", "big", "lcd"];
 export const validStyle = (s) => (STYLES.includes(s) ? s : "slant");
 /** Styles whose characters shimmer: drawn again every second while shown */
 export const SHIMMERS = ["heywajih"];
 /** Sizes: how much bigger than the base size (CSS zoom) */
-export const SIZES = { small: 0.75, medium: 1, large: 1.4, huge: 2 };
+const SIZES = { small: 0.75, medium: 1, large: 1.4, huge: 2 };
 
 // 12 or 24 hours: "auto" follows the system's setting, "12" or "24" (24-hour
 // time, "military" time) choose

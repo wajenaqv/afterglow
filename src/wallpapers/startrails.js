@@ -1,6 +1,5 @@
-// Star trails: a long exposure of the night sky over mountain silhouettes,
-// after a Python sketch the owner shared (taken as reference only). Every star
-// turns slowly around the pole star; about a hundred of them leave a trail,
+// Star trails: a long exposure of the night sky over mountain silhouettes.
+// Every star turns slowly around the pole star; about a hundred leave a trail,
 // a thin arc that is brightest at the star and fades towards the oldest light.
 // The other stars are characters, twinkling a little; the trails are dotted
 // with characters too. Two ridges of mountains along the bottom, drawn in
@@ -8,7 +7,7 @@
 // over the horizon.
 //
 // Drawing: the arcs are real anti-aliased lines on a canvas (thin arcs drawn
-// as characters turn into noise, as the rings wallpaper showed), the rest is
+// as characters turn into noise), the rest is
 // characters on the same canvas. The mountains and the sky's glow are drawn
 // once per resize into a cached layer. So this wallpaper has one canvas 2D
 // renderer (which the browser composites on the GPU), not a GPU and a CPU
@@ -34,7 +33,7 @@ const sstep = (a, b, v) => {
 const rgb = (c, a = 1) => `rgba(${Math.round(clamp01(c[0]) * 255)},${Math.round(clamp01(c[1]) * 255)},${Math.round(clamp01(c[2]) * 255)},${a})`;
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
-// ---- palettes: the reference is black and white; real trails have colour ----
+// ---- palettes ----
 const TINTS = {
   natural: { star: [0.88, 0.91, 1.0], rock: [0.55, 0.56, 0.6], haze: [0.5, 0.52, 0.58], bg: [0.012, 0.014, 0.02] },
   warm: { star: [1.0, 0.9, 0.78], rock: [0.46, 0.4, 0.36], haze: [0.6, 0.5, 0.42], bg: [0.02, 0.014, 0.012] },

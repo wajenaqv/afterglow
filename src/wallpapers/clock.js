@@ -11,8 +11,7 @@
 //             (light: lightclock.js, the time drawn as light like the jellies)
 //             (radar and scope animate: crtclock.js draws them with the
 //             night-scene renderer, GPU and CPU)
-//             (nixie, small-slant, colossal, banner, density and plain were
-//             removed, owner 2026-11-24; those values fall back to slant)
+//             (anything else falls back to slant)
 //   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade)
 //   ?fill=    gradient (default) | solid
 //   ?hours=   auto (the system's setting) | 12 | 24

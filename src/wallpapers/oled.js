@@ -14,7 +14,7 @@ const DARK_AFTER_MS = 60_000;
 const FADE_OUT = "2s", FADE_IN = "0.6s";
 
 /** Where the picture sits at `seconds`: [dx, dy] in whole px */
-export function shiftAt(seconds) {
+function shiftAt(seconds) {
   const at = (period) => Math.round(REACH * Math.sin((2 * Math.PI * seconds) / period)) || 0; // || 0: no -0
   return [at(PERIOD_X), at(PERIOD_Y)];
 }

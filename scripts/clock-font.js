@@ -2,8 +2,7 @@
 // figlet fonts the clock offers (hover clock and the clock wallpaper):
 //   slant        Slant, the AfterGlow banner's font (the default)
 //   big          Big, rounded
-// (Small Slant, Colossal and Banner3 were removed with their clock styles,
-// 2026-11-24.) Only fonts drawn with plain ASCII: block-character fonts (Electronic)
+// Only fonts drawn with plain ASCII: block-character fonts (Electronic)
 // fall back to another font in the webview and break, like the first
 // density clock did. Each character is rendered on its own at full width,
 // so the clock can join them in any order; trailing blank rows are cut.

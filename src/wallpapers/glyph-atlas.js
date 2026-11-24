@@ -9,7 +9,7 @@
 // Drawn light on black, like the wallpapers' text on the dark background
 // (over a transparent background Chrome draws heavier edges).
 
-export const LEVELS = 16;
+const LEVELS = 16;
 const levelGrey = (level) => Math.round(((level + 0.5) / LEVELS) * 255);
 
 // GLSL: ink coverage (0..1) of glyph slot g for a cell coloured c (0..255),

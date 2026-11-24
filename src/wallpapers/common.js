@@ -1,6 +1,6 @@
-// Shared by every wallpaper page (wallpapers/*.html). Adapted from
-// heywajih.com's src/wallpapers/common.js: URL options, the cursor for hover
-// effects, colour helpers and still mode, plus what the AfterGlow app adds:
+// Shared by every wallpaper page (wallpapers/*.html): URL options, the
+// cursor for hover effects, colour helpers and still mode, plus what the app
+// sends:
 //   - the cursor arrives from the app (Rust polls it and emits "cursor"),
 //     because a window behind the desktop icons gets no mouse events
 //   - pause/resume from the app ("paused" event: fullscreen game, battery,
@@ -22,13 +22,10 @@ import "@fontsource/jetbrains-mono/700.css";
 import "../brand.css";
 import "./wallpaper.css";
 
-// Only the brand theme exists in AfterGlow; kept so wallpapers ported from
-// heywajih can keep their theme code paths (they stay off).
-export const THEME_NAMES = ["green"];
 export const params = new URLSearchParams(location.search);
 // Inside a frame (host.html in the app, or a dev tool): cursor and pause come
 // from the parent page
-export const FRAMED = window.parent !== window;
+const FRAMED = window.parent !== window;
 
 // ---- still mode ----
 export const STILL = params.has("still");
@@ -145,7 +142,7 @@ export function paceFrames(fps, draw) {
 // Ask on every refresh and draw on the ones that are due. Timers were late by
 // up to about 16 ms in WebView2 on Windows: at 30 fps the intervals between
 // frames ran from 19 to 47 ms, against 32 to 34 ms with this loop (Windows 11,
-// 360 Hz and 100 Hz monitors, 2026-11-24).
+// 360 Hz and 100 Hz monitors).
 function paceOnRefresh(fps, draw) {
   const target = 1000 / fps;
   let step = target, due = 0, prev = 0;

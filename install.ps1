@@ -46,5 +46,5 @@
   Write-Host "Starting AfterGlow (it lives in the tray, by the clock)."
   Start-Process $exe
   Write-Host ""
-  Write-Host "Done. Quit any other live wallpaper app (Wallpaper Engine, Lively) or it will cover AfterGlow."
+  Write-Host "Done. Quit any other live wallpaper app or it will cover AfterGlow."
 }
