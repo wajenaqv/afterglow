@@ -76,6 +76,103 @@ function setPaused(p) {
   if (!p) resumers.splice(0).forEach((fn) => fn());
 }
 
+// ---- frame pacing ----
+// Call draw(now) `fps` times a second; stops completely while paused.
+//
+// macOS: frames are drawn from a timer, not requestAnimationFrame: asking on every
+// screen refresh and skipping most of them is much dearer than it looks on
+// macOS, and even one request per frame costs (GPU power for the big
+// jellyfish at 15 fps, MacBook Air M5: about 0.5 W every refresh, 0.4 W one
+// request per frame, 0.27 W from a timer; 0.15 W with AfterGlow quit).
+//
+// Frames stay a whole number of refreshes apart (every 2nd at 60 Hz, 4th at
+// 120 Hz, 5th at 144 Hz), so each is up the same time. The refresh interval
+// is the median of the first second's animation frames (robust to jitter).
+// Each frame aims at the middle of a refresh interval, so a timer a few ms
+// off still lands in the same one; the aim is corrected every 10 s.
+//
+// Windows (and anything else): the animation-frame loop, see paceOnRefresh.
+const REALIGN_MS = 10_000;
+const TIMER_PACING = /Mac/.test(navigator.userAgent);
+export function paceFrames(fps, draw) {
+  if (!TIMER_PACING) return paceOnRefresh(fps, draw);
+  const target = 1000 / fps;
+  let refresh = 0, step = target, due = 0, aligned = 0;
+
+  // the first second: animation frames, drawing at the target rate meanwhile
+  let ticks = [], prev = 0;
+  function measure(now) {
+    if (paused) {
+      prev = 0;
+      return whenResumed(() => requestAnimationFrame(measure));
+    }
+    if (prev) ticks.push(now - prev);
+    prev = now;
+    if (!document.hidden && now >= due - 2) {
+      due = now - due > target * 2 ? now + target : due + target;
+      draw(now);
+    }
+    if (ticks.length < 60) return requestAnimationFrame(measure);
+    const r = ticks.sort((a, b) => a - b)[30];
+    refresh = r > 3 && r < 40 ? r : 1000 / 60;
+    step = Math.max(1, Math.round(target / refresh)) * refresh;
+    align(now);
+  }
+
+  // a refresh happened at `now`: the next frame is due half a refresh before
+  // the one that is a whole step away
+  function align(now) {
+    if (paused) return whenResumed(() => requestAnimationFrame(align));
+    aligned = now;
+    due = now + step - refresh / 2;
+    sleep();
+  }
+  function sleep() {
+    setTimeout(tick, Math.max(0, due - performance.now()));
+  }
+  function tick() {
+    if (paused) return whenResumed(() => requestAnimationFrame(align));
+    const now = performance.now();
+    if (!document.hidden) draw(now);
+    if (now - aligned > REALIGN_MS) return requestAnimationFrame(align);
+    due += step;
+    while (due < now) due += step; // resync after a stall, keeping the aim
+    sleep();
+  }
+  requestAnimationFrame(measure);
+}
+
+// Ask on every refresh and draw on the ones that are due. Timers were late by
+// up to about 16 ms in WebView2 on Windows: at 30 fps the intervals between
+// frames ran from 19 to 47 ms, against 32 to 34 ms with this loop (Windows 11,
+// 360 Hz and 100 Hz monitors, 2026-11-24).
+function paceOnRefresh(fps, draw) {
+  const target = 1000 / fps;
+  let step = target, due = 0, prev = 0;
+  const ticks = [];
+  function tick(now) {
+    if (paused) {
+      prev = 0;
+      return whenResumed(() => requestAnimationFrame(tick));
+    }
+    requestAnimationFrame(tick);
+    if (prev && ticks.length < 60) {
+      ticks.push(now - prev);
+      if (ticks.length === 60) {
+        // whole refreshes per frame. Above about 330 Hz the 0.1 ms clock is
+        // too coarse to measure one, and the plain target is close enough
+        const r = ticks.slice().sort((a, b) => a - b)[30];
+        if (r > 3 && r < 40) step = Math.max(1, Math.round(target / r)) * r;
+      }
+    }
+    prev = now;
+    if (document.hidden || now < due - 2) return;
+    due = now - due > step * 2 ? now + step : due + step; // resync after a stall
+    draw(now);
+  }
+  requestAnimationFrame(tick);
+}
+
 // ---- reactions (signals.rs) ----
 // { type: "pulse", colour: [r, g, b] (0..255), afterglow: seconds, source }
 // { type: "count", n }   how many things are waiting, across all apps

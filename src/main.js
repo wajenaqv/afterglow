@@ -320,6 +320,27 @@ for (const tag of ["", ...TAGS]) {
 const savedTab = localStorage.getItem(TAB_KEY) ?? "";
 showTab(["", ...TAGS].includes(savedTab) ? savedTab : "");
 
+// A preview only runs while you can see it: on screen, with this window in
+// front. (Each is a whole wallpaper; a dozen kept drawing behind other windows.)
+const onScreen = new WeakMap(); // iframe -> bool
+const previewFrames = () => $$(".preview iframe");
+function tellPreview(f) {
+  const value = document.hidden || !document.hasFocus() || onScreen.get(f) === false;
+  f.contentWindow?.postMessage({ type: "paused", value }, location.origin);
+}
+const seenPreviews = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    onScreen.set(e.target, e.isIntersecting);
+    tellPreview(e.target);
+  }
+});
+for (const f of previewFrames()) {
+  seenPreviews.observe(f);
+  f.addEventListener("load", () => tellPreview(f)); // a new page starts running
+}
+for (const type of ["focus", "blur"]) addEventListener(type, () => previewFrames().forEach(tellPreview));
+document.addEventListener("visibilitychange", () => previewFrames().forEach(tellPreview));
+
 // Previews render at 960x540 and are scaled to fit their card
 const fit = new ResizeObserver((entries) => {
   for (const e of entries) e.target.style.setProperty("--k", String(e.contentRect.width / 960));

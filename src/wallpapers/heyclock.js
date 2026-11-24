@@ -16,7 +16,7 @@
 // Drawn on a canvas, one character per cell (about 1,500 cells, cheap on the
 // CPU): the clock is the agreed exception to the GPU and CPU renderer rule.
 
-import { hash, HOVER, pointer, stillFor, STILL, STILL_AT, sendStill, fontReady, isPaused, whenResumed } from "./common.js";
+import { hash, HOVER, pointer, stillFor, STILL, STILL_AT, sendStill, fontReady, paceFrames } from "./common.js";
 import { timeText, is12 } from "./hoverclock.js";
 
 const FONT = {
@@ -240,16 +240,7 @@ export function startHeyClock({ colours, hours = "auto", size = 1, fps = 30 }) {
   measure();
   addEventListener("resize", measure);
   document.fonts?.ready.then(measure);
-  const interval = 1000 / (reduced ? 1 : fps);
-  let last = -1e9;
   const t0 = performance.now();
-  const tick = (ms) => {
-    if (isPaused()) return whenResumed(() => requestAnimationFrame(tick));
-    requestAnimationFrame(tick);
-    if (document.hidden || ms - last < interval) return;
-    last = ms;
-    frame(reduced ? 0 : (ms - t0) / 1000);
-  };
-  requestAnimationFrame(tick);
+  paceFrames(reduced ? 1 : fps, (ms) => frame(reduced ? 0 : (ms - t0) / 1000));
   return api;
 }

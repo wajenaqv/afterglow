@@ -7,7 +7,7 @@
 // 0..1 per channel; ink() tone-maps it, picks a character by brightness and
 // keeps the light's colour, the way jellyfish.js does it.
 
-import { params, num, hash, cssRGB, THEME_NAMES, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed } from "./common.js";
+import { params, num, hash, cssRGB, THEME_NAMES, STILL, STILL_AT, fontReady, sendStill, paceFrames } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createSceneGL } from "./scene-gl.js";
 
@@ -216,17 +216,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     resize();
     render(performance.now());
   });
-  let last = 0;
   // ?fps lowers the rate (AfterGlow performance setting), never raises it
-  const interval = 1000 / (reduced ? 1 : preview ? 8 : Math.min(fps, num("fps", fps, 10, 60)));
-  const tick = (now) => {
-    // Paused by the app: stop scheduling frames entirely (no CPU) until resumed
-    if (isPaused()) return whenResumed(() => requestAnimationFrame(tick));
-    requestAnimationFrame(tick);
-    if (document.hidden || now - last < interval) return;
-    last = now;
-    render(now);
-  };
-  requestAnimationFrame(tick);
+  paceFrames(reduced ? 1 : preview ? 8 : Math.min(fps, num("fps", fps, 10, 60)), render);
   return dims;
 }

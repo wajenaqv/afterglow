@@ -45,6 +45,47 @@ pub fn attach(window: &tauri::WebviewWindow, _x: i32, _y: i32, _w: u32, _h: u32)
     Ok(())
 }
 
+// ---- the app's own menu opening and closing ----
+//
+// AppKit posts these notifications around every menu this app shows. The
+// local CFNotificationCenter is the same centre as AppKit's, and takes a
+// plain C callback (no Objective-C class needed).
+type NotificationCallback = extern "C" fn(*mut c_void, *mut c_void, *const c_void, *const c_void, *const c_void);
+
+#[link(name = "CoreFoundation", kind = "framework")]
+unsafe extern "C" {
+    fn CFNotificationCenterGetLocalCenter() -> *mut c_void;
+    fn CFNotificationCenterAddObserver(center: *mut c_void, observer: *const c_void, callback: NotificationCallback, name: CFTypeRef, object: *const c_void, behavior: isize);
+}
+
+static ON_MENU: std::sync::OnceLock<fn(bool)> = std::sync::OnceLock::new();
+
+/// Call `f(true)` when one of our menus opens and `f(false)` when it closes
+/// (on the main thread). Call once, from the main thread.
+pub fn watch_menus(f: fn(bool)) {
+    extern "C" fn opened(_: *mut c_void, _: *mut c_void, _: *const c_void, _: *const c_void, _: *const c_void) {
+        if let Some(f) = ON_MENU.get() {
+            f(true);
+        }
+    }
+    extern "C" fn closed(_: *mut c_void, _: *mut c_void, _: *const c_void, _: *const c_void, _: *const c_void) {
+        if let Some(f) = ON_MENU.get() {
+            f(false);
+        }
+    }
+    const DELIVER_NOW: isize = 4; // CFNotificationSuspensionBehaviorDeliverImmediately
+    let _ = ON_MENU.set(f);
+    let begin = CfStr::new("NSMenuDidBeginTrackingNotification");
+    let end = CfStr::new("NSMenuDidEndTrackingNotification");
+    // an observer is told apart by its address; any stable one will do
+    let me = &ON_MENU as *const _ as *const c_void;
+    unsafe {
+        let center = CFNotificationCenterGetLocalCenter();
+        CFNotificationCenterAddObserver(center, me, opened, begin.0, std::ptr::null(), DELIVER_NOW);
+        CFNotificationCenterAddObserver(center, me, closed, end.0, std::ptr::null(), DELIVER_NOW);
+    }
+}
+
 // ---- a black system wallpaper while AfterGlow runs ----
 //
 // Mission Control and the Space-switch slide draw macOS's own copy of the
