@@ -79,7 +79,7 @@ function setPaused(p) {
 // ---- frame pacing ----
 // Call draw(now) `fps` times a second; stops completely while paused.
 //
-// Frames are drawn from a timer, not requestAnimationFrame: asking on every
+// macOS: frames are drawn from a timer, not requestAnimationFrame: asking on every
 // screen refresh and skipping most of them is much dearer than it looks on
 // macOS, and even one request per frame costs (GPU power for the big
 // jellyfish at 15 fps, MacBook Air M5: about 0.5 W every refresh, 0.4 W one
@@ -90,8 +90,12 @@ function setPaused(p) {
 // is the median of the first second's animation frames (robust to jitter).
 // Each frame aims at the middle of a refresh interval, so a timer a few ms
 // off still lands in the same one; the aim is corrected every 10 s.
+//
+// Windows (and anything else): the animation-frame loop, see paceOnRefresh.
 const REALIGN_MS = 10_000;
+const TIMER_PACING = /Mac/.test(navigator.userAgent);
 export function paceFrames(fps, draw) {
+  if (!TIMER_PACING) return paceOnRefresh(fps, draw);
   const target = 1000 / fps;
   let refresh = 0, step = target, due = 0, aligned = 0;
 
@@ -136,6 +140,37 @@ export function paceFrames(fps, draw) {
     sleep();
   }
   requestAnimationFrame(measure);
+}
+
+// Ask on every refresh and draw on the ones that are due. Timers were late by
+// up to about 16 ms in WebView2 on Windows: at 30 fps the intervals between
+// frames ran from 19 to 47 ms, against 32 to 34 ms with this loop (Windows 11,
+// 360 Hz and 100 Hz monitors, 2026-11-24).
+function paceOnRefresh(fps, draw) {
+  const target = 1000 / fps;
+  let step = target, due = 0, prev = 0;
+  const ticks = [];
+  function tick(now) {
+    if (paused) {
+      prev = 0;
+      return whenResumed(() => requestAnimationFrame(tick));
+    }
+    requestAnimationFrame(tick);
+    if (prev && ticks.length < 60) {
+      ticks.push(now - prev);
+      if (ticks.length === 60) {
+        // whole refreshes per frame. Above about 330 Hz the 0.1 ms clock is
+        // too coarse to measure one, and the plain target is close enough
+        const r = ticks.slice().sort((a, b) => a - b)[30];
+        if (r > 3 && r < 40) step = Math.max(1, Math.round(target / r)) * r;
+      }
+    }
+    prev = now;
+    if (document.hidden || now < due - 2) return;
+    due = now - due > step * 2 ? now + step : due + step; // resync after a stall
+    draw(now);
+  }
+  requestAnimationFrame(tick);
 }
 
 // ---- reactions (signals.rs) ----

@@ -109,6 +109,7 @@ pub struct Host {
     /// The tray menu is open or just closing (macOS, see menu_tracking)
     menu_busy: AtomicBool,
     /// Bumped each time the menu opens or closes, so an old delayed resume is ignored
+    #[cfg(target_os = "macos")]
     menu_turn: AtomicUsize,
     /// What each window was last told (to log changes)
     pub(crate) last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
