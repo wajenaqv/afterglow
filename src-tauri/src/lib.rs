@@ -13,6 +13,7 @@
 
 #[macro_use]
 pub mod logfile;
+mod autostart;
 mod connectors;
 mod endpoint;
 mod extras;

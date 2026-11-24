@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AfterGlow's Microsoft Store package (MSIX). make-msix.ps1 fills in the
+  __TOKENS__ and packs it with afterglow.exe. The Store signs the package,
+  which is what gives Store users an install without the SmartScreen
+  warning, and package identity for the notification listener
+  (userNotificationListener).
+
+  Identity Name and Publisher come from Partner Center (the app's
+  Product identity page); for a local test the script uses its own values.
+
+  The StartupTask is start at login inside the package (src-tauri/src/
+  autostart.rs; TaskId must match). Enabled="false": it starts off, the user
+  switches it on in AfterGlow.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 desktop rescap">
+  <Identity Name="__NAME__" Publisher="__PUBLISHER__" Version="__VERSION__" ProcessorArchitecture="x64" />
+  <Properties>
+    <DisplayName>AfterGlow</DisplayName>
+    <PublisherDisplayName>__PUBLISHER_DISPLAY__</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <uap3:Capability Name="userNotificationListener" />
+  </Capabilities>
+  <Applications>
+    <Application Id="AfterGlow" Executable="afterglow.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="AfterGlow"
+        Description="Live ASCII wallpapers that glow when something happens"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png" />
+      <Extensions>
+        <desktop:Extension Category="windows.startupTask" Executable="afterglow.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="AfterGlowStartup" Enabled="false" DisplayName="AfterGlow" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

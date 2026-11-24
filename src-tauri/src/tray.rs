@@ -17,7 +17,6 @@ use tauri::menu::{CheckMenuItem, IsMenuItem, Menu, MenuItem, PredefinedMenuItem,
 use tauri::tray::TrayIconBuilder;
 use tauri::window::Color;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
-use tauri_plugin_autostart::ManagerExt;
 
 use crate::host::{self, Host};
 use crate::settings::{self, Settings, FPS_CHOICES, WALLPAPERS};
@@ -76,7 +75,7 @@ fn tooltip(s: &Settings) -> String {
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
-    let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
+    let autostart_on = crate::autostart::is_enabled(app);
     let saved = app.state::<Host>().settings.lock().unwrap().clone();
 
     let walls: Vec<(String, CheckMenuItem<Wry>)> = WALLPAPERS
@@ -196,12 +195,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             }
             "autostart" => {
                 let on = autostart.is_checked().unwrap_or(false);
-                let result = if on { app.autolaunch().enable() } else { app.autolaunch().disable() };
-                if let Err(e) = result {
+                if let Err(e) = crate::autostart::set(app, on) {
                     crate::alog!("afterglow: start at login: {e}");
                 }
                 // show what actually happened
-                let _ = autostart.set_checked(app.autolaunch().is_enabled().unwrap_or(on));
+                let _ = autostart.set_checked(crate::autostart::is_enabled(app));
             }
             "rotate" => {
                 let r = app.state::<Host>().settings.lock().unwrap().rotate.clone();
@@ -241,7 +239,7 @@ pub fn sync(app: &AppHandle) {
                 "pause-fullscreen" => s.pause_fullscreen,
                 "pause-battery" => s.pause_on_battery,
                 "quiet-dnd" => s.quiet_dnd,
-                "autostart" => app.autolaunch().is_enabled().unwrap_or(false),
+                "autostart" => crate::autostart::is_enabled(app),
                 _ => continue,
             };
             let _ = item.set_checked(on);
@@ -272,15 +270,14 @@ pub fn set_pausing(app: AppHandle, covered: bool, fullscreen: bool, battery: boo
 /// Settings → pausing: start at login (read and set)
 #[tauri::command]
 pub fn autostart_state(app: AppHandle) -> bool {
-    app.autolaunch().is_enabled().unwrap_or(false)
+    crate::autostart::is_enabled(&app)
 }
 
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, on: bool) -> Result<bool, String> {
-    let result = if on { app.autolaunch().enable() } else { app.autolaunch().disable() };
-    result.map_err(|e| e.to_string())?;
+    let now = crate::autostart::set(&app, on)?;
     sync(&app);
-    Ok(app.autolaunch().is_enabled().unwrap_or(on))
+    Ok(now)
 }
 
 /// Opens the Settings window. It only exists while open: created here and
