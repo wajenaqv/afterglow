@@ -19,6 +19,7 @@
           <li><a href="#clock" data-page="clock">clock</a></li>
           <li><a href="#apps" data-page="apps">apps</a></li>
           <li><a href="#power" data-page="power">power</a></li>
+          <li><a href="#awake" data-page="awake">awake</a></li>
           <li><a href="#activity" data-page="activity">activity</a></li>
           <li><a href="#general" data-page="general">general</a></li>
           <li><a href="#about" data-page="about">about</a></li>
@@ -207,6 +208,30 @@
             <p class="dim hint running">drawing on: <span id="running">…</span></p>
           </details>
           <p class="hint" id="power-note" role="status"></p>
+        </section>
+
+        <!-- awake (src/awakepage.js) -->
+        <section id="page-awake" data-page="awake" hidden>
+          <h2>awake</h2>
+          <div class="box power-now"><div id="awake-state" role="status"></div></div>
+          <p class="dim hint">Keeps the computer from going to sleep by itself. Closing the lid or choosing Sleep still works.</p>
+
+          <h3 class="sub">by hand</h3>
+          <div class="seg awake-now" id="awake-now" role="group" aria-label="keep awake by hand"><button type="button" data-set="by-hand" data-v="off" aria-pressed="true">off</button><button type="button" data-set="by-hand" data-v="30" aria-pressed="false">30 min</button><button type="button" data-set="by-hand" data-v="60" aria-pressed="false">1 hour</button><button type="button" data-set="by-hand" data-v="120" aria-pressed="false">2 hours</button><button type="button" data-set="by-hand" data-v="on" aria-pressed="false" title="until turned off">until off</button></div>
+
+          <h3 class="sub">while an app runs</h3>
+          <div id="awake-apps"></div>
+          <p class="hint awake-add"><select id="awake-pick" aria-label="an app that keeps the computer awake"></select> <button type="button" id="awake-add" disabled>add</button></p>
+          <div class="list" id="awake-linger-row">
+            <label>after the app closes, sleep is allowed <select id="awake-linger"><option value="0">at once</option><option value="1">after 1 minute</option><option value="5">after 5 minutes</option></select></label>
+          </div>
+
+          <h3 class="sub">options</h3>
+          <div class="list">
+            <label><input type="checkbox" id="awake-screen" /> keep the screen on too <span class="dim">windows left open can burn in on an OLED</span></label>
+            <label id="awake-battery-row"><input type="checkbox" id="awake-battery" /> also on battery</label>
+          </div>
+          <p class="hint" id="awake-note" role="status"></p>
         </section>
 
         <!-- activity (src/activitypage.js) -->

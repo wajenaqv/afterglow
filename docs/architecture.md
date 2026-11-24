@@ -9,6 +9,7 @@ src-tauri/src/
   signals.rs     signals in, reactions out to the wallpapers
   apps.rs        the apps heard from: allowed or blocked, what each one does
   connectors/    watchers that turn other apps' activity into signals
+  awake.rs       keeps the computer awake, by hand or while chosen apps run
   endpoint.rs    the local endpoint (POST 127.0.0.1:47811/signal)
   settings.rs    saved choices; tray.rs, extras.rs, updates.rs, logfile.rs
 src/

@@ -1,13 +1,16 @@
 // The tray (Windows) / menu bar (macOS) icon and its menu:
 //   0.1.2 is ready: restart to update   (only while an update waits, updates.rs)
-//   Wallpaper ▸        jellyfish / big jellyfish / paw prints (one ticked)
-//   Frame rate ▸       smooth 30 / light 20 / eco 15 fps (one ticked)
-//   Try a signal ▸     the simulator: a message, things waiting, a flash
-//   Pause              stop every wallpaper (no CPU) until unticked
-//   Pause when hidden by windows / when an app is fullscreen / on battery   (saved)
-//   Start at login
-//   Settings…          the AfterGlow window: pick a wallpaper and its options
+//   Wallpaper ▸        every wallpaper (one ticked), and Rotate wallpapers
+//   Try a signal ▸     the simulator (development builds only)
+//   Pause ▸            pause now (stop every wallpaper, no CPU, until unticked),
+//                      and the rules: hidden by windows, an app is
+//                      fullscreen, on battery (only with a battery)
+//   Keep awake ▸       why it's awake now, then off / 30 minutes / 1 hour /
+//                      2 hours / until turned off
+//   Settings…          the AfterGlow window
 //   Quit AfterGlow
+// Only what you'd change on the spot; what you set once (frame rate, Do Not
+// Disturb, start at login) is in Settings.
 // The tooltip names the wallpaper that's showing.
 
 use std::sync::atomic::Ordering;
@@ -21,7 +24,7 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, Wry};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::host::{self, Host};
-use crate::settings::{self, Settings, FPS_CHOICES, WALLPAPERS};
+use crate::settings::{self, Settings, WALLPAPERS};
 use crate::signals::{self, Signal};
 
 const TRAY_ID: &str = "afterglow";
@@ -31,10 +34,19 @@ const TRAY_ID: &str = "afterglow";
 #[derive(Default)]
 pub struct TrayItems {
     walls: Mutex<Vec<(String, CheckMenuItem<Wry>)>>,
-    rates: Mutex<Vec<(u32, CheckMenuItem<Wry>)>>,
+    awake: Mutex<Vec<(&'static str, CheckMenuItem<Wry>)>>,
     rotate: Mutex<Option<CheckMenuItem<Wry>>>,
-    /// pause rules, quiet and start at login, by menu id
-    checks: Mutex<Vec<(&'static str, CheckMenuItem<Wry>)>>,
+    /// Pause ▸, by menu id
+    pause: Mutex<Vec<(&'static str, CheckMenuItem<Wry>)>>,
+    awake_line: Mutex<Option<AwakeLine>>,
+}
+
+/// The line on top of Keep awake ▸, only there while there's something to say
+struct AwakeLine {
+    menu: Submenu<Wry>,
+    line: MenuItem<Wry>,
+    separator: PredefinedMenuItem<Wry>,
+    shown: bool,
 }
 
 /// Try a signal ▸: (label, signal). "waiting" adds 3 to the simulator's own
@@ -62,36 +74,34 @@ fn try_signal(_app: &AppHandle, what: &str) -> Option<Signal> {
     serde_json::from_str(&json).ok()
 }
 
-fn fps_label(fps: u32) -> String {
-    match fps {
-        30 => "Smooth (30 fps)".into(),
-        20 => "Light (20 fps)".into(),
-        15 => "Eco (15 fps)".into(),
-        n => format!("{n} fps"),
-    }
-}
-
 fn tooltip(s: &Settings) -> String {
     let name = WALLPAPERS.iter().find(|(id, _)| *id == s.wallpaper).map(|(_, name)| *name).unwrap_or("AfterGlow");
     format!("AfterGlow · {name}")
 }
 
 pub fn build(app: &AppHandle) -> tauri::Result<()> {
-    let autostart_on = app.autolaunch().is_enabled().unwrap_or(false);
     let saved = app.state::<Host>().settings.lock().unwrap().clone();
 
     let walls: Vec<(String, CheckMenuItem<Wry>)> = WALLPAPERS
         .iter()
         .map(|(id, name)| Ok((id.to_string(), CheckMenuItem::with_id(app, format!("wall:{id}"), *name, true, saved.wallpaper == *id, None::<&str>)?)))
         .collect::<tauri::Result<_>>()?;
-    let rates: Vec<(u32, CheckMenuItem<Wry>)> = FPS_CHOICES
-        .iter()
-        .map(|&fps| Ok((fps, CheckMenuItem::with_id(app, format!("fps:{fps}"), fps_label(fps), true, saved.fps == fps, None::<&str>)?)))
-        .collect::<tauri::Result<_>>()?;
     let wall_refs: Vec<&dyn IsMenuItem<Wry>> = walls.iter().map(|(_, i)| i as &dyn IsMenuItem<Wry>).collect();
-    let rate_refs: Vec<&dyn IsMenuItem<Wry>> = rates.iter().map(|(_, i)| i as &dyn IsMenuItem<Wry>).collect();
     let wallpaper_menu = Submenu::with_items(app, "Wallpaper", true, &wall_refs)?;
-    let rate_menu = Submenu::with_items(app, "Frame rate", true, &rate_refs)?;
+    let rotate = CheckMenuItem::with_id(app, "rotate", "Rotate wallpapers", true, saved.rotate.on, None::<&str>)?;
+    wallpaper_menu.append_items(&[&PredefinedMenuItem::separator(app)?, &rotate])?;
+    let awake: Vec<(&'static str, CheckMenuItem<Wry>)> = crate::awake::CHOICES
+        .iter()
+        .map(|(id, name)| Ok((*id, CheckMenuItem::with_id(app, format!("awake:{id}"), *name, true, *id == "off", None::<&str>)?)))
+        .collect::<tauri::Result<_>>()?;
+    let awake_refs: Vec<&dyn IsMenuItem<Wry>> = awake.iter().map(|(_, i)| i as &dyn IsMenuItem<Wry>).collect();
+    let awake_menu = Submenu::with_items(app, "Keep awake", true, &awake_refs)?;
+    let awake_line = AwakeLine {
+        menu: awake_menu.clone(),
+        line: MenuItem::with_id(app, "awake-line", "", false, None::<&str>)?,
+        separator: PredefinedMenuItem::separator(app)?,
+        shown: false,
+    };
     // Try a signal ▸ the simulator, from the tray so nothing covers the wallpaper
     let tries: Vec<MenuItem<Wry>> = TRIES
         .iter()
@@ -101,40 +111,31 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let try_refs: Vec<&dyn IsMenuItem<Wry>> = tries.iter().map(|i| i as &dyn IsMenuItem<Wry>).collect();
     let try_menu = Submenu::with_items(app, "Try a signal", true, &try_refs)?;
 
-    let pause = CheckMenuItem::with_id(app, "pause", "Pause", true, false, None::<&str>)?;
-    let rotate = CheckMenuItem::with_id(app, "rotate", "Rotate wallpapers", true, saved.rotate.on, None::<&str>)?;
-    let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "Pause when an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
-    let battery = CheckMenuItem::with_id(app, "pause-battery", "Pause on battery", true, saved.pause_on_battery, None::<&str>)?;
-    let covered = CheckMenuItem::with_id(app, "pause-covered", "Pause when hidden by windows", true, saved.pause_covered, None::<&str>)?;
-    let quiet = CheckMenuItem::with_id(app, "quiet-dnd", "Quiet during Do Not Disturb", true, saved.quiet_dnd, None::<&str>)?;
-    let autostart = CheckMenuItem::with_id(app, "autostart", "Start at login", true, autostart_on, None::<&str>)?;
+    let pause = CheckMenuItem::with_id(app, "pause", "Pause now", true, false, None::<&str>)?;
+    let covered = CheckMenuItem::with_id(app, "pause-covered", "When hidden by windows", true, saved.pause_covered, None::<&str>)?;
+    let fullscreen = CheckMenuItem::with_id(app, "pause-fullscreen", "When an app is fullscreen", true, saved.pause_fullscreen, None::<&str>)?;
+    let on_battery = if cfg!(target_os = "macos") { "On battery or in Low Power Mode" } else { "On battery" };
+    let battery = CheckMenuItem::with_id(app, "pause-battery", on_battery, true, saved.pause_on_battery, None::<&str>)?;
+    let pause_menu = Submenu::with_items(app, "Pause", true, &[&pause, &PredefinedMenuItem::separator(app)?, &covered, &fullscreen])?;
+    if crate::platform::has_battery() {
+        pause_menu.append(&battery)?;
+    }
     let open_settings = MenuItem::with_id(app, "settings", "Settings…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit AfterGlow", true, None::<&str>)?;
-    let menu = Menu::with_items(
-        app,
-        &[
-            &wallpaper_menu,
-            &rate_menu,
-            &rotate,
-            &try_menu,
-            &PredefinedMenuItem::separator(app)?,
-            &pause,
-            &PredefinedMenuItem::separator(app)?,
-            &covered,
-            &fullscreen,
-            &battery,
-            &quiet,
-            &autostart,
-            &PredefinedMenuItem::separator(app)?,
-            &open_settings,
-            &quit,
-        ],
-    )?;
+    let menu = Menu::with_items(app, &[&wallpaper_menu, &pause_menu, &awake_menu, &PredefinedMenuItem::separator(app)?, &open_settings, &quit])?;
+    if cfg!(debug_assertions) {
+        menu.insert(&try_menu, 1)?;
+    }
 
     crate::updates::set_menu(app, menu.clone());
-    app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates), rotate: Mutex::new(Some(rotate.clone())),
-        checks: Mutex::new(vec![("pause", pause.clone()), ("pause-covered", covered.clone()), ("pause-fullscreen", fullscreen.clone()), ("pause-battery", battery.clone()), ("quiet-dnd", quiet.clone()), ("autostart", autostart.clone())]),
+    app.manage(TrayItems {
+        walls: Mutex::new(walls),
+        awake: Mutex::new(awake),
+        rotate: Mutex::new(Some(rotate.clone())),
+        pause: Mutex::new(vec![("pause", pause.clone()), ("pause-covered", covered.clone()), ("pause-fullscreen", fullscreen.clone()), ("pause-battery", battery.clone())]),
+        awake_line: Mutex::new(Some(awake_line)),
     });
+    sync(app); // Keep awake's "Off" depends on the saved apps
 
     let mut tray = TrayIconBuilder::with_id(TRAY_ID).tooltip(tooltip(&saved)).menu(&menu).show_menu_on_left_click(true);
     // The AG logo made for small sizes (scripts/icon.js): green on a black
@@ -169,12 +170,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             }
             return;
         }
-        // Frame rate ▸ <one>
-        if let Some(fps) = id.strip_prefix("fps:").and_then(|n| n.parse::<u32>().ok()) {
-            if let Err(e) = settings::set_fps(app.clone(), fps) {
+        // Keep awake ▸ <one>
+        if let Some(choice) = id.strip_prefix("awake:") {
+            if let Err(e) = crate::awake::choose(app, choice) {
                 crate::alog!("afterglow: {e}");
             }
-            sync(app);
             return;
         }
         match id {
@@ -183,27 +183,17 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                 app.state::<Host>().user_paused.store(pause.is_checked().unwrap_or(false), Ordering::Relaxed);
                 host::apply_pause(app);
             }
-            "pause-covered" | "pause-fullscreen" | "pause-battery" | "quiet-dnd" => {
+            "pause-covered" | "pause-fullscreen" | "pause-battery" => {
                 let host = app.state::<Host>();
                 let snapshot = {
                     let mut s = host.settings.lock().unwrap();
+                    s.pause_covered = covered.is_checked().unwrap_or(true);
                     s.pause_fullscreen = fullscreen.is_checked().unwrap_or(true);
                     s.pause_on_battery = battery.is_checked().unwrap_or(true);
-                    s.pause_covered = covered.is_checked().unwrap_or(true);
-                    s.quiet_dnd = quiet.is_checked().unwrap_or(true);
                     s.clone()
                 };
                 settings::save(app, &snapshot);
                 host::apply_pause(app);
-            }
-            "autostart" => {
-                let on = autostart.is_checked().unwrap_or(false);
-                let result = if on { app.autolaunch().enable() } else { app.autolaunch().disable() };
-                if let Err(e) = result {
-                    crate::alog!("afterglow: start at login: {e}");
-                }
-                // show what actually happened
-                let _ = autostart.set_checked(app.autolaunch().is_enabled().unwrap_or(on));
             }
             "rotate" => {
                 let r = app.state::<Host>().settings.lock().unwrap().rotate.clone();
@@ -224,9 +214,15 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Tick the wallpaper and frame rate in use, untick the others, and update
-/// the tooltip.
+/// Bring the menu and the tooltip in step with what's set. Always on the main
+/// thread: menu changes from another thread wait for it, so two threads here
+/// at once could wait for each other.
 pub fn sync(app: &AppHandle) {
+    let a = app.clone();
+    let _ = app.run_on_main_thread(move || sync_here(&a));
+}
+
+fn sync_here(app: &AppHandle) {
     let s = app.state::<Host>().settings.lock().unwrap().clone();
     if let Some(items) = app.try_state::<TrayItems>() {
         for (id, item) in items.walls.lock().unwrap().iter() {
@@ -235,20 +231,35 @@ pub fn sync(app: &AppHandle) {
         if let Some(item) = items.rotate.lock().unwrap().as_ref() {
             let _ = item.set_checked(s.rotate.on);
         }
-        for (fps, item) in items.rates.lock().unwrap().iter() {
-            let _ = item.set_checked(*fps == s.fps);
+        let choice = app.state::<crate::awake::Keeper>().choice();
+        for (id, item) in items.awake.lock().unwrap().iter() {
+            let _ = item.set_checked(*id == choice);
         }
-        for (id, item) in items.checks.lock().unwrap().iter() {
+        for (id, item) in items.pause.lock().unwrap().iter() {
             let on = match *id {
-                "pause" => app.state::<Host>().user_paused.load(Ordering::Relaxed),
                 "pause-covered" => s.pause_covered,
                 "pause-fullscreen" => s.pause_fullscreen,
                 "pause-battery" => s.pause_on_battery,
-                "quiet-dnd" => s.quiet_dnd,
-                "autostart" => app.autolaunch().is_enabled().unwrap_or(false),
-                _ => continue,
+                _ => app.state::<Host>().user_paused.load(Ordering::Relaxed),
             };
             let _ = item.set_checked(on);
+        }
+        if let Some((_, off)) = items.awake.lock().unwrap().first() {
+            let _ = off.set_text(if s.awake.apps.is_empty() { "Off" } else { "Only for chosen apps" });
+        }
+        if let Some(l) = items.awake_line.lock().unwrap().as_mut() {
+            let text = app.state::<crate::awake::Keeper>().line();
+            if let Some(text) = &text {
+                // in a menu, & underlines the next letter; && is a plain one
+                let _ = l.line.set_text(text.replace('&', "&&"));
+            }
+            if text.is_some() && !l.shown {
+                let _ = l.menu.insert_items(&[&l.line, &l.separator], 0);
+            } else if text.is_none() && l.shown {
+                let _ = l.menu.remove(&l.line);
+                let _ = l.menu.remove(&l.separator);
+            }
+            l.shown = text.is_some();
         }
     }
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
@@ -256,7 +267,7 @@ pub fn sync(app: &AppHandle) {
     }
 }
 
-/// Settings → power and apps: the pause rules, quiet (the same as the tray's ticks)
+/// Settings → power and apps: the pause rules (also in the tray), quiet
 #[tauri::command]
 pub fn set_pausing(app: AppHandle, covered: bool, fullscreen: bool, battery: bool, quiet_dnd: bool) {
     let host = app.state::<Host>();
@@ -283,7 +294,6 @@ pub fn autostart_state(app: AppHandle) -> bool {
 pub fn set_autostart(app: AppHandle, on: bool) -> Result<bool, String> {
     let result = if on { app.autolaunch().enable() } else { app.autolaunch().disable() };
     result.map_err(|e| e.to_string())?;
-    sync(&app);
     Ok(app.autolaunch().is_enabled().unwrap_or(on))
 }
 

@@ -3,11 +3,12 @@
 //  macOS: ~/Library/Application Support/com.wajenaqv.afterglow/settings.json):
 //   wallpaper         which one (an id below)
 //   options           per wallpaper, its URL options, e.g. {"jellyfish": {"tint": "cool"}}
-//   pause_fullscreen  the tray's pause rules
+//   pause_fullscreen  the pause rules
 //   pause_on_battery
 //   pause_covered     pause a monitor's wallpaper while app windows hide it
 //   quiet_dnd         no pulses or flashes during Do Not Disturb
 //   oled             OLED care: slow shift, black when paused or you're away
+//   awake            keep awake: the apps, screen too, battery, how long after
 //   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //
 // Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps, set_renderer).
@@ -64,6 +65,8 @@ pub struct Settings {
     pub oled: bool,
     /// ...which rests the screen after this many minutes away
     pub oled_minutes: u32,
+    /// Keep awake: which apps, screen, battery (awake.rs)
+    pub awake: crate::awake::Awake,
     /// Look for a newer version once a day (updates.rs)
     pub check_updates: bool,
 }
@@ -98,6 +101,7 @@ impl Default for Settings {
             scramble: true,
             oled: false,
             oled_minutes: 5,
+            awake: Default::default(),
             check_updates: true,
         }
     }
@@ -230,7 +234,6 @@ pub fn set_fps(app: AppHandle, fps: u32) -> Result<(), String> {
     };
     save(&app, &snapshot);
     host::show_wallpaper(&app);
-    tray::sync(&app);
     Ok(())
 }
 

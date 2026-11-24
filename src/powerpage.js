@@ -43,6 +43,7 @@ export function startPower({ invoke, inApp }) {
     cpu.hidden = state.cpu == null;
     if (state.cpu != null) setText(cpu, `using ${state.cpu < 0.1 ? "under 0.1" : state.cpu.toFixed(1)}% of this computer's CPU, this window included`);
     $("#battery-rule").hidden = !state.has_battery;
+    $("#awake-battery-row").hidden = !state.has_battery;
     setText($("#battery-also"), state.os === "macos" ? "and in Low Power Mode" : "");
     // what really draws each monitor, as the wallpapers report it
     const kinds = state.screens.map((s, i) => [i, s.renderer]).filter(([, r]) => r);

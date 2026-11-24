@@ -6,6 +6,7 @@
 //   settings.rs  the saved choices (settings.json) and the Settings window's commands
 //   signals.rs   the signal bus: signals in, reactions out to the wallpapers
 //   apps.rs      the apps heard from: allowed or blocked, what each one does
+//   awake.rs     keep the computer awake, by hand or while chosen apps run
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
 //   connectors/  watchers that turn other apps' activity into signals
 //   extras.rs    wallpaper rotation and saving a still as a PNG
@@ -16,6 +17,7 @@
 #[macro_use]
 pub mod logfile;
 mod apps;
+mod awake;
 mod connectors;
 mod endpoint;
 mod extras;
@@ -42,6 +44,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(updates::Updates::default())
         .manage(host::Host::default())
+        .manage(awake::Keeper::default())
         .manage(signals::Bus::default())
         .manage(connectors::Connectors::default())
         // what the Settings window and the wallpapers call
@@ -60,6 +63,10 @@ pub fn run() {
             apps::finish_apps_setup,
             apps::preview_app,
             extras::set_rotation,
+            awake::awake_state,
+            awake::awake_apps,
+            awake::set_awake,
+            awake::set_awake_now,
             host::set_paused,
             host::power_state,
             host::wall_renderer,
@@ -98,6 +105,7 @@ pub fn run() {
 
             host::start(app.handle())?;
             tray::build(app.handle())?;
+            awake::start(app.handle());
             endpoint::start(app.handle());
             connectors::start(app.handle());
             extras::start_rotation(app.handle());

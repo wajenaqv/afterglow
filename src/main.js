@@ -6,6 +6,7 @@
 //   extras.rs     set_rotation, save_png, open_stills_folder, open_link
 //   apps.rs       apps_state, set_app, add_app, … (appspage.js)
 //   signals.rs    send_signal, unread_by_app
+//   awake.rs      awake_state, awake_apps, set_awake, set_awake_now (awakepage.js)
 //   host.rs       power_state, set_paused (powerpage.js)
 //   tray.rs       set_pausing, autostart_state, set_autostart
 //   connectors/   connectors_state, set_connector, accounts_state, set_client,
@@ -19,6 +20,7 @@ import { WALLPAPERS, HUE_NAMES, TAGS, DETAILS, queryFor } from "./wallpapers/cat
 import { describe } from "./wallpapers/gpu.js";
 import { startApps } from "./appspage.js";
 import { startPower, attempt } from "./powerpage.js";
+import { startAwake } from "./awakepage.js";
 import { startActivity } from "./activitypage.js";
 import { startClock } from "./clockpage.js";
 import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
@@ -146,6 +148,19 @@ function standIn(cmd, a) {
     }
     case "power_state":
       return { paused: !!s.paused, screens: [{ w: 2560, h: 1440, reason: s.paused ? "you" : "", renderer: "gpu" }, { w: 1080, h: 1920, reason: s.paused ? "you" : "covered", renderer: "cpu" }], has_battery: false, os: /Mac/.test(navigator.userAgent) ? "macos" : "windows", cpu: 1.24 };
+    case "set_awake":
+      s.awake = a.awake;
+      return save();
+    case "set_awake_now":
+      s.awakeNow = a.choice;
+      return save();
+    case "awake_state": {
+      const choice = s.awakeNow ?? "off";
+      const app = s.awake?.apps?.[0];
+      return { choice, held: choice !== "off" || !!app, battery: false, reason: choice !== "off" ? "you turned it on" : app ? `${app.name} is running` : "", minutes: 42, left: Number(choice) || null, error: null };
+    }
+    case "awake_apps":
+      return [["obs64", true], ["Overwatch", true], ["blender", true], ["handbrake", false]].map(([name, windowed]) => ({ id: `${name.toLowerCase()}.exe`, name, windowed, front: false }));
     case "set_paused":
       s.paused = a.on;
       return save();
@@ -170,7 +185,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "power", "activity", "general", "about"];
+const PAGES = ["wallpaper", "clock", "apps", "power", "awake", "activity", "general", "about"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -538,6 +553,7 @@ startActivity({ invoke }); // activitypage.js
 
 // =========================== power (and the quiet rule on apps) ===========================
 const power = startPower({ invoke, inApp: IN_APP }); // powerpage.js
+const awakePage = startAwake({ invoke, inApp: IN_APP }); // awakepage.js
 const powerNote = $("#power-note");
 const pauseBoxes = $$("[data-pause]");
 const pauseBox = (k) => pauseBoxes.find((b) => b.dataset.pause === k).checked;
@@ -666,6 +682,7 @@ async function load() {
   oledMinutes.value = String(saved.oled_minutes ?? 5);
   showOled();
   $("#check-updates").checked = saved.check_updates ?? true;
+  awakePage.show(saved.awake);
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {

@@ -824,3 +824,112 @@ pub fn idle_seconds() -> f64 {
     // kCGEventSourceStateCombinedSessionState, kCGAnyInputEventType
     unsafe { CGEventSourceSecondsSinceLastEventType(0, u32::MAX) }
 }
+
+// ---- keep awake (awake.rs) ----
+
+#[link(name = "IOKit", kind = "framework")]
+unsafe extern "C" {
+    fn IOPMAssertionCreateWithName(kind: CFStringRef, level: u32, name: CFStringRef, id: *mut u32) -> i32;
+    fn IOPMAssertionRelease(id: u32) -> i32;
+}
+
+/// Keep the computer (and the screen) from going to sleep, or let it. macOS
+/// lists it under `pmset -g assertions` and drops it when we end.
+pub fn keep_awake(system: bool, screen: bool) -> Result<(), String> {
+    // the assertions held: (computer, screen); None: not held
+    static HELD: std::sync::Mutex<(Option<u32>, Option<u32>)> = std::sync::Mutex::new((None, None));
+    let mut held = HELD.lock().unwrap();
+    hold_assertion(&mut held.0, system, "PreventUserIdleSystemSleep")?;
+    hold_assertion(&mut held.1, screen, "PreventUserIdleDisplaySleep")
+}
+
+fn hold_assertion(held: &mut Option<u32>, on: bool, kind: &str) -> Result<(), String> {
+    if on == held.is_some() {
+        return Ok(());
+    }
+    if let Some(id) = held.take() {
+        unsafe { IOPMAssertionRelease(id) };
+        return Ok(());
+    }
+    let (kind, name) = (CfStr::new(kind), CfStr::new("AfterGlow: keep awake"));
+    let mut id = 0u32;
+    // 255 = kIOPMAssertionLevelOn
+    let status = unsafe { IOPMAssertionCreateWithName(kind.0, 255, name.0, &mut id) };
+    if status != 0 {
+        return Err(format!("macOS said no ({status:#x})"));
+    }
+    *held = Some(id);
+    Ok(())
+}
+
+/// The apps running now, without us. NSWorkspace only brings its list up to
+/// date on the main thread, so this hops there (as visible_frames does).
+pub fn running_apps() -> Vec<crate::awake::RunningApp> {
+    extern "C" fn work(out: *mut c_void) {
+        let out = unsafe { &mut *(out as *mut Vec<crate::awake::RunningApp>) };
+        *out = running_apps_here();
+    }
+    let mut out: Vec<crate::awake::RunningApp> = Vec::new();
+    unsafe {
+        if pthread_main_np() != 0 {
+            return running_apps_here();
+        }
+        dispatch_sync_f(&_dispatch_main_q, &mut out as *mut _ as *mut c_void, work);
+    }
+    out
+}
+
+/// An NSString as a Rust String
+unsafe fn ns_string(s: *mut AnyObject) -> Option<String> {
+    unsafe {
+        if s.is_null() {
+            return None;
+        }
+        let s: &AnyObject = &*s;
+        let utf8: *const c_char = msg_send![s, UTF8String];
+        if utf8.is_null() { None } else { Some(std::ffi::CStr::from_ptr(utf8).to_string_lossy().into_owned()) }
+    }
+}
+
+/// running_apps' body; main thread only
+fn running_apps_here() -> Vec<crate::awake::RunningApp> {
+    use crate::awake::RunningApp;
+    use objc2::class;
+    let mut out: Vec<RunningApp> = Vec::new();
+    unsafe {
+        let workspace: *mut AnyObject = msg_send![class!(NSWorkspace), sharedWorkspace];
+        if workspace.is_null() {
+            return out;
+        }
+        let workspace: &AnyObject = &*workspace;
+        let apps: *mut AnyObject = msg_send![workspace, runningApplications];
+        if apps.is_null() {
+            return out;
+        }
+        let apps: &AnyObject = &*apps;
+        let n: usize = msg_send![apps, count];
+        for i in 0..n {
+            let app: *mut AnyObject = msg_send![apps, objectAtIndex: i];
+            let app: &AnyObject = &*app;
+            let pid: i32 = msg_send![app, processIdentifier];
+            if pid == std::process::id() as i32 {
+                continue;
+            }
+            let id: *mut AnyObject = msg_send![app, bundleIdentifier];
+            let Some(id) = ns_string(id) else { continue };
+            let name: *mut AnyObject = msg_send![app, localizedName];
+            let name = ns_string(name).unwrap_or_else(|| id.clone());
+            // NSApplicationActivationPolicyRegular (0): it has a Dock icon
+            let policy: isize = msg_send![app, activationPolicy];
+            let front: bool = msg_send![app, isActive];
+            match out.iter_mut().find(|a| a.id == id) {
+                Some(a) => {
+                    a.windowed |= policy == 0;
+                    a.front |= front;
+                }
+                None => out.push(RunningApp { id, name, windowed: policy == 0, front }),
+            }
+        }
+    }
+    out
+}

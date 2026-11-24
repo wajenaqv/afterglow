@@ -315,3 +315,141 @@ pub fn idle_seconds() -> f64 {
         GetTickCount().wrapping_sub(info.dwTime) as f64 / 1000.0
     }
 }
+
+// ---- keep awake (awake.rs) ----
+
+/// Keep the computer (and the screen) from going to sleep, or let it. Windows
+/// lists the request under `powercfg /requests` and drops it when we end.
+pub fn keep_awake(system: bool, screen: bool) -> Result<(), String> {
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::Power::{PowerClearRequest, PowerCreateRequest, PowerRequestDisplayRequired, PowerRequestSystemRequired, PowerSetRequest};
+    use windows::Win32::System::Threading::{POWER_REQUEST_CONTEXT_SIMPLE_STRING, REASON_CONTEXT, REASON_CONTEXT_0};
+
+    // the request (a HANDLE as a number, so it can sit in a static; 0: not
+    // made yet), and what's set on it
+    static REQUEST: std::sync::Mutex<(isize, bool, bool)> = std::sync::Mutex::new((0, false, false));
+    let mut r = REQUEST.lock().unwrap();
+    if (r.1, r.2) == (system, screen) {
+        return Ok(());
+    }
+    unsafe {
+        if r.0 == 0 {
+            let mut why: Vec<u16> = "AfterGlow: keep awake\0".encode_utf16().collect();
+            let context = REASON_CONTEXT {
+                Version: 0, // POWER_REQUEST_CONTEXT_VERSION
+                Flags: POWER_REQUEST_CONTEXT_SIMPLE_STRING,
+                Reason: REASON_CONTEXT_0 { SimpleReasonString: PWSTR(why.as_mut_ptr()) },
+            };
+            r.0 = PowerCreateRequest(&context).map_err(|e| e.to_string())?.0 as isize;
+        }
+        let handle = HANDLE(r.0 as *mut c_void);
+        let change = |on: bool, kind| if on { PowerSetRequest(handle, kind) } else { PowerClearRequest(handle, kind) };
+        if r.1 != system {
+            change(system, PowerRequestSystemRequired).map_err(|e| e.to_string())?;
+            r.1 = system;
+        }
+        if r.2 != screen {
+            change(screen, PowerRequestDisplayRequired).map_err(|e| e.to_string())?;
+            r.2 = screen;
+        }
+    }
+    Ok(())
+}
+
+/// The programs running now, one entry per program file, without us
+pub fn running_apps() -> Vec<crate::awake::RunningApp> {
+    use crate::awake::RunningApp;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+    use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+
+    let mut windowed: Vec<u32> = Vec::new();
+    let mut front = 0u32;
+    let mut out: Vec<RunningApp> = Vec::new();
+    unsafe {
+        let _ = EnumWindows(Some(collect_window_pid), LPARAM(&mut windowed as *mut _ as isize));
+        GetWindowThreadProcessId(GetForegroundWindow(), Some(&mut front));
+        let me = GetCurrentProcessId();
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return out };
+        let mut entry = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut more = Process32FirstW(snapshot, &mut entry).is_ok();
+        while more {
+            let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
+            let file = String::from_utf16_lossy(&entry.szExeFile[..len]);
+            let id = file.to_lowercase();
+            let pid = entry.th32ProcessID;
+            // without .exe: the kernel's own ("System", "Registry");
+            // ApplicationFrameHost owns the windows of every Store app
+            if pid != me && id.ends_with(".exe") && id != "applicationframehost.exe" {
+                let (w, f) = (windowed.contains(&pid), front != 0 && pid == front);
+                match out.iter_mut().find(|a| a.id == id) {
+                    Some(a) => {
+                        a.windowed |= w;
+                        a.front |= f;
+                    }
+                    None => out.push(RunningApp { name: file[..file.len() - 4].to_string(), id, windowed: w, front: f }),
+                }
+            }
+            more = Process32NextW(snapshot, &mut entry).is_ok();
+        }
+        let _ = CloseHandle(snapshot);
+    }
+    out
+}
+
+/// EnumWindows callback: the owner of every visible window with a title
+unsafe extern "system" fn collect_window_pid(hwnd: HWND, out: LPARAM) -> BOOL {
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowTextLengthW;
+    unsafe {
+        let pids = &mut *(out.0 as *mut Vec<u32>);
+        let tool = GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW.0 != 0;
+        if IsWindowVisible(hwnd).as_bool() && !tool && GetWindowTextLengthW(hwnd) > 0 {
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            pids.push(pid);
+        }
+    }
+    true.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// What Windows itself says is being kept awake (ES_* bits): (system, screen)
+    fn execution_state() -> (bool, bool) {
+        use windows::Win32::System::Power::{CallNtPowerInformation, SystemExecutionState};
+        let mut state = 0u32;
+        let status = unsafe { CallNtPowerInformation(SystemExecutionState, None, 0, Some(&mut state as *mut u32 as *mut c_void), 4) };
+        assert_eq!(status.0, 0);
+        (state & 1 != 0, state & 2 != 0)
+    }
+
+    /// On this PC: `cargo test --lib live_awake -- --ignored --nocapture`
+    /// (other programs' requests show too, so quit video players first)
+    #[test]
+    #[ignore]
+    fn live_awake() {
+        println!("before: {:?}", execution_state());
+        keep_awake(true, false).unwrap();
+        println!("system: {:?}", execution_state());
+        keep_awake(true, true).unwrap();
+        println!("system + screen: {:?}", execution_state());
+        keep_awake(false, false).unwrap();
+        println!("released: {:?}", execution_state());
+        let t = std::time::Instant::now();
+        let apps = running_apps();
+        println!("{} programs in {:?}, {} with windows", apps.len(), t.elapsed(), apps.iter().filter(|a| a.windowed).count());
+        println!("something in front: {}", apps.iter().any(|a| a.front));
+
+        // a program starting and ending is noticed
+        let has = || running_apps().iter().any(|a| a.id == "ping.exe");
+        let already = has();
+        let mut child = std::process::Command::new("ping").args(["-n", "20", "127.0.0.1"]).stdout(std::process::Stdio::null()).spawn().unwrap();
+        println!("ping.exe before {already}, started {}", has());
+        child.kill().unwrap();
+        child.wait().unwrap();
+        println!("ended {}", has());
+    }
+}

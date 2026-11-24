@@ -8,6 +8,8 @@
 //   cpu_seconds()                CPU time of AfterGlow and its webviews so far
 //                                (None where that can't be told)
 //   do_not_disturb()             the OS is holding notifications back
+//   keep_awake(system, screen)   keep the computer (and screen) from sleeping
+//   running_apps()               the apps running now, and which is in front
 //   covered(screens)             per monitor (x, y, w, h physical px, scale): are app
 //                                windows hiding its desktop?
 
@@ -45,6 +47,12 @@ mod other {
     }
     pub fn idle_seconds() -> f64 {
         0.0
+    }
+    pub fn keep_awake(system: bool, _screen: bool) -> Result<(), String> {
+        if system { Err("not supported on this OS yet".into()) } else { Ok(()) }
+    }
+    pub fn running_apps() -> Vec<crate::awake::RunningApp> {
+        Vec::new()
     }
     pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
         vec![false; screens.len()]

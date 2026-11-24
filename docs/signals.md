@@ -28,4 +28,4 @@ curl -X POST http://127.0.0.1:47811/signal -d "{\"source\":\"build\",\"kind\":\"
 | `colour` | optional `#rrggbb` |
 | `afterglow` | optional seconds the glow takes to fade (default 4) |
 
-Requests from web pages are refused, so a website can't set your wallpaper off. To try it without writing anything, use **Try a signal** in the tray menu.
+Requests from web pages are refused, so a website can't set your wallpaper off. To try it without writing anything, use the test signals in Settings → apps → advanced.

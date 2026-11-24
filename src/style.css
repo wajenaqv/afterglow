@@ -537,6 +537,7 @@ table.apps {
 
 /* ---- power, activity ---- */
 #page-power [hidden],
+#page-awake [hidden],
 #page-activity [hidden],
 #page-clock [hidden] {
   display: none !important;
@@ -551,6 +552,32 @@ table.apps {
   padding: 10px 14px;
   margin: 0 0 12px;
   max-width: 820px;
+}
+.awake-row {
+  display: grid;
+  grid-template-columns: minmax(0, 24ch) max-content max-content;
+  gap: 10px;
+  align-items: center;
+  padding: 3px 0;
+}
+.awake-row > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.awake-row button {
+  font-size: 12px;
+  padding: 1px 8px;
+}
+.seg.awake-now {
+  grid-auto-columns: auto;
+  max-width: 640px;
+}
+.awake-add {
+  margin: 8px 0 12px;
+}
+#awake-pick {
+  max-width: 26ch;
 }
 .oled-more {
   display: grid;
