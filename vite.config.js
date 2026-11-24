@@ -52,6 +52,7 @@ export default defineConfig({
         cloudsea: resolve(import.meta.dirname, "wallpapers/cloudsea.html"),
         sakura: resolve(import.meta.dirname, "wallpapers/sakura.html"),
         constellation: resolve(import.meta.dirname, "wallpapers/constellation.html"),
+        startrails: resolve(import.meta.dirname, "wallpapers/startrails.html"),
       },
     },
   },

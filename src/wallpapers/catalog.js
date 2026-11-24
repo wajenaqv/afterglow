@@ -66,6 +66,13 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
+    id: "startrails",
+    name: "star trails",
+    about: "A long exposure of the night sky: stars turn slowly around the pole star, leaving thin arcs of light above dark mountains. A notification lights one star's trail in the app's colour; an app with something waiting keeps a trail in its colour until you rest the cursor on its star.",
+    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["colour", "star colours"], ["cool", "cool"], ["warm", "warm"], ["green", "AfterGlow green"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), light, a radar, an oscilloscope, or ASCII fonts (slant, big, lcd).",
