@@ -38,9 +38,9 @@ const frames = screens.map(([x, y, w, h]) => {
   return { f, x, y, w, h };
 });
 
-// the wallpaper's palette (?tint=), for the clock's "match the wallpaper" colour
+// the wallpaper's palette (?tint=), for the clock's "match the wallpaper" colours
 const tintOf = (query) => new URLSearchParams(query ?? "").get("tint") ?? "";
-const clock = hoverClock(frames, config.clock ?? {}, tintOf(config.query));
+const clock = hoverClock(frames, config.clock ?? {}, { wall: config.wall, tint: tintOf(config.query) });
 clock.setHidden(config.wall === "clock"); // the clock wallpaper is a clock already
 
 // OLED care: a slow shift, and black instead of a frozen picture (oled.js).
@@ -51,7 +51,7 @@ const oled = oledCare(frames, { on: tryOled }, { darkAfter: tryOled ? 2000 : und
 
 // Settings or the tray picked another wallpaper: swap every frame's page
 function show({ wall, query }) {
-  clock.setTint(tintOf(query));
+  clock.setWall({ wall, tint: tintOf(query) });
   clock.setHidden(wall === "clock");
   const src = pageFor(wall, query);
   frames.forEach((fr) => {
@@ -108,6 +108,29 @@ addEventListener("message", (e) => {
   if (e.origin === location.origin && e.data?.type === "seen" && typeof e.data.source === "string") seen(e.data.source.slice(0, 32));
   if (e.origin === location.origin && e.data?.type === "reacted") log(`frame ${e.data.page} handled ${e.data.reaction} (${e.data.handlers} handler)`);
 });
+
+// Settings → power shows what really draws each monitor: wallpapers put it in
+// data-renderer, which changes when the GPU fails and the CPU takes over
+let reportRenderer = () => {};
+function watchRenderer(fr, i) {
+  const root = fr.f.contentDocument?.documentElement;
+  if (!root) return;
+  const tell = () => {
+    reportRenderer(i, root.dataset.renderer ?? "");
+    // the big jellyfish's hue, for the clock
+    clock.setHue(i, root.dataset.hue === undefined ? null : Number(root.dataset.hue));
+  };
+  fr.watch?.disconnect();
+  fr.watch = new MutationObserver(tell);
+  fr.watch.observe(root, { attributes: true, attributeFilter: ["data-renderer", "data-hue"] });
+  tell();
+}
+frames.forEach((fr, i) => fr.f.addEventListener("load", () => watchRenderer(fr, i)));
+if ("__TAURI_INTERNALS__" in window)
+  import("@tauri-apps/api/core").then(({ invoke }) => {
+    reportRenderer = (index, renderer) => invoke("wall_renderer", { index, renderer }).catch(() => {});
+    frames.forEach((fr, i) => watchRenderer(fr, i));
+  });
 
 // a frame that loads (or reloads with another wallpaper) learns its state
 frames.forEach((fr) =>

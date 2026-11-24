@@ -23,6 +23,7 @@
 // same light, for judging the lighting)
 
 import { hash, params, onReaction } from "./common.js";
+import { CLOUDS } from "./palettes.js";
 import { setPalette, startScene, reduced, BG } from "./nightscene.js";
 
 const TAU = Math.PI * 2;
@@ -34,14 +35,8 @@ const CYCLE = Math.max(20, parseFloat(params.get("cycle")) || 1500);
 const FIXED = params.has("dusk") ? Math.min(1, Math.max(0, parseFloat(params.get("dusk")) || 0)) : params.has("cycle") ? null : 0.15;
 
 // The glow's colour at night, in the middle and when bright, and the shade in
-// the valleys, per palette (the same names as the other wallpapers' menu)
-const SETS = {
-  natural: { glow: [[0.22, 0.26, 0.7], [0.95, 0.33, 0.5], [1.0, 0.52, 0.14]], amb: [0.1, 0.09, 0.17] },
-  cool: { glow: [[0.1, 0.3, 0.75], [0.2, 0.7, 0.9], [0.45, 0.92, 1.0]], amb: [0.05, 0.09, 0.17] },
-  grey: { glow: [[0.5, 0.53, 0.6], [0.76, 0.78, 0.83], [0.96, 0.96, 0.98]], amb: [0.09, 0.095, 0.11] },
-  warm: { glow: [[0.65, 0.2, 0.3], [1.0, 0.4, 0.34], [1.0, 0.62, 0.22]], amb: [0.15, 0.08, 0.09] },
-};
-const SET = SETS[params.get("tint")] ?? SETS.natural;
+// the valleys, per palette: palettes.js CLOUDS
+const SET = CLOUDS[params.get("tint")] ?? CLOUDS.natural;
 const AMBIENT = SET.amb;
 const [C_NIGHT, C_MID, C_BRIGHT] = SET.glow;
 

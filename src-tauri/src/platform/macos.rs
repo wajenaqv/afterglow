@@ -420,6 +420,16 @@ pub fn on_battery() -> bool {
     battery || low_power_mode()
 }
 
+/// Always shown: the battery rule covers Low Power Mode too
+pub fn has_battery() -> bool {
+    true
+}
+
+/// Not known: macOS runs the webviews as its own services, not our children
+pub fn cpu_seconds() -> Option<f64> {
+    None
+}
+
 /// NSProcessInfo.processInfo.isLowPowerModeEnabled (macOS 12 and later)
 fn low_power_mode() -> bool {
     use objc2::{class, sel};

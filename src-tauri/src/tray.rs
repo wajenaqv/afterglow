@@ -133,7 +133,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
 
     crate::updates::set_menu(app, menu.clone());
     app.manage(TrayItems { walls: Mutex::new(walls), rates: Mutex::new(rates), rotate: Mutex::new(Some(rotate.clone())),
-        checks: Mutex::new(vec![("pause-covered", covered.clone()), ("pause-fullscreen", fullscreen.clone()), ("pause-battery", battery.clone()), ("quiet-dnd", quiet.clone()), ("autostart", autostart.clone())]),
+        checks: Mutex::new(vec![("pause", pause.clone()), ("pause-covered", covered.clone()), ("pause-fullscreen", fullscreen.clone()), ("pause-battery", battery.clone()), ("quiet-dnd", quiet.clone()), ("autostart", autostart.clone())]),
     });
 
     let mut tray = TrayIconBuilder::with_id(TRAY_ID).tooltip(tooltip(&saved)).menu(&menu).show_menu_on_left_click(true);
@@ -162,7 +162,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         if let Some(i) = id.strip_prefix("try:").and_then(|n| n.parse::<usize>().ok()) {
             if let Some((_, json)) = TRIES.get(i) {
                 if let Some(sig) = try_signal(app, json) {
-                    if let Err(e) = signals::handle(app, sig) {
+                    if let Err(e) = signals::handle_test(app, sig) {
                         crate::alog!("afterglow: {e}");
                     }
                 }
@@ -240,6 +240,7 @@ pub fn sync(app: &AppHandle) {
         }
         for (id, item) in items.checks.lock().unwrap().iter() {
             let on = match *id {
+                "pause" => app.state::<Host>().user_paused.load(Ordering::Relaxed),
                 "pause-covered" => s.pause_covered,
                 "pause-fullscreen" => s.pause_fullscreen,
                 "pause-battery" => s.pause_on_battery,
@@ -255,7 +256,7 @@ pub fn sync(app: &AppHandle) {
     }
 }
 
-/// Settings → pausing: the pause rules (the same as the tray's ticks)
+/// Settings → power and apps: the pause rules, quiet (the same as the tray's ticks)
 #[tauri::command]
 pub fn set_pausing(app: AppHandle, covered: bool, fullscreen: bool, battery: bool, quiet_dnd: bool) {
     let host = app.state::<Host>();
@@ -272,7 +273,7 @@ pub fn set_pausing(app: AppHandle, covered: bool, fullscreen: bool, battery: boo
     sync(&app);
 }
 
-/// Settings → pausing: start at login (read and set)
+/// Settings → general: start at login (read and set)
 #[tauri::command]
 pub fn autostart_state(app: AppHandle) -> bool {
     app.autolaunch().is_enabled().unwrap_or(false)

@@ -1,9 +1,23 @@
 # Send signals from your own scripts
 
-While AfterGlow runs, it listens on your own computer only:
+While AfterGlow runs, it listens on your own computer only.
+
+macOS:
 
 ```sh
 curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
+```
+
+Windows PowerShell:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:47811/signal -Method Post -Body '{"source":"build","kind":"new"}'
+```
+
+Windows Command Prompt:
+
+```bat
+curl -X POST http://127.0.0.1:47811/signal -d "{\"source\":\"build\",\"kind\":\"new\"}"
 ```
 
 | field | |

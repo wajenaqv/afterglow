@@ -20,15 +20,16 @@ use super::source_name;
 
 pub enum Problem {
     /// Needs something from the user (one line saying what)
-    Setup(String),
+    /// (the state for Settings, see connectors Status; the line)
+    Setup(&'static str, String),
     Error(String),
 }
 
 const NO_IDENTITY: &str =
-    "needs AfterGlow registered as a package: run scripts\\windows\\register-package.ps1 once";
+    "This PC doesn't let this version of AfterGlow see notifications. The connections below still work.";
 
 fn listener() -> Result<UserNotificationListener, Problem> {
-    UserNotificationListener::Current().map_err(|_| Problem::Setup(NO_IDENTITY.into()))
+    UserNotificationListener::Current().map_err(|_| Problem::Setup("unsupported", NO_IDENTITY.into()))
 }
 
 /// Every notification id seen so far (None until the first read). A new
@@ -46,11 +47,12 @@ pub fn counts() -> Result<(HashMap<String, u32>, HashSet<String>), Problem> {
         Ok(s) if s == UserNotificationListenerAccessStatus::Allowed => {}
         Ok(s) if s == UserNotificationListenerAccessStatus::Denied => {
             return Err(Problem::Setup(
-                "Windows says no: allow it in Settings → Privacy & security → Notifications → Allow apps to access your notifications".into(),
+                "denied",
+                "Turn on AfterGlow under \"Allow apps to access your notifications\". This page notices by itself.".into(),
             ));
         }
-        Ok(_) => return Err(Problem::Setup("waiting for your OK: switch the connector off and on again to see Windows' question".into())),
-        Err(_) => return Err(Problem::Setup(NO_IDENTITY.into())),
+        Ok(_) => return Err(Problem::Setup("ask", "Choose Allow when Windows asks.".into())),
+        Err(_) => return Err(Problem::Setup("unsupported", NO_IDENTITY.into())),
     }
     let list = l
         .GetNotificationsAsync(NotificationKinds::Toast)

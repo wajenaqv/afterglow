@@ -21,7 +21,7 @@ use super::{report, set_status};
 use crate::host::Host;
 use crate::signals::{self, Signal};
 
-pub const IDS: &[(&str, &str)] = &[("gmail", "Gmail"), ("outlook", "Outlook"), ("spotify", "Spotify (a pulse when the song changes)")];
+pub const IDS: &[(&str, &str)] = &[("gmail", "Gmail"), ("outlook", "Outlook"), ("spotify", "Spotify")];
 
 fn client_for(app: &AppHandle, id: &str) -> Client {
     app.state::<Host>().settings.lock().unwrap().clients.get(id).cloned().unwrap_or_default()
@@ -32,11 +32,11 @@ pub fn poll(app: &AppHandle, id: &str) -> Duration {
     let Some(p) = oauth::provider(id) else { return Duration::from_secs(60) };
     let client = client_for(app, id);
     if client.client_id.trim().is_empty() {
-        set_status(app, id, "setup", "add your app's client id below, then sign in (see the guide)");
+        set_status(app, id, "setup", "not set up yet");
         return Duration::from_secs(5);
     }
     if !oauth::signed_in(p) {
-        set_status(app, id, "setup", "not signed in: use Sign in below");
+        set_status(app, id, "setup", "not signed in");
         return Duration::from_secs(5);
     }
     match id {

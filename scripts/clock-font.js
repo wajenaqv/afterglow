@@ -2,6 +2,8 @@
 // figlet fonts the clock offers (hover clock and the clock wallpaper):
 //   slant        Slant, the AfterGlow banner's font (the default)
 //   big          Big, rounded
+//   small        Small, the digits on split-flap's cards
+//   doom, lean, isometric (Larry 3D)
 // Only fonts drawn with plain ASCII: block-character fonts (Electronic)
 // fall back to another font in the webview and break, like the first
 // density clock did. Each character is rendered on its own at full width,
@@ -10,7 +12,7 @@
 import figlet from "figlet";
 import { writeFileSync } from "node:fs";
 
-const FONTS = { slant: "Slant", big: "Big" };
+const FONTS = { slant: "Slant", big: "Big", small: "Small", doom: "Doom", lean: "Lean", isometric: "Larry 3D" };
 const out = {};
 for (const [id, font] of Object.entries(FONTS)) {
   const glyphs = {};

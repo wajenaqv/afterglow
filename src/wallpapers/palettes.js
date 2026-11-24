@@ -46,3 +46,87 @@ export const TINTS = {
     deep: [120, 55, 70], snow: [220, 175, 160],
   },
 };
+
+// ---- the other wallpapers' palettes, here so the clock can wear them
+// (clockcolours.js) ----
+
+const C = (r, g, b) => [r / 255, g / 255, b / 255];
+
+// Paw prints: one colour per walk, and what prints cool to as they fade
+export const PAWS = {
+  natural: {
+    old: C(175, 135, 205),
+    tints: [
+      C(255, 176, 150), // peach
+      C(255, 150, 190), // rose
+      C(255, 204, 128), // amber
+      C(210, 175, 255), // lilac
+      C(150, 235, 210), // mint
+      C(140, 205, 255), // sky
+      C(255, 130, 130), // coral
+      C(170, 160, 255), // periwinkle
+      C(255, 230, 150), // honey
+      C(240, 150, 255), // orchid
+      C(120, 235, 240), // aqua
+    ],
+  },
+  cool: {
+    old: C(110, 120, 200),
+    tints: [C(140, 205, 255), C(120, 235, 240), C(150, 235, 210), C(170, 160, 255), C(110, 160, 255), C(190, 225, 255), C(100, 215, 200)], // sky, aqua, mint, periwinkle, blue, ice, teal
+  },
+  grey: {
+    old: C(110, 112, 120),
+    tints: [C(240, 242, 248), C(200, 205, 215), C(220, 220, 220), C(175, 180, 190), C(245, 240, 232)], // pearl, silver, light grey, slate, warm white
+  },
+  warm: {
+    old: C(170, 90, 110),
+    tints: [C(255, 176, 150), C(255, 150, 190), C(255, 204, 128), C(255, 130, 130), C(255, 230, 150), C(255, 160, 90), C(255, 110, 160)], // peach, rose, amber, coral, honey, tangerine, raspberry
+  },
+};
+
+// Cloud sea: the glow's colour at night, in the middle and when bright, and
+// the shade in the valleys
+export const CLOUDS = {
+  natural: { glow: [[0.22, 0.26, 0.7], [0.95, 0.33, 0.5], [1.0, 0.52, 0.14]], amb: [0.1, 0.09, 0.17] },
+  cool: { glow: [[0.1, 0.3, 0.75], [0.2, 0.7, 0.9], [0.45, 0.92, 1.0]], amb: [0.05, 0.09, 0.17] },
+  grey: { glow: [[0.5, 0.53, 0.6], [0.76, 0.78, 0.83], [0.96, 0.96, 0.98]], amb: [0.09, 0.095, 0.11] },
+  warm: { glow: [[0.65, 0.2, 0.3], [1.0, 0.4, 0.34], [1.0, 0.62, 0.22]], amb: [0.15, 0.08, 0.09] },
+};
+
+// Sakura
+export const SAKURA = {
+  natural: { pale: [1.0, 0.86, 0.92], petal: [1.0, 0.62, 0.78], deep: [0.95, 0.36, 0.56], heart: [1.0, 0.4, 0.55], bark: [0.5, 0.34, 0.36], leaf: [0.42, 0.48, 0.22], moon: [0.85, 0.88, 0.95], anther: [1.0, 0.84, 0.5] },
+  cool: { pale: [0.9, 0.95, 1.0], petal: [0.72, 0.82, 1.0], deep: [0.5, 0.58, 0.95], heart: [0.6, 0.55, 1.0], bark: [0.45, 0.48, 0.58], leaf: [0.3, 0.48, 0.45], moon: [0.85, 0.92, 1.0], anther: [0.95, 0.97, 1.0] },
+  warm: { pale: [1.0, 0.9, 0.8], petal: [1.0, 0.68, 0.55], deep: [0.98, 0.45, 0.38], heart: [1.0, 0.5, 0.3], bark: [0.62, 0.42, 0.32], leaf: [0.5, 0.48, 0.2], moon: [1.0, 0.9, 0.75], anther: [1.0, 0.8, 0.4] },
+  grey: { pale: [0.95, 0.95, 0.95], petal: [0.78, 0.78, 0.8], deep: [0.55, 0.55, 0.58], heart: [0.7, 0.7, 0.72], bark: [0.42, 0.42, 0.42], leaf: [0.4, 0.4, 0.4], moon: [0.92, 0.92, 0.92], anther: [1.0, 1.0, 1.0] },
+  green: { pale: [0.8, 1.0, 0.9], petal: [0.3, 1.0, 0.6], deep: [0.15, 0.75, 0.45], heart: [0.5, 1.0, 0.75], bark: [0.3, 0.56, 0.43], leaf: [0.2, 0.6, 0.4], moon: [0.75, 1.0, 0.86], anther: [0.85, 1.0, 0.7] },
+};
+
+// Constellation
+export const CONSTELLATION = {
+  natural: { sky: C(1, 2, 6), dust: C(70, 60, 130), star: C(225, 232, 255), bright: C(255, 244, 220), line: C(120, 160, 235), label: C(215, 170, 85) }, // the names in a chart's gold
+  cool: { sky: C(0, 3, 8), dust: C(40, 80, 140), star: C(200, 230, 255), bright: C(225, 245, 255), line: C(80, 185, 255), label: C(90, 140, 190) },
+  warm: { sky: C(6, 2, 2), dust: C(130, 70, 60), star: C(255, 235, 210), bright: C(255, 225, 175), line: C(255, 160, 90), label: C(190, 135, 100) },
+  grey: { sky: C(3, 3, 3), dust: C(90, 90, 95), star: C(225, 225, 230), bright: C(250, 250, 250), line: C(160, 165, 175), label: C(130, 132, 138) },
+  green: { sky: C(0, 4, 2), dust: C(40, 110, 80), star: C(51, 255, 153), bright: C(255, 255, 255), line: C(125, 255, 192), label: C(77, 143, 110) },
+};
+
+// Star trails; "colour": each star its own temperature, cool to hot
+export const STAR_COOL = [0.7, 0.82, 1.0];
+export const STAR_HOT = [1.0, 0.78, 0.55];
+export const STARTRAILS = {
+  natural: { star: [0.88, 0.91, 1.0], rock: [0.55, 0.56, 0.6], haze: [0.5, 0.52, 0.58], bg: [0.012, 0.014, 0.02] },
+  warm: { star: [1.0, 0.9, 0.78], rock: [0.46, 0.4, 0.36], haze: [0.6, 0.5, 0.42], bg: [0.02, 0.014, 0.012] },
+  cool: { star: [0.75, 0.88, 1.0], rock: [0.34, 0.4, 0.5], haze: [0.4, 0.5, 0.65], bg: [0.008, 0.012, 0.024] },
+  green: { star: [0.55, 1.0, 0.78], rock: [0.28, 0.45, 0.38], haze: [0.3, 0.6, 0.45], bg: [0.006, 0.016, 0.012] },
+  colour: { star: null, rock: [0.42, 0.43, 0.46], haze: [0.5, 0.52, 0.58], bg: [0.012, 0.014, 0.02] },
+};
+
+// The techy wallpapers' phosphors: green = the brand (P1/P31), amber (P3),
+// ice (P7's blue-white flash colour), white (P4)
+export const PHOSPHORS = {
+  green: { ink: [0.2, 1.0, 0.6], dim: [0.08, 0.42, 0.26], flash: [0.85, 1.0, 0.95] },
+  amber: { ink: [1.0, 0.68, 0.2], dim: [0.45, 0.28, 0.06], flash: [1.0, 0.95, 0.8] },
+  ice: { ink: [0.55, 0.85, 1.0], dim: [0.18, 0.32, 0.48], flash: [0.95, 0.98, 1.0] },
+  white: { ink: [0.88, 0.9, 0.95], dim: [0.32, 0.34, 0.38], flash: [1, 1, 1] },
+};

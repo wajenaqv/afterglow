@@ -70,7 +70,7 @@ Get the `.dmg` or `.exe` from the [latest release](https://github.com/wajenaqv/a
 | something is still waiting | can keep a light on until you've seen it |
 | your inbox fills up | gets busier, the more that's waiting |
 | you were away | replays what you missed when you're back |
-| Do Not Disturb is on (Windows) | stays calm |
+| Do Not Disturb is on (Windows) | stays calm, and replays after |
 | a game or video goes fullscreen | pauses |
 | windows cover it, or you're on battery | pauses |
 
@@ -88,7 +88,7 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 ```
 
 - **Two signals.** Every app boils down to *something just happened* and *this many are waiting*.
-- **Your rules.** For each app: light up, flash or nothing, in its own colour or one you pick.
+- **Your rules.** For each app: allow or block it, light up or flash, in its own colour or one you pick.
 - **Light on your computer.** Drawn on the graphics card, with a CPU version when there isn't one.
 
 ## ⚙ Make it yours

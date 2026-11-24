@@ -21,6 +21,7 @@
 // Options: ?tint=natural|warm|cool|green|colour ?fps
 
 import { params, num, seeded, hash, STILL, STILL_AT, HOVER, pointer, onReaction, seenLantern, fontReady, sendStill, paceFrames } from "./common.js";
+import { STARTRAILS, STAR_COOL, STAR_HOT } from "./palettes.js";
 
 const TAU = Math.PI * 2;
 const reduced = !STILL && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -34,16 +35,9 @@ const rgb = (c, a = 1) => `rgba(${Math.round(clamp01(c[0]) * 255)},${Math.round(
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 // ---- palettes ----
-const TINTS = {
-  natural: { star: [0.88, 0.91, 1.0], rock: [0.55, 0.56, 0.6], haze: [0.5, 0.52, 0.58], bg: [0.012, 0.014, 0.02] },
-  warm: { star: [1.0, 0.9, 0.78], rock: [0.46, 0.4, 0.36], haze: [0.6, 0.5, 0.42], bg: [0.02, 0.014, 0.012] },
-  cool: { star: [0.75, 0.88, 1.0], rock: [0.34, 0.4, 0.5], haze: [0.4, 0.5, 0.65], bg: [0.008, 0.012, 0.024] },
-  green: { star: [0.55, 1.0, 0.78], rock: [0.28, 0.45, 0.38], haze: [0.3, 0.6, 0.45], bg: [0.006, 0.016, 0.012] },
-  colour: { star: null, rock: [0.42, 0.43, 0.46], haze: [0.5, 0.52, 0.58], bg: [0.012, 0.014, 0.02] },
-};
-const PAL = TINTS[params.get("tint")] ?? TINTS.natural;
+const PAL = STARTRAILS[params.get("tint")] ?? STARTRAILS.natural;
 // "colour": each star its own temperature, blue-white to orange
-const starColour = (h) => PAL.star ?? mixc([0.7, 0.82, 1.0], [1.0, 0.78, 0.55], h);
+const starColour = (h) => PAL.star ?? mixc(STAR_COOL, STAR_HOT, h);
 
 // ---- the sky ----
 const RATE = 0.02; // radians per second the sky turns (a turn in about five minutes)

@@ -218,6 +218,8 @@ if (HERO) {
     hue: params.has("hue") ? Math.round(num("hue", 1, 1, 6)) - 1 : STILL ? Math.floor(STILL_AT * 7.3) : Math.floor(Math.random() * 6),
     still: true, // no sway
   });
+  // the hover clock takes this jelly's colour (host.js)
+  document.documentElement.dataset.hue = String(JELLIES[0].hue);
 }
 // Marine snow: x as a fraction of the visible width, so it fills wide screens too
 const SNOW = Array.from({ length: 600 }, () => [random() * 2 - 1, random() * 20 - 10, random() * 16 - 8, random()]);
@@ -660,7 +662,7 @@ function style(r, g, b) {
 
 const start = performance.now();
 let last = 0;
-// ?fps=15-30 (Settings → performance)
+// ?fps=15-30 (Settings → power)
 const FPS = reduced ? 1 : preview ? 8 : num("fps", 30, 10, 30);
 function frame(now) {
   const dt = Math.min(0.2, (now - last) / 1000);

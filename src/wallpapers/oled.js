@@ -1,4 +1,4 @@
-// OLED care (Settings → performance, off by default), done in host.html so
+// OLED care (Settings → power, off by default), done in host.html so
 // every wallpaper and the hover clock get it:
 //   shift   the picture wanders a few pixels, at most one pixel every ten
 //           seconds, so no edge lights the same pixels for hours

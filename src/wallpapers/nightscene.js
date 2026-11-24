@@ -194,7 +194,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     resize();
     render(performance.now());
   });
-  // ?fps lowers the rate (Settings → performance), never raises it
+  // ?fps lowers the rate (Settings → power), never raises it
   paceFrames(reduced ? 1 : preview ? 8 : Math.min(fps, num("fps", fps, 10, 60)), render);
   return dims;
 }

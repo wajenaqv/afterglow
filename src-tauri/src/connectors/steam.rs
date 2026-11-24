@@ -175,13 +175,13 @@ pub fn poll(app: &AppHandle) -> Duration {
     let (_, p) = prefs(app);
     let every = Duration::from_secs(60);
     if !p.online && !p.playing {
-        let text = if cfg!(windows) && p.messages { "watching for Steam chat messages" } else { "nothing switched on below" };
+        let text = if cfg!(windows) && p.messages { "watching for Steam chat messages" } else { "nothing chosen yet" };
         crate::connectors::set_status(app, "steam", if p.messages && cfg!(windows) { "ok" } else { "setup" }, text);
         *FRIENDS.lock().unwrap() = None;
         return every;
     }
     let (Some(key), false) = (key(), p.steamid.is_empty()) else {
-        crate::connectors::set_status(app, "steam", "setup", "friends need your Steam Web API key and Steam ID (see the guide)");
+        crate::connectors::set_status(app, "steam", "setup", "friends need your Steam key and profile");
         return every;
     };
     match look(&key, &p.steamid) {

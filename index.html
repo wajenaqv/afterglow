@@ -18,9 +18,9 @@
           <li><a href="#wallpaper" data-page="wallpaper">wallpaper</a></li>
           <li><a href="#clock" data-page="clock">clock</a></li>
           <li><a href="#apps" data-page="apps">apps</a></li>
-          <li><a href="#pausing" data-page="pausing">pausing</a></li>
-          <li><a href="#performance" data-page="performance">performance</a></li>
+          <li><a href="#power" data-page="power">power</a></li>
           <li><a href="#activity" data-page="activity">activity</a></li>
+          <li><a href="#general" data-page="general">general</a></li>
           <li><a href="#about" data-page="about">about</a></li>
         </ul>
         <p class="dim side-foot" id="version">afterglow</p>
@@ -54,120 +54,191 @@
         <!-- clock -->
         <section id="page-clock" data-page="clock" hidden>
           <h2>clock</h2>
-          <p class="dim hint">The time in a corner of the screen, drawn in the wallpaper's own glow: always there, or fading in when you rest the cursor in the corner.</p>
-
-          <h3 class="sub">show it</h3>
-          <div class="list" role="radiogroup" aria-label="show the clock">
-            <label><input type="radio" name="clock-show" value="hover" /> when I hover the corner <span class="dim">half a second in the corner; it fades out when you leave</span></label>
-            <label><input type="radio" name="clock-show" value="always" /> always</label>
-            <label><input type="radio" name="clock-show" value="never" /> never</label>
+          <div class="clock-show" role="group" aria-label="show the clock">
+            <button type="button" data-set="show" data-v="hover"><b>on hover</b><span>rest the cursor in its corner</span></button>
+            <button type="button" data-set="show" data-v="always"><b>always</b><span>on every monitor</span></button>
+            <button type="button" data-set="show" data-v="never"><b>never</b><span>no corner clock</span></button>
           </div>
-
-          <h3 class="sub">style</h3>
-          <div class="clock-styles" id="clock-styles" role="radiogroup" aria-label="clock style"></div>
-
-          <h3 class="sub">where and how</h3>
-          <div class="opts clock-opts">
-            <label><span class="dim">corner</span> <select id="clock-corner"><option value="top-right">top right</option><option value="top-left">top left</option><option value="bottom-right">bottom right</option><option value="bottom-left">bottom left</option></select></label>
-            <label><span class="dim">colour</span> <select id="clock-colour"><option value="wallpaper">match the wallpaper</option><option value="brand">AfterGlow green</option></select></label>
-            <label><span class="dim">fill</span> <select id="clock-fill"><option value="gradient">gradient</option><option value="solid">solid</option></select></label>
-            <label><span class="dim">size</span> <select id="clock-size"><option value="small">small</option><option value="medium">medium</option><option value="large">large</option><option value="huge">huge</option></select></label>
-            <label><span class="dim">hours</span> <select id="clock-hours"><option value="auto">like my system</option><option value="12">12-hour</option><option value="24">24-hour (military)</option></select></label>
+          <p class="hint" id="clock-hidden" hidden>The clock wallpaper is showing, so this corner clock stays hidden until you pick another wallpaper.</p>
+          <p class="hint" id="clock-note" role="status"></p>
+          <div id="clock-choices">
+            <div>
+              <div class="clock-tabs" id="clock-tabs" role="group" aria-label="kinds of style"></div>
+              <div class="clock-styles" id="clock-styles" role="group" aria-label="clock style"></div>
+            </div>
+            <div class="clock-side">
+              <div id="clock-screen">
+                <iframe title="" tabindex="-1" aria-hidden="true" src="about:blank"></iframe>
+                <div class="face"></div>
+                <button type="button" class="spot top-left" data-set="corner" data-v="top-left" aria-label="clock top left">move here</button>
+                <button type="button" class="spot top-right" data-set="corner" data-v="top-right" aria-label="clock top right">move here</button>
+                <button type="button" class="spot bottom-left" data-set="corner" data-v="bottom-left" aria-label="clock bottom left">move here</button>
+                <button type="button" class="spot bottom-right" data-set="corner" data-v="bottom-right" aria-label="clock bottom right">move here</button>
+              </div>
+              <p class="dim hint" id="clock-tip"></p>
+              <div class="clock-rows">
+                <span>colour</span>
+                <div class="seg" role="group" aria-label="colour"><button type="button" data-set="colour" data-v="wallpaper"><i id="clock-match"></i>wallpaper</button><button type="button" data-set="colour" data-v="brand"><i id="clock-brand"></i>green</button><button type="button" id="clock-pick"><i id="clock-picked"></i>custom</button></div>
+                <!-- one or the other: a picked colour has no gradient -->
+                <span id="clock-fill-label">fill</span>
+                <div class="seg" id="clock-fill" role="group" aria-label="fill"><button type="button" data-set="fill" data-v="gradient">gradient</button><button type="button" data-set="fill" data-v="solid">solid</button></div>
+                <div class="clock-picks" id="clock-picks" hidden><span id="clock-swatches"></span><input type="color" id="clock-own" value="#ff5fa2" title="any colour" aria-label="any colour" /></div>
+                <span>corner</span>
+                <div class="seg" role="group" aria-label="corner"><button type="button" data-set="corner" data-v="top-left" title="top left" aria-label="top left"><i class="mon top-left"></i></button><button type="button" data-set="corner" data-v="top-right" title="top right" aria-label="top right"><i class="mon top-right"></i></button><button type="button" data-set="corner" data-v="bottom-left" title="bottom left" aria-label="bottom left"><i class="mon bottom-left"></i></button><button type="button" data-set="corner" data-v="bottom-right" title="bottom right" aria-label="bottom right"><i class="mon bottom-right"></i></button></div>
+                <span>size</span>
+                <div class="seg" role="group" aria-label="size"><button type="button" data-set="size" data-v="small" title="small" aria-label="small">S</button><button type="button" data-set="size" data-v="medium" title="medium" aria-label="medium">M</button><button type="button" data-set="size" data-v="large" title="large" aria-label="large">L</button><button type="button" data-set="size" data-v="huge" title="huge" aria-label="huge">XL</button></div>
+                <span>hours</span>
+                <div class="seg" role="group" aria-label="hours"><button type="button" data-set="hours" data-v="auto">auto</button><button type="button" data-set="hours" data-v="12">12 h</button><button type="button" data-set="hours" data-v="24">24 h</button></div>
+              </div>
+            </div>
           </div>
-          <p class="dim hint clock-note" id="clock-note"></p>
         </section>
 
         <!-- apps -->
         <section id="page-apps" data-page="apps" hidden>
           <h2>apps</h2>
-          <p class="dim hint">What your apps do to the wallpaper. AfterGlow only reads which app and how many, never what a message says.</p>
+          <!-- src/appspage.js -->
+          <div id="setup" class="box" hidden>
+            <p><span id="setup-how"></span> AfterGlow sees which app and how many, never what it says.</p>
+            <ol>
+              <li><span class="mark-box"></span> <span id="setup-s0"></span> <button type="button" class="use" id="setup-on">turn on</button></li>
+              <li><span class="mark-box"></span> <span id="setup-s1"></span></li>
+              <li><span class="mark-box"></span> <span>get a message in any app, to check it works</span> <span class="dim" id="setup-wait">listening…</span></li>
+            </ol>
+            <p id="setup-works" hidden><span id="setup-heard"></span> <button type="button" class="use" id="setup-done">see my apps</button></p>
+            <button type="button" id="setup-skip">skip for now</button>
+          </div>
 
-          <h3 class="sub">listen to</h3>
-          <div id="connectors" class="connectors"></div>
+          <div id="listen" class="box" hidden>
+            <label><input type="checkbox" id="listen-on" /> <span id="listen-name"></span></label>
+            <span id="listen-status"></span>
+          </div>
+          <div id="listen-problem" class="box needs" role="status" hidden>
+            <strong id="listen-what"></strong>
+            <p id="listen-why"></p>
+            <button type="button" class="use" id="listen-fix"></button>
+          </div>
 
-          <h3 class="sub">what each app does</h3>
-          <p class="dim hint">A new message pulses one jelly (or sends a cat) in the app's colour; what's waiting brings in more jellies. Change any app here.</p>
-          <div class="scroll-x"><table class="apps" id="apps">
-            <thead><tr><th>app</th><th>new message</th><th>colour</th><th>counts</th><th>waiting</th><th></th></tr></thead>
-            <tbody></tbody>
-          </table></div>
-          <p class="apps-actions">
-            <button type="button" id="add-app">+ app</button>
-            <span class="dim" id="apps-note"></span>
-          </p>
+          <div id="apps-main">
+            <div class="list not-mac">
+              <label><input type="checkbox" data-pause="quiet_dnd" /> stay calm during Do Not Disturb <span class="dim">messages wait and are shown after it</span></label>
+            </div>
+            <p class="dim hint" id="quiet-note" role="status"></p>
+            <h3 class="sub">your apps</h3>
+            <p class="dim hint">Ticked apps light up your wallpaper. Untick one to block it.</p>
+            <div class="app-tools">
+              <input type="text" id="app-find" placeholder="find or add an app" maxlength="32" autocomplete="off" spellcheck="false" aria-label="find or add an app" />
+              <label>apps not seen before: <select id="new-apps"><option value="allowed">allowed</option><option value="blocked">blocked</option></select></label>
+            </div>
+            <div id="app-list" class="app-list"></div>
+            <p id="app-add" hidden><span class="dim">not seen yet:</span> <button type="button">add <span id="app-add-name"></span></button></p>
+            <p class="dim hint" id="apps-none">No apps yet.</p>
+            <p class="dim hint">Other apps appear here the first time they notify you. <span id="apps-note" role="status"></span></p>
 
-          <h3 class="sub">try it</h3>
-          <div class="signals">
-            <button type="button" data-waiting="3">3 more waiting</button>
-            <button type="button" data-waiting="0">nothing waiting</button>
-            <button type="button" data-signal='{"source":"simulator","kind":"flash"}'>flash</button>
-            <span class="dim" id="waiting"></span>
+            <h3 class="sub">more connections</h3>
+            <div id="connectors" class="app-list"></div>
+
+            <details class="advanced">
+              <summary>advanced</summary>
+              <div class="signals">
+                <span class="dim">test signals</span>
+                <button type="button" data-waiting="3">3 more waiting</button>
+                <button type="button" data-waiting="0">nothing waiting</button>
+                <button type="button" data-signal='{"source":"simulator","kind":"flash"}'>flash</button>
+                <span class="dim" id="waiting"></span>
+              </div>
+              <h3 class="sub">from your own scripts</h3>
+              <p class="dim hint">While AfterGlow runs it listens on this computer only. Requests from web pages are refused.</p>
+              <p class="endpoint only-win"><span class="dim">PowerShell</span> <code>Invoke-RestMethod http://127.0.0.1:47811/signal -Method Post -Body '{"source":"build","kind":"new"}'</code> <button type="button" data-copy="Invoke-RestMethod http://127.0.0.1:47811/signal -Method Post -Body '{&quot;source&quot;:&quot;build&quot;,&quot;kind&quot;:&quot;new&quot;}'">copy</button></p>
+              <p class="endpoint only-win"><span class="dim">Command Prompt</span> <code>curl -X POST http://127.0.0.1:47811/signal -d "{\"source\":\"build\",\"kind\":\"new\"}"</code> <button type="button" data-copy="curl -X POST http://127.0.0.1:47811/signal -d &quot;{\&quot;source\&quot;:\&quot;build\&quot;,\&quot;kind\&quot;:\&quot;new\&quot;}&quot;">copy</button></p>
+              <p class="endpoint not-win"><code>curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'</code> <button type="button" data-copy="curl -X POST http://127.0.0.1:47811/signal -d '{&quot;source&quot;:&quot;build&quot;,&quot;kind&quot;:&quot;new&quot;}'">copy</button></p>
+          <table class="fields">
+            <tr><td><code>source</code></td><td class="dim">a name: whatsapp, gmail, build, … (known apps pulse in their own colour)</td></tr>
+            <tr><td><code>kind</code></td><td class="dim">new, unread (with count), clear or flash</td></tr>
+            <tr><td><code>count</code></td><td class="dim">how many are waiting, for unread</td></tr>
+            <tr><td><code>colour</code></td><td class="dim">optional #rrggbb for the pulse</td></tr>
+            <tr><td><code>afterglow</code></td><td class="dim">optional seconds the pulse takes to fade (default 4)</td></tr>
+          </table>
+            </details>
           </div>
         </section>
 
-        <!-- pausing -->
-        <section id="page-pausing" data-page="pausing" hidden>
-          <h2>pausing</h2>
-          <p class="dim hint">A paused wallpaper stops drawing and costs almost nothing. These are also in the tray menu.</p>
+        <!-- power (src/powerpage.js) -->
+        <section id="page-power" data-page="power" hidden>
+          <h2>power</h2>
+          <div class="box power-now">
+            <div><div id="power-screens" role="status"></div><div class="dim" id="power-cpu" hidden></div></div>
+            <button type="button" id="pause-now">pause</button>
+          </div>
+          <p class="dim hint">A paused wallpaper stops drawing and costs almost nothing.</p>
+
+          <h3 class="sub">pause by itself</h3>
           <div class="list">
-            <label><input type="checkbox" data-pause="covered" /> when windows hide it <span class="dim">per monitor: a maximized window, or windows side by side</span></label>
+            <label><input type="checkbox" data-pause="covered" /> when windows hide it <span class="dim">each monitor on its own</span></label>
             <label><input type="checkbox" data-pause="fullscreen" /> when an app is fullscreen <span class="dim">games, videos, presentations</span></label>
-            <label><input type="checkbox" data-pause="battery" /> on battery <span class="dim">and in Low Power Mode on a Mac</span></label>
-            <label><input type="checkbox" data-pause="quiet_dnd" /> quiet during Do Not Disturb <span class="dim">no pulses or flashes (Windows)</span></label>
+            <label id="battery-rule"><input type="checkbox" data-pause="battery" /> on battery <span class="dim" id="battery-also"></span></label>
           </div>
-          <h3 class="sub">startup</h3>
-          <div class="list">
-            <label><input type="checkbox" id="autostart" /> start at login</label>
-          </div>
-          <p class="dim hint note" id="pausing-note"></p>
-        </section>
 
-        <!-- performance -->
-        <section id="page-performance" data-page="performance" hidden>
-          <h2>performance</h2>
           <h3 class="sub">frame rate</h3>
-          <p class="dim hint">Fewer frames, less work. The slow motion stays smooth at 20; at 15 it's a little steppy up close.</p>
           <div class="list" role="radiogroup" aria-label="frame rate">
             <label><input type="radio" name="fps" value="30" /> smooth <span class="dim">30 fps</span></label>
             <label><input type="radio" name="fps" value="20" /> light <span class="dim">20 fps, about a third less work</span></label>
-            <label><input type="radio" name="fps" value="15" /> eco <span class="dim">15 fps, about half the work</span></label>
+            <label><input type="radio" name="fps" value="15" /> eco <span class="dim">15 fps, about half the work; a little steppy up close</span></label>
           </div>
-
-          <h3 class="sub">rendering</h3>
-          <div class="list" role="radiogroup" aria-label="rendering">
-            <label><input type="radio" name="render" value="auto" /> automatic <span class="dim">the graphics card when it can, else the CPU</span></label>
-            <label><input type="radio" name="render" value="gpu" /> GPU <span class="dim">always the graphics card</span></label>
-            <label><input type="radio" name="render" value="cpu" /> CPU <span class="dim">for old drivers, remote desktop or a VM</span></label>
-          </div>
-          <p class="dim hint running">running on: <span id="running">…</span></p>
 
           <h3 class="sub">OLED care</h3>
           <div class="list">
-            <label><input type="checkbox" id="oled" /> lower the risk of burn-in <span class="dim">shifts the picture slowly, and goes black when paused for a minute or after 5 minutes away</span></label>
+            <label><input type="checkbox" id="oled" /> lower the risk of burn-in</label>
           </div>
+          <div id="oled-more" class="oled-more">
+            <div>moves the picture a few pixels, very slowly</div>
+            <div>goes black when paused for a minute</div>
+            <label>goes black when you're away for <select id="oled-minutes"><option value="2">2 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option></select></label>
+          </div>
+
+          <details class="advanced">
+            <summary>advanced</summary>
+            <h3 class="sub">rendering</h3>
+            <div class="list" role="radiogroup" aria-label="rendering">
+              <label><input type="radio" name="render" value="auto" /> automatic <span class="dim">the graphics card when it can, else the CPU</span></label>
+              <label><input type="radio" name="render" value="gpu" /> GPU <span class="dim">always the graphics card</span></label>
+              <label><input type="radio" name="render" value="cpu" /> CPU <span class="dim">for old drivers, remote desktop or a VM</span></label>
+            </div>
+            <p class="dim hint running">drawing on: <span id="running">…</span></p>
+          </details>
+          <p class="hint" id="power-note" role="status"></p>
         </section>
 
-        <!-- activity (debugging: which app triggered an afterglow, and when) -->
+        <!-- activity (src/activitypage.js) -->
         <section id="page-activity" data-page="activity" hidden>
           <h2>activity</h2>
-          <p class="dim hint">Every signal AfterGlow received: which app, when, and what it did with it. For finding out why something did or didn't show. Newest first; the last 500 are kept until AfterGlow quits (the log in about has them too).</p>
-          <div class="list" role="radiogroup" aria-label="show">
-            <label><input type="radio" name="activity-show" value="glows" checked /> afterglows <span class="dim">new messages and flashes: what lit the wallpaper, or would have</span></label>
-            <label><input type="radio" name="activity-show" value="all" /> everything <span class="dim">also counts changing and clears</span></label>
+          <p class="dim hint">What lit your wallpaper, and what didn't. Kept until AfterGlow quits.</p>
+          <p class="act-tools"><label><input type="checkbox" id="act-all" /> also show counts changing</label> <button type="button" id="act-clear">clear</button> <span id="act-note" role="status"></span></p>
+          <div id="act-log" class="app-list"></div>
+          <p class="dim hint" id="act-none">Nothing yet.</p>
+          <details class="advanced">
+            <summary>totals by app</summary>
+            <div class="scroll-x"><table class="apps" id="act-apps">
+              <thead><tr><th>app</th><th>shown</th><th>waiting</th><th>not shown</th><th>last</th></tr></thead>
+              <tbody></tbody>
+            </table></div>
+          </details>
+        </section>
+
+        <!-- general -->
+        <section id="page-general" data-page="general" hidden>
+          <h2>general</h2>
+          <h3 class="sub">startup</h3>
+          <div class="list">
+            <label><input type="checkbox" id="autostart" /> start at login</label>
+            <label><input type="checkbox" id="boot" /> boot lines when Settings opens <span class="dim">click or press a key to skip</span></label>
           </div>
-
-          <h3 class="sub">by app</h3>
-          <div class="scroll-x"><table class="apps" id="act-apps">
-            <thead><tr><th>app</th><th>shown</th><th>held or ignored</th><th>last</th></tr></thead>
-            <tbody></tbody>
-          </table></div>
-
-          <h3 class="sub">timeline</h3>
-          <div class="scroll-x"><table class="apps" id="act-log">
-            <thead><tr><th>time</th><th>app</th><th>signal</th><th>count</th><th>what happened</th></tr></thead>
-            <tbody></tbody>
-          </table></div>
-          <p class="apps-actions"><button type="button" id="act-clear">clear</button> <span class="dim" id="act-note"></span></p>
+          <h3 class="sub">updates</h3>
+          <p class="hint"><span id="update-text"></span> <button type="button" id="update-check">check now</button> <button type="button" id="update-install" hidden>restart now</button></p>
+          <div class="list">
+            <label><input type="checkbox" id="check-updates" /> look for updates <span class="dim">asks GitHub once a day; installed only when you restart</span></label>
+          </div>
+          <p class="hint" id="general-note" role="status"></p>
         </section>
 
         <!-- about -->
@@ -175,30 +246,9 @@
           <h2>about</h2>
           <p class="hint"><span id="about-version">AfterGlow</span>. ASCII live wallpapers that react to your apps. MIT licensed.</p>
           <p class="dim hint"><a href="https://github.com/wajenaqv/afterglow" target="_blank" rel="noreferrer">github.com/wajenaqv/afterglow</a></p>
-
-          <h3 class="sub">updates</h3>
-          <p class="hint"><span id="update-text"></span> <button type="button" id="update-check">check now</button> <button type="button" id="update-install" hidden>restart now</button></p>
-          <div class="list">
-            <label><input type="checkbox" id="check-updates" /> look for updates <span class="dim">asks GitHub once a day and downloads a new version; it's installed only when you restart to update</span></label>
-          </div>
-
-          <h3 class="sub">look</h3>
-          <div class="list">
-            <label><input type="checkbox" id="boot" /> boot lines when Settings opens <span class="dim">a second of [ OK ] lines; click or press a key to skip</span></label>
-          </div>
-
-          <h3 class="sub">log</h3>
-          <p class="dim hint">What AfterGlow has been doing, with times (UTC). If it ever stops or misbehaves, this says why. <button type="button" id="open-log">open the log</button> <span id="log-note"></span></p>
-
-          <h3 class="sub">signals from your own scripts</h3>
-          <p class="dim hint">While AfterGlow runs it listens on this computer only. Requests from web pages are refused.</p>
-          <p class="endpoint"><code id="curl">curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'</code> <button type="button" id="copy-curl">copy</button></p>
-          <table class="fields">
-            <tr><td><code>source</code></td><td class="dim">a name: whatsapp, gmail, build, … (known apps pulse in their own colour)</td></tr>
-            <tr><td><code>kind</code></td><td class="dim">new, unread (with count), clear or flash</td></tr>
-            <tr><td><code>colour</code></td><td class="dim">optional #rrggbb for the pulse</td></tr>
-            <tr><td><code>afterglow</code></td><td class="dim">optional seconds the pulse takes to fade (default 4)</td></tr>
-          </table>
+          <h3 class="sub">something wrong?</h3>
+          <p class="hint">Copy the details, then paste them into a report on GitHub. They hold versions and settings, never messages.</p>
+          <p class="about-acts"><button type="button" id="copy-details">copy details</button> <button type="button" id="report">report a problem</button> <button type="button" id="open-log">open the log</button> <span class="dim" id="log-note" role="status"></span></p>
         </section>
       </main>
 

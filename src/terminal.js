@@ -92,7 +92,7 @@ function flagOf(el) {
 function commandFor(el) {
   const p = page();
   const card = el.closest(".card, .wall-detail")?.querySelector("h3")?.textContent;
-  const app = el.closest(".connector")?.dataset.id ?? el.closest("tr")?.querySelector(".src, .name")?.textContent;
+  const app = el.closest(".app-row")?.dataset.source;
   const where = [p, card && slug(card), !card && app && slug(app)].filter(Boolean).join(" ");
   if (el.matches("select")) {
     const opt = el.selectedOptions[0];
@@ -100,7 +100,7 @@ function commandFor(el) {
   }
   if (el.type === "checkbox") {
     const val = el.value && el.value !== "on" ? el.value : flagOf(el);
-    if (el.closest(".connector") && !el.closest(".account")) return `${p} ${el.checked ? "enable" : "disable"} ${slug(app)}`;
+    if (el.matches(".allow")) return `${p} ${el.checked ? "allow" : "block"} ${slug(app)}`;
     return `${where} --${el.checked ? "" : "no-"}${slug(val)}`;
   }
   if (el.type === "radio") return `${where} --${flagOf(el)} ${slug(el.value)}`;
@@ -110,11 +110,13 @@ function commandFor(el) {
 }
 function buttonCommand(b) {
   const p = page();
+  if (b.dataset.set) return `${p} --${b.dataset.set} ${b.dataset.v}`;
   if (b.dataset.style) return `${p} --style ${b.dataset.style}`;
   const card = b.closest(".card, .wall-detail")?.querySelector("h3")?.textContent;
   if (card && b.matches(".use")) return `${p} use ${slug(card)}`;
   if (card && b.matches(".still")) return `${p} still ${slug(card)} > ~/Pictures/AfterGlow/`;
-  const app = b.closest(".connector")?.dataset.id;
+  const app = b.closest(".app-row")?.dataset.source;
+  if (b.dataset.c) return [p, app, "--colour", b.dataset.c].join(" ");
   return [p, app, slug(b.textContent) || "run"].filter(Boolean).join(" ");
 }
 
@@ -125,9 +127,9 @@ let apps = { on: 0, waiting: 0 };
 async function pollApps() {
   if (document.hidden) return;
   try {
-    const list = await invokeFn("connectors_state");
+    const list = (await invokeFn("apps_state")).apps;
     const waiting = await invokeFn("unread_by_app");
-    apps = { on: list.filter((c) => c.on).length, waiting: Object.values(waiting ?? {}).reduce((a, b) => a + (Number(b) || 0), 0) };
+    apps = { on: list.filter((a) => a.allowed).length, waiting: Object.values(waiting ?? {}).reduce((a, b) => a + (Number(b) || 0), 0) };
   } catch {}
   paintStatus();
 }
@@ -136,7 +138,7 @@ export function paintStatus() {
   if (!bar) return;
   const s = statusOf();
   const left = `-- ${page().toUpperCase()} --`;
-  const mid = `${apps.on} app${apps.on === 1 ? "" : "s"} on · ${apps.waiting ? `${apps.waiting} waiting` : "nothing waiting"}`;
+  const mid = `${apps.on} app${apps.on === 1 ? "" : "s"} allowed · ${apps.waiting ? `${apps.waiting} waiting` : "nothing waiting"}`;
   const right = [s.wallpaper, s.tint, s.fps && `${s.fps}fps`, s.gpu === undefined ? "" : s.gpu ? "gpu" : "cpu"].filter(Boolean).join(" · ");
   $(".st-mode", bar).textContent = left;
   $(".st-apps", bar).textContent = mid;

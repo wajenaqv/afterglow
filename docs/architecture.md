@@ -6,7 +6,8 @@ AfterGlow is a Tauri v2 app: Rust for the windows, tray and connectors, vanilla 
 src-tauri/src/
   host.rs        wallpaper windows behind the icons; cursor, pause and monitor loops
   platform/      the per-OS part (WorkerW on Windows, desktop window level on macOS)
-  signals.rs     signals in, rules, reactions out to the wallpapers
+  signals.rs     signals in, reactions out to the wallpapers
+  apps.rs        the apps heard from: allowed or blocked, what each one does
   connectors/    watchers that turn other apps' activity into signals
   endpoint.rs    the local endpoint (POST 127.0.0.1:47811/signal)
   settings.rs    saved choices; tray.rs, extras.rs, updates.rs, logfile.rs
@@ -18,7 +19,7 @@ wallpapers/      one page per wallpaper; host.html frames one per monitor
 
 ## From a message to a glow
 
-A connector reports how many messages each app has waiting. `signals.rs` turns a change into a signal (`new`, `unread`, `clear`, `flash`), applies the user's rules, and sends a reaction to every wallpaper:
+A connector reports how many messages each app has waiting. `signals.rs` turns a change into a signal (`new`, `unread`, `clear`, `flash`), applies what the user chose for that app (`apps.rs`: allowed or blocked, pulse or flash, colour), and sends a reaction to every wallpaper:
 
 - `pulse`: a gentle brightening in the app's colour that fades (its afterglow)
 - `count`: how many messages are waiting in all

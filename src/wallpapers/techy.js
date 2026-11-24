@@ -1,16 +1,11 @@
 // Shared by the techy wallpapers (radar, life, circuit): phosphor palettes,
 // the CRT overlay, and "rest the cursor on it to mark it seen".
 
+import { PHOSPHORS } from "./palettes.js";
 import { params, HOVER, pointer, seenLantern } from "./common.js";
 
 // ?tint=: the phosphor. green = the brand (P1/P31), amber (P3), ice (P7's
 // blue-white flash colour), white (P4)
-export const PHOSPHORS = {
-  green: { ink: [0.2, 1.0, 0.6], dim: [0.08, 0.42, 0.26], flash: [0.85, 1.0, 0.95] },
-  amber: { ink: [1.0, 0.68, 0.2], dim: [0.45, 0.28, 0.06], flash: [1.0, 0.95, 0.8] },
-  ice: { ink: [0.55, 0.85, 1.0], dim: [0.18, 0.32, 0.48], flash: [0.95, 0.98, 1.0] },
-  white: { ink: [0.88, 0.9, 0.95], dim: [0.32, 0.34, 0.38], flash: [1, 1, 1] },
-};
 export const PH = PHOSPHORS[params.get("tint")] ?? PHOSPHORS.green;
 
 // the CRT overlay (wallpaper.css body.crt): scanlines and a vignette

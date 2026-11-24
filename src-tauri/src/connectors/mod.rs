@@ -61,7 +61,9 @@ pub struct Connectors {
 
 #[derive(Serialize, Clone, Debug)]
 pub struct Status {
-    /// "ok", "off", "setup" (needs something from the user), "error"
+    /// "ok", "off", "setup" (needs something from the user), "error"; for the
+    /// listeners also "denied" (allow it in the system's settings), "ask"
+    /// (the system's question is unanswered), "unsupported" (this PC won't)
     pub state: String,
     /// One line for Settings
     pub text: String,
@@ -74,6 +76,9 @@ pub(crate) fn set_status(app: &AppHandle, id: &str, state: &str, text: impl Into
         crate::alog!("afterglow: connector {id}: {}: {}", status.state, status.text);
     }
 }
+
+/// The connectors that hear every app
+const LISTENERS: [&str; 2] = ["notifications", "dock"];
 
 /// Compare a connector's new per-app counts with the last ones and send the
 /// signals for what changed (see the top of this file).
@@ -88,11 +93,21 @@ pub fn report_fresh(app: &AppHandle, connector: &str, now: HashMap<String, u32>,
     let mut all = conns.counts.lock().unwrap();
     let first = !all.contains_key(connector);
     let before = all.insert(connector.to_string(), now.clone()).unwrap_or_default();
+    // Two connectors can know the same app (Outlook's notifications and the
+    // Outlook account): the account's exact count is the one used
+    let mut owned: HashSet<String> = HashSet::new();
+    if LISTENERS.contains(&connector) {
+        for (other, counts) in all.iter() {
+            if !LISTENERS.contains(&other.as_str()) {
+                owned.extend(counts.keys().cloned());
+            }
+        }
+    }
     drop(all);
     let mut sources: Vec<&String> = before.keys().chain(now.keys()).collect();
     sources.sort();
     sources.dedup();
-    for source in sources {
+    for source in sources.into_iter().filter(|s| !owned.contains(*s)) {
         let (old, new) = (before.get(source).copied().unwrap_or(0), now.get(source).copied().unwrap_or(0));
         if !first && (new > old || fresh.contains(source.as_str())) {
             send(app, source, "new", None);
@@ -121,6 +136,19 @@ fn send(app: &AppHandle, source: &str, kind: &str, count: Option<u32>) {
 /// An app's display name -> a signal source ("Microsoft Teams" -> "teams",
 /// "WhatsApp" -> "whatsapp"), so known apps pulse in their own colour
 pub fn source_name(display: &str) -> String {
+    let source = source_of(display);
+    NAMES.lock().unwrap().insert(source.clone(), display.chars().take(48).collect());
+    source
+}
+
+/// The names the system gave the apps, by source (for Settings → apps)
+static NAMES: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
+
+pub fn display_name(source: &str) -> Option<String> {
+    NAMES.lock().unwrap().get(source).cloned()
+}
+
+fn source_of(display: &str) -> String {
     let lower = display.to_lowercase();
     for known in ["whatsapp", "telegram", "signal", "slack", "teams", "discord", "outlook", "gmail", "spotify", "messages", "mail"] {
         if lower.contains(known) {
@@ -174,8 +202,8 @@ fn poll(app: &AppHandle, id: &str) -> Duration {
                 report_fresh(app, id, counts, &fresh);
                 Duration::from_secs(2)
             }
-            Err(notifications::Problem::Setup(text)) => {
-                set_status(app, id, "setup", text);
+            Err(notifications::Problem::Setup(state, text)) => {
+                set_status(app, id, state, text);
                 Duration::from_secs(10)
             }
             Err(notifications::Problem::Error(text)) => {
@@ -186,7 +214,7 @@ fn poll(app: &AppHandle, id: &str) -> Duration {
         #[cfg(target_os = "macos")]
         "dock" => {
             if !crate::platform::accessibility_trusted(false) {
-                set_status(app, id, "setup", "needs the Accessibility permission: System Settings → Privacy & Security → Accessibility → AfterGlow");
+                set_status(app, id, "denied", "Turn on AfterGlow under Privacy & Security → Accessibility. This page notices by itself.");
                 return Duration::from_secs(5);
             }
             match crate::platform::dock_badges() {
@@ -242,6 +270,9 @@ pub fn set_connector(app: AppHandle, id: String, on: bool) -> Result<(), String>
         s.clone()
     };
     crate::settings::save(&app, &snapshot);
+    if on && !LISTENERS.contains(&id.as_str()) {
+        crate::apps::connected(&app, &id);
+    }
     if on {
         match id.as_str() {
             #[cfg(windows)]

@@ -219,9 +219,11 @@ export const WALLPAPERS = [
       {
         key: "style",
         label: "style",
-        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["radar", "radar"], ["scope", "oscilloscope"], ["big", "big"], ["lcd", "lcd"]],
+        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["radar", "radar"], ["scope", "oscilloscope"], ["big", "big"], ["lcd", "lcd"], ["text", "plain text"], ...["doom", "lean", "isometric", "flip-dot", "split-flap", "constellation", "circuit", "extruded", "hatch", "rain", "binary", "dial", "bars", "words"].map((s) => [s, s])],
       },
-      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"]] },
+      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"], ["custom", "pick a colour"]] },
+      // a colour of your own, used while the palette is "pick a colour"
+      { key: "colour", label: "colour", type: "color", when: ["tint", "custom"], value: "#ff5fa2" },
       { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },
       { key: "hours", label: "hours", choices: [["", "like my system"], ["12", "12-hour"], ["24", "24-hour"]] },
     ],

@@ -54,13 +54,13 @@ function boxBlur(src, cols, rows, rx, ry) {
 }
 
 /**
- * tint: a jelly palette name (natural, cool, grey, warm), or "green" with
- * brand: [top, bottom] colours 0..1 (the logo's fade) for AfterGlow green
+ * tint: a jelly palette name (natural, cool, grey, warm), or
+ * own: [top, bottom] colours 0..1 (the logo's fade, or a picked colour)
  */
-export function startLightClock({ tint = "natural", brand = null, hours = "auto", size = 1, fps = 30 }) {
+export function startLightClock({ tint = "natural", own = null, hours = "auto", size = 1, fps = 30 }) {
   const PAL =
-    tint === "green" && brand
-      ? { hues: [{ bell: brand[1].map((v) => v * 255), glow: brand[1].map((v) => v * 255) }], snow: brand[0].map((v) => v * 200) }
+    own
+      ? { hues: [{ bell: own[1].map((v) => v * 255), glow: own[1].map((v) => v * 255) }], snow: own[0].map((v) => v * 200) }
       : (TINTS[tint] ?? TINTS.natural);
   const SNOW = n01(PAL.snow);
   let dims = null;

@@ -143,11 +143,12 @@ pub struct Clock {
     pub on: bool,
     /// true: always shown in its corner; false: only while you hover it
     pub always: bool,
-    /// one of CLOCK_STYLES (hoverclock.js STYLES)
+    /// one of CLOCK_STYLES (clockstyles.js STYLES)
     pub style: String,
     /// top-right, top-left, bottom-right or bottom-left
     pub corner: String,
-    /// "wallpaper" (the palette of what's showing) or "brand" (white to green)
+    /// "wallpaper" (the palette of what's showing) or "brand" (white to green) or
+    /// a colour of your own, "#rrggbb"
     pub colour: String,
     /// "gradient" (light at the top into the colour) or "solid"
     pub fill: String,
@@ -172,9 +173,11 @@ impl Default for Clock {
     }
 }
 
-/// Keep in step with hoverclock.js STYLES. A saved style that isn't
+/// Keep in step with clockstyles.js STYLES. A saved style that isn't
 /// listed shows slant, and the next save from Settings replaces it.
-pub const CLOCK_STYLES: &[&str] = &["slant", "heywajih", "big", "lcd"];
+pub const CLOCK_STYLES: &[&str] = &[
+    "text", "slant", "heywajih", "big", "lcd", "doom", "lean", "isometric", "flip-dot", "split-flap", "constellation", "circuit", "extruded", "hatch", "rain", "binary", "dial", "bars", "words",
+];
 pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-left"];
 
 /// Save the clock's settings and tell the wallpapers straight away
@@ -182,7 +185,7 @@ pub const CORNERS: &[&str] = &["top-right", "top-left", "bottom-right", "bottom-
 pub fn set_clock(app: AppHandle, clock: Clock) -> Result<(), String> {
     let ok = CLOCK_STYLES.contains(&clock.style.as_str())
         && CORNERS.contains(&clock.corner.as_str())
-        && ["wallpaper", "brand"].contains(&clock.colour.as_str())
+        && (["wallpaper", "brand"].contains(&clock.colour.as_str()) || crate::apps::parse_colour(&clock.colour).is_some())
         && ["gradient", "solid"].contains(&clock.fill.as_str())
         && ["small", "medium", "large", "huge"].contains(&clock.size.as_str())
         && ["auto", "12", "24"].contains(&clock.hours.as_str());

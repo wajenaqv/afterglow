@@ -5,6 +5,7 @@
 //   tray.rs      the tray menu (wallpaper, pause, start at login, settings, quit)
 //   settings.rs  the saved choices (settings.json) and the Settings window's commands
 //   signals.rs   the signal bus: signals in, reactions out to the wallpapers
+//   apps.rs      the apps heard from: allowed or blocked, what each one does
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
 //   connectors/  watchers that turn other apps' activity into signals
 //   extras.rs    wallpaper rotation and saving a still as a PNG
@@ -14,6 +15,7 @@
 
 #[macro_use]
 pub mod logfile;
+mod apps;
 mod connectors;
 mod endpoint;
 mod extras;
@@ -51,8 +53,16 @@ pub fn run() {
             signals::send_signal,
             signals::signal_state,
             signals::wall_log,
-            signals::set_rules,
+            apps::apps_state,
+            apps::set_app,
+            apps::add_app,
+            apps::set_new_apps,
+            apps::finish_apps_setup,
+            apps::preview_app,
             extras::set_rotation,
+            host::set_paused,
+            host::power_state,
+            host::wall_renderer,
             tray::set_pausing,
             tray::autostart_state,
             tray::set_autostart,

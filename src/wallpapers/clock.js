@@ -1,18 +1,20 @@
 // The clock wallpaper (wallpapers/clock.html): the time, big and centred, in
-// the same styles as the hover clock (hoverclock.js clockRows), with the date
+// the same styles as the hover clock (clockstyles.js), with the date
 // under it and a slow breathing glow. When the minute turns, the characters
 // that change scramble into place, left to right, like heywajih's clock.
 //
 // Options (Settings card; also plain URL options):
-//   ?style=   slant (default) | big | lcd (page text) | phosphor | heywajih |
-//             light | radar | scope (drawn on a canvas)
+//   ?style=   slant (default) and the other styles of clockstyles.js (page
+//             text), or phosphor | heywajih | light | radar | scope (drawn on a
+//             canvas)
 //             (phosphor: phosphorclock.js, digits drawn by a CRT beam, GPU and
 //             CPU; heywajih: heyclock.js, heywajih.com's clock as it is)
 //             (light: lightclock.js, the time drawn as light like the jellies)
 //             (radar and scope animate: crtclock.js draws them with the
 //             night-scene renderer, GPU and CPU)
 //             (anything else falls back to slant)
-//   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade)
+//   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade) |
+//             custom, with ?colour=rrggbb (one flat colour)
 //   ?fill=    gradient (default) | solid
 //   ?hours=   auto (the system's setting) | 12 | 24
 //   ?size=    scale (0.5-1.6)
@@ -30,36 +32,40 @@
 // a canvas for "save a still".
 
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
-import { clockRows, timeText, dateText, STYLES, SHIMMERS, PALETTES } from "./hoverclock.js";
+import { timeText, dateText, is12 } from "./hoverclock.js";
+import { STYLES, clockGrid, everyOf, weightOf } from "./clockstyles.js";
+import { brandColours, paintGrid, parseHex, rowColour as colourOfRow } from "./clockcolours.js";
 
 // drawn on a canvas, not as page text: radar, scope and light by a scene
 // renderer (GPU and CPU); heywajih by heyclock.js (heywajih.com's clock)
 const CRT = ["radar", "scope", "light", "heywajih", "phosphor"];
 const STYLE = [...STYLES, ...CRT].includes(params.get("style")) ? params.get("style") : "slant";
 const IS_CRT = CRT.includes(STYLE);
-const TINT = ["natural", "cool", "grey", "warm", "green"].includes(params.get("tint")) ? params.get("tint") : "natural";
+const TINT = ["natural", "cool", "grey", "warm", "green", "custom"].includes(params.get("tint")) ? params.get("tint") : "natural";
 const FILL = params.get("fill") === "solid" ? "solid" : "gradient";
 const HOURS = ["12", "24"].includes(params.get("hours")) ? params.get("hours") : "auto";
 const SIZE = num("size", 1, 0.5, 1.6);
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// top and bottom colours of the gradient
-const COLOURS = TINT === "green" ? [rgb(cssRGB("--logo-top")), rgb(cssRGB("--logo-bottom"))] : PALETTES[TINT];
-function rgb([r, g, b]) {
-  return `rgb(${r}, ${g}, ${b})`;
-}
-const [TOP, LOW] = COLOURS;
-const rowColour = (i, n) => `color-mix(in srgb, ${LOW} ${FILL === "solid" ? 85 : n > 1 ? Math.round((i / (n - 1)) * 100) : 55}%, ${TOP})`;
-
-// the font size per style, relative to the others, before fitting
-const FONT = { slant: 700, big: 700, lcd: 700 };
+// the clock's own palettes, [top, bottom] of the gradient; green is the logo's
+// fade, custom one colour of your own (?colour=rrggbb)
+const PALETTES = {
+  natural: [[255, 225, 240], [185, 140, 255]],
+  cool: [[217, 245, 255], [63, 140, 255]],
+  grey: [[245, 245, 245], [142, 148, 156]],
+  warm: [[255, 227, 207], [255, 122, 77]],
+};
+const OWN = parseHex(params.get("colour")) ?? [255, 255, 255];
+const COLOURS = TINT === "green" ? brandColours() : TINT === "custom" ? [OWN, OWN] : PALETTES[TINT];
+const rgb = (c) => `rgb(${c.join(", ")})`;
+const LOW = rgb(COLOURS[1]);
 
 // ---- the page ----
 const style = document.createElement("style");
 style.textContent = `
   body { overflow: hidden; cursor: none; display: grid; place-items: center; }
   .clock-wall { text-align: center; font-variant-ligatures: none; }
-  .clock-wall pre { margin: 0; line-height: 1.05; letter-spacing: 0; font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
+  .clock-wall pre { width: max-content; margin: 0 auto; text-align: left; line-height: 1.05; letter-spacing: 0; font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; }
   .clock-wall .glow { animation: breathe 6s ease-in-out infinite; }
   .clock-wall.paused .glow { animation-play-state: paused; }
   @keyframes breathe { 50% { filter: brightness(1.18); } }
@@ -81,22 +87,17 @@ const lanternsEl = wall.querySelector(".lanterns");
 if (!STILL) document.body.append(wall);
 
 // ---- drawing the text ----
-let shown = []; // the rows on screen now
-function setRows(rows) {
-  shown = rows;
-  pre.textContent = "";
-  rows.forEach((row, i) => {
-    const line = document.createElement("span");
-    line.style.color = rowColour(i, rows.length);
-    line.textContent = row + (i < rows.length - 1 ? "\n" : "");
-    pre.append(line);
-  });
+let shown = []; // the cells on screen now
+function setCells(cells) {
+  shown = cells;
+  paintGrid(pre, cells, COLOURS, FILL === "solid");
 }
+const cellsNow = (now = new Date()) => clockGrid(STYLE, timeText(now, HOURS), now.getTime(), is12(HOURS));
 
 // Fit: the block of characters takes about 55% of the width (85% on a
 // portrait screen), times ?size, and at most 45% of the height
 function fit() {
-  pre.style.font = `${FONT[STYLE]} 10px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace`;
+  pre.style.font = `${weightOf(STYLE)} 10px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace`;
   const w = pre.scrollWidth || 1;
   const h = pre.scrollHeight || 1;
   const portrait = innerHeight > innerWidth;
@@ -112,42 +113,39 @@ function fit() {
 const NOISE = ".:-=+*#%@";
 let scramble = 0;
 let turnedAt = -1e9; // when the last minute scramble started
-function turnTo(rows) {
-  const from = shown.length === rows.length ? shown : rows.map((r) => " ".repeat(r.length));
-  const width = Math.max(...rows.map((r) => r.length));
+function turnTo(cells) {
+  const from = shown;
+  const width = Math.max(...cells.map((r) => r.length));
   const t0 = performance.now();
   const DURATION = reduced ? 0 : 900;
   turnedAt = t0;
   cancelAnimationFrame(scramble);
   const step = (now) => {
     const p = DURATION ? (now - t0) / DURATION : 1;
-    const mixed = rows.map((row, r) =>
-      [...row]
-        .map((ch, c) => {
-          const old = from[r][c] ?? " ";
-          if (old === ch) return ch;
-          const settle = c / width; // left to right
-          if (p > settle + 0.25) return ch;
-          if (p < settle) return old;
-          return ch === " " && Math.random() < 0.5 ? " " : NOISE[Math.floor(Math.random() * NOISE.length)];
-        })
-        .join(""),
+    const mixed = cells.map((row, r) =>
+      row.map((cell, c) => {
+        const old = from[r]?.[c] ?? [" ", 0];
+        if (old[0] === cell[0] && old[1] === cell[1]) return cell;
+        const settle = c / width; // left to right
+        if (p > settle + 0.25) return cell;
+        if (p < settle) return old;
+        return cell[0] === " " && Math.random() < 0.5 ? [" ", 0] : [NOISE[Math.floor(Math.random() * NOISE.length)], cell[1]];
+      }),
     );
-    setRows(mixed);
-    if (p < 1.25) scramble = requestAnimationFrame(step);
-    else setRows(rows);
+    if (p < 1.25) {
+      setCells(mixed);
+      scramble = requestAnimationFrame(step);
+    } else setCells(cells);
   };
   scramble = requestAnimationFrame(step);
 }
-// heywajih's characters shimmer: redrawn every second (a few change), not
-// while the minute is scrambling or the wallpaper is paused
-let lastText = "";
-function shimmer() {
-  if (SHIMMERS.includes(STYLE) && !isPaused() && !reduced && lastText) {
-    const rows = clockRows(STYLE, lastText);
-    if (performance.now() - turnedAt > 1300) setRows(rows);
-  }
-  setTimeout(shimmer, 1000);
+// Moving styles (rain, bars, …) are drawn again in between, not while the
+// minute is scrambling or the wallpaper is paused
+function move() {
+  const every = everyOf(STYLE);
+  if (!every || reduced) return;
+  if (!isPaused() && shown.length && performance.now() - turnedAt > 1300) setCells(cellsNow());
+  setTimeout(move, every);
 }
 
 function tick(first = false) {
@@ -158,10 +156,13 @@ function tick(first = false) {
     setTimeout(() => tick(), 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 30);
     return;
   }
-  lastText = timeText(now, HOURS);
-  const rows = clockRows(STYLE, lastText);
-  if (first || isPaused()) setRows(rows);
-  else turnTo(rows);
+  const cells = cellsNow(now);
+  // scrambling would hide what a moving style is doing anyway; a style whose
+  // size changes with the time (words) is fitted again
+  const resized = !first && (cells.length !== shown.length || cells[0].length !== shown[0].length);
+  if (first || resized || isPaused() || everyOf(STYLE)) setCells(cells);
+  else turnTo(cells);
+  if (resized) fit();
   dateEl.textContent = dateText(now, HOURS);
   if (first) fit();
   // the next minute, on the minute
@@ -239,14 +240,14 @@ async function still() {
   ctx.fillStyle = rgb(cssRGB("--bg"));
   ctx.fillRect(0, 0, W, H);
   const when = new Date(2026, 0, 1, 9 + Math.floor(STILL_AT) % 12, Math.floor(STILL_AT * 7) % 60);
-  const rows = clockRows(STYLE, timeText(when, HOURS));
+  const rows = cellsNow(when);
   // the same fit as the page, measured on the canvas
-  ctx.font = `${FONT[STYLE]} 10px "JetBrains Mono", Consolas, monospace`;
+  ctx.font = `${weightOf(STYLE)} 10px "JetBrains Mono", Consolas, monospace`;
   const cw = ctx.measureText("M").width;
   const cols = Math.max(...rows.map((r) => r.length));
   const portrait = H > W;
   const px = Math.min((W * (portrait ? 0.85 : 0.55) * SIZE) / (cols * cw), (H * 0.45 * SIZE) / (rows.length * 10.5)) * 10;
-  ctx.font = `${FONT[STYLE]} ${px}px "JetBrains Mono", Consolas, monospace`;
+  ctx.font = `${weightOf(STYLE)} ${px}px "JetBrains Mono", Consolas, monospace`;
   const charW = ctx.measureText("M").width;
   const lineH = px * 1.05;
   const x0 = (W - cols * charW) / 2;
@@ -256,10 +257,13 @@ async function still() {
   ctx.textBaseline = "top";
   // a soft glow: the text drawn blurred first in the low colour
   const paint = () => rows.forEach((row, i) => {
-    ctx.fillStyle = mixed(i, rows.length);
     // a character at a time on the grid: whole rows would let the font merge
     // pairs like == and != into ligatures
-    [...row].forEach((ch, c) => ch !== " " && ctx.fillText(ch, x0 + c * charW, y0 + i * lineH));
+    row.forEach(([ch, dim], c) => {
+      if (ch === " ") return;
+      ctx.fillStyle = rgb(colourOfRow(COLOURS, i, rows.length, dim, FILL === "solid"));
+      ctx.fillText(ch, x0 + c * charW, y0 + i * lineH);
+    });
   });
   ctx.shadowColor = LOW;
   ctx.shadowBlur = Math.max(6, px * 0.9);
@@ -273,25 +277,12 @@ async function still() {
   ctx.fillText(d, (W - ctx.measureText(d).width) / 2, y0 + rows.length * lineH + datePx * 1.4);
   sendStill(canvas);
 }
-// canvas colours can't use color-mix: blend the two hex colours by hand
-function mixed(i, n) {
-  const t = FILL === "solid" ? 0.85 : n > 1 ? i / (n - 1) : 0.55;
-  const a = toRGB(TOP), b = toRGB(LOW);
-  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * t)).join(",")})`;
-}
-function toRGB(c) {
-  const m = c.match(/^#([0-9a-f]{6})$/i);
-  if (m) return [0, 2, 4].map((k) => parseInt(m[1].slice(k, k + 2), 16));
-  const n = c.match(/\d+/g);
-  return n ? n.slice(0, 3).map(Number) : [255, 255, 255];
-}
-
 // ---- radar and scope ----
 let crt = null;
 if (IS_CRT) {
-  const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16) / 255);
+  const unit = (c) => c.map((v) => v / 255);
   // natural: the green of real phosphor; the other palettes their main colour
-  const tint = TINT === "natural" ? [0.2, 1, 0.55] : TINT === "green" ? cssRGB("--logo-bottom").map((v) => v / 255) : hex(PALETTES[TINT][1]);
+  const tint = TINT === "natural" ? [0.2, 1, 0.55] : unit(COLOURS[1]);
   wall.classList.add("crt");
   if (STYLE === "phosphor") {
     // the beam-drawn CRT clock; it draws its own date
@@ -303,9 +294,8 @@ if (IS_CRT) {
     // heywajih.com's clock: the logo's white-to-green by default (as on the
     // site), or a palette when one is picked; the date is in its own grid
     dateEl.style.display = "none";
-    const toRGB3 = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
     const logo = !params.has("tint") || TINT === "green";
-    const [top, low] = logo ? [cssRGB("--logo-top"), cssRGB("--logo-bottom")] : PALETTES[TINT].map(toRGB3);
+    const [top, low] = logo ? brandColours() : COLOURS;
     const colours = {
       bg: cssRGB("--bg"),
       top,
@@ -321,9 +311,8 @@ if (IS_CRT) {
   } else if (STYLE === "light") {
     // the date is part of the light; only the lantern dots stay in the page
     dateEl.style.display = "none";
-    const brand = [cssRGB("--logo-top"), cssRGB("--logo-bottom")].map((v) => v.map((x) => x / 255));
     import("./lightclock.js").then(({ startLightClock }) => {
-      crt = startLightClock({ tint: TINT, brand, hours: HOURS, size: SIZE, fps: 30 });
+      crt = startLightClock({ tint: TINT, own: TINT === "green" || TINT === "custom" ? COLOURS.map(unit) : null, hours: HOURS, size: SIZE, fps: 30 });
       crt.onLayout(({ bottom }) => (wall.style.top = `${bottom + 10}px`));
     });
   } else import("./crtclock.js").then(({ startCrtClock }) => {
@@ -346,6 +335,6 @@ else {
     addEventListener("resize", fit);
     pauseLoop();
     hoverLoop();
-    shimmer();
+    move();
   });
 }

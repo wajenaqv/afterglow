@@ -20,6 +20,7 @@
 // Options: ?tint=natural|cool|warm|grey|green ?moon=0
 
 import { params, hash, seeded, STILL, HOVER, pointer, onReaction, seenLantern } from "./common.js";
+import { SAKURA } from "./palettes.js";
 import { setPalette, startScene, reduced } from "./nightscene.js";
 import { cellBuffer } from "./cells.js";
 
@@ -32,14 +33,7 @@ const sstep = (a, b, v) => {
 const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 // ---- palettes ----
-const TINTS = {
-  natural: { pale: [1.0, 0.86, 0.92], petal: [1.0, 0.62, 0.78], deep: [0.95, 0.36, 0.56], heart: [1.0, 0.4, 0.55], bark: [0.5, 0.34, 0.36], leaf: [0.42, 0.48, 0.22], moon: [0.85, 0.88, 0.95], anther: [1.0, 0.84, 0.5] },
-  cool: { pale: [0.9, 0.95, 1.0], petal: [0.72, 0.82, 1.0], deep: [0.5, 0.58, 0.95], heart: [0.6, 0.55, 1.0], bark: [0.45, 0.48, 0.58], leaf: [0.3, 0.48, 0.45], moon: [0.85, 0.92, 1.0], anther: [0.95, 0.97, 1.0] },
-  warm: { pale: [1.0, 0.9, 0.8], petal: [1.0, 0.68, 0.55], deep: [0.98, 0.45, 0.38], heart: [1.0, 0.5, 0.3], bark: [0.62, 0.42, 0.32], leaf: [0.5, 0.48, 0.2], moon: [1.0, 0.9, 0.75], anther: [1.0, 0.8, 0.4] },
-  grey: { pale: [0.95, 0.95, 0.95], petal: [0.78, 0.78, 0.8], deep: [0.55, 0.55, 0.58], heart: [0.7, 0.7, 0.72], bark: [0.42, 0.42, 0.42], leaf: [0.4, 0.4, 0.4], moon: [0.92, 0.92, 0.92], anther: [1.0, 1.0, 1.0] },
-  green: { pale: [0.8, 1.0, 0.9], petal: [0.3, 1.0, 0.6], deep: [0.15, 0.75, 0.45], heart: [0.5, 1.0, 0.75], bark: [0.3, 0.56, 0.43], leaf: [0.2, 0.6, 0.4], moon: [0.75, 1.0, 0.86], anther: [0.85, 1.0, 0.7] },
-};
-const PAL = TINTS[params.get("tint")] ?? TINTS.natural;
+const PAL = SAKURA[params.get("tint")] ?? SAKURA.natural;
 const MOON = params.get("moon") !== "0";
 
 // ---- wind: a breeze from the left, and three gusts every GP seconds ----

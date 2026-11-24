@@ -115,6 +115,10 @@ pub struct Host {
     menu_turn: AtomicUsize,
     /// What each window was last told (to log changes)
     pub(crate) last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
+    /// Why each window's monitors are paused ("" = running), for Settings → power
+    reasons: Mutex<std::collections::HashMap<String, Vec<&'static str>>>,
+    /// What draws each monitor ("gpu" or "cpu"), as its wallpaper reported
+    renderers: Mutex<std::collections::HashMap<(String, usize), String>>,
     /// Bumped on every rebuild, so new windows get fresh labels (a label
     /// can't be reused while its old window is still closing)
     generation: AtomicUsize,
@@ -316,10 +320,10 @@ struct Oled {
     rest: bool,
 }
 
-/// How long without keyboard or mouse before OLED care rests the screen:
-/// five minutes (AFTERGLOW_REST_SECS overrides it for testing).
-fn rest_secs() -> f64 {
-    std::env::var("AFTERGLOW_REST_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(300.0)
+/// How long without keyboard or mouse before OLED care rests the screen, in
+/// seconds (AFTERGLOW_REST_SECS overrides it for testing).
+fn rest_secs(minutes: u32) -> f64 {
+    std::env::var("AFTERGLOW_REST_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(minutes as f64 * 60.0)
 }
 
 fn resting(oled: bool, idle: f64, after: f64) -> bool {
@@ -330,19 +334,27 @@ fn resting(oled: bool, idle: f64, after: f64) -> bool {
 /// straight away from the tray when Pause is toggled.
 pub fn apply_pause(app: &AppHandle) {
     let host = app.state::<Host>();
-    let (rule_fullscreen, rule_battery, rule_covered, oled) = {
+    let (rule_fullscreen, rule_battery, rule_covered, oled, oled_minutes) = {
         let s = host.settings.lock().unwrap();
-        (s.pause_fullscreen, s.pause_on_battery, s.pause_covered, s.oled)
+        (s.pause_fullscreen, s.pause_on_battery, s.pause_covered, s.oled, s.oled_minutes)
     };
     // OLED care: away long enough, so the screen goes black (and pauses).
     // Sent every time, like "paused" below, so new windows learn it too
-    let rest = resting(oled, platform::idle_seconds(), rest_secs());
+    let rest = resting(oled, platform::idle_seconds(), rest_secs(oled_minutes));
     emit_to_walls(app, "oled", Oled { on: oled, rest });
-    // Everything pauses...
-    let all = rest
-        || host.user_paused.load(Ordering::Relaxed)
-        || (rule_fullscreen && platform::fullscreen_app_in_front())
-        || (rule_battery && platform::on_battery());
+    // Everything pauses (and why)...
+    let why = if host.user_paused.load(Ordering::Relaxed) {
+        "you"
+    } else if rule_fullscreen && platform::fullscreen_app_in_front() {
+        "fullscreen"
+    } else if rule_battery && platform::on_battery() {
+        "battery"
+    } else if rest {
+        "resting"
+    } else {
+        ""
+    };
+    let all = !why.is_empty();
     // ...or just the monitors whose desktop is hidden behind app windows
     let walls = host.walls.lock().unwrap().clone();
     for wall in walls {
@@ -352,6 +364,8 @@ pub fn apply_pause(app: &AppHandle) {
         // Sent every time (not only on change): a window that just loaded
         // learns the current state within one tick
         let flags: Vec<bool> = hidden.iter().map(|&h| all || h).collect();
+        let reasons = hidden.iter().map(|&h| if all { why } else if h { "covered" } else { "" }).collect();
+        host.reasons.lock().unwrap().insert(wall.label.clone(), reasons);
         {
             let mut last = host.last_paused.lock().unwrap();
             if last.get(&wall.label) != Some(&flags) {
@@ -365,6 +379,86 @@ pub fn apply_pause(app: &AppHandle) {
         let told: Vec<bool> = flags.iter().map(|&f| f || menu).collect();
         let _ = app.emit_to(EventTarget::webview_window(&wall.label), "paused", told);
     }
+}
+
+// ---- Settings → power ----
+
+/// The Pause switch (the tray's and Settings')
+#[tauri::command]
+pub fn set_paused(app: AppHandle, on: bool) {
+    app.state::<Host>().user_paused.store(on, Ordering::Relaxed);
+    apply_pause(&app);
+    crate::tray::sync(&app);
+}
+
+/// A wallpaper window: what draws this monitor (after a GPU failure it's the CPU)
+#[tauri::command]
+pub fn wall_renderer(window: tauri::WebviewWindow, index: usize, renderer: String) {
+    let app = window.app_handle();
+    let renderer = if renderer == "gpu" || renderer == "cpu" { renderer } else { String::new() };
+    app.state::<Host>().renderers.lock().unwrap().insert((window.label().to_string(), index), renderer);
+}
+
+#[derive(Serialize)]
+pub struct PowerScreen {
+    w: u32,
+    h: u32,
+    /// "" running, else you, fullscreen, battery, covered or resting
+    reason: &'static str,
+    /// "gpu", "cpu" or "" (not reported)
+    renderer: String,
+}
+
+#[derive(Serialize)]
+pub struct PowerState {
+    paused: bool,
+    screens: Vec<PowerScreen>,
+    has_battery: bool,
+    os: &'static str,
+    /// AfterGlow's share of the whole CPU, percent (None: not known here)
+    cpu: Option<f64>,
+}
+
+#[tauri::command]
+pub fn power_state(app: AppHandle) -> PowerState {
+    let host = app.state::<Host>();
+    let walls = host.walls.lock().unwrap().clone();
+    let reasons = host.reasons.lock().unwrap().clone();
+    let renderers = host.renderers.lock().unwrap().clone();
+    let mut screens = Vec::new();
+    for wall in &walls {
+        for (i, s) in wall.screens.iter().enumerate() {
+            screens.push(PowerScreen {
+                w: s.w,
+                h: s.h,
+                reason: reasons.get(&wall.label).and_then(|r| r.get(i)).copied().unwrap_or(""),
+                renderer: renderers.get(&(wall.label.clone(), i)).cloned().unwrap_or_default(),
+            });
+        }
+    }
+    PowerState {
+        paused: host.user_paused.load(Ordering::Relaxed),
+        screens,
+        has_battery: platform::has_battery(),
+        os: std::env::consts::OS,
+        cpu: cpu_percent(),
+    }
+}
+
+/// The CPU used since the last call (Settings asks every 2 s)
+fn cpu_percent() -> Option<f64> {
+    static LAST: Mutex<Option<(std::time::Instant, f64)>> = Mutex::new(None);
+    let total = platform::cpu_seconds()?;
+    let now = std::time::Instant::now();
+    let before = LAST.lock().unwrap().replace((now, total));
+    let (at, used) = before?;
+    let secs = now.duration_since(at).as_secs_f64();
+    // too close together, or so long ago that it's another visit to the page
+    if !(0.5..30.0).contains(&secs) {
+        return None;
+    }
+    let cores = thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as f64;
+    Some(((total - used).max(0.0) / secs / cores * 100.0).min(100.0))
 }
 
 /// macOS: hide a display's wall window while a fullscreen app is in front of

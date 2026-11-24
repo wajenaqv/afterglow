@@ -25,6 +25,7 @@
 import { params, onReaction } from "./common.js";
 import { startScene, setPalette, reduced } from "./nightscene.js";
 import { timeText, dateText } from "./hoverclock.js";
+import { parseHex } from "./clockcolours.js";
 
 // Vector digits in a box 1 wide, 1.4 tall (y down): each a list of polylines
 const DIGITS = {
@@ -53,7 +54,10 @@ const PHOSPHORS = {
   white: { hot: [1, 1, 1], glow: [0.78, 0.84, 0.95], cool: [0.3, 0.32, 0.42] },
 };
 const BY_TINT = { natural: "p7", green: "green", warm: "amber", cool: "blue", grey: "white" };
-const P = PHOSPHORS[params.get("phosphor")] ?? PHOSPHORS[BY_TINT[params.get("tint")]] ?? PHOSPHORS.p7;
+// a picked colour (?tint=custom&colour=rrggbb): its own phosphor
+const OWN = params.get("tint") === "custom" ? parseHex(params.get("colour"))?.map((v) => v / 255) : null;
+const ownPhosphor = OWN && { hot: OWN.map((v) => v + (1 - v) * 0.75), glow: OWN, cool: OWN.map((v) => v * 0.4) };
+const P = ownPhosphor ?? PHOSPHORS[params.get("phosphor")] ?? PHOSPHORS[BY_TINT[params.get("tint")]] ?? PHOSPHORS.p7;
 const HOURS = ["12", "24"].includes(params.get("hours")) ? params.get("hours") : "auto";
 const SIZE = Math.min(1.6, Math.max(0.5, parseFloat(params.get("size")) || 1));
 

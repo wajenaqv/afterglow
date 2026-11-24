@@ -24,6 +24,7 @@
 // the left fifth is kept clear for desktop icons by default) ?size=0.3-2.5
 
 import { num, hash, params, HOVER, pointer, stillFor, onReaction, seenLantern, STILL } from "./common.js";
+import { CONSTELLATION } from "./palettes.js";
 import { startScene, setPalette, reduced } from "./nightscene.js";
 import { cellBuffer } from "./cells.js";
 
@@ -38,14 +39,7 @@ const scale = (c, f) => [c[0] * f, c[1] * f, c[2] * f];
 const add = (a, b, f = 1) => [a[0] + b[0] * f, a[1] + b[1] * f, a[2] + b[2] * f];
 
 // ---- palettes ----
-const TINTS = {
-  natural: { sky: C(1, 2, 6), dust: C(70, 60, 130), star: C(225, 232, 255), bright: C(255, 244, 220), line: C(120, 160, 235), label: C(215, 170, 85) }, // the names in a chart's gold
-  cool: { sky: C(0, 3, 8), dust: C(40, 80, 140), star: C(200, 230, 255), bright: C(225, 245, 255), line: C(80, 185, 255), label: C(90, 140, 190) },
-  warm: { sky: C(6, 2, 2), dust: C(130, 70, 60), star: C(255, 235, 210), bright: C(255, 225, 175), line: C(255, 160, 90), label: C(190, 135, 100) },
-  grey: { sky: C(3, 3, 3), dust: C(90, 90, 95), star: C(225, 225, 230), bright: C(250, 250, 250), line: C(160, 165, 175), label: C(130, 132, 138) },
-  green: { sky: C(0, 4, 2), dust: C(40, 110, 80), star: C(51, 255, 153), bright: C(255, 255, 255), line: C(125, 255, 192), label: C(77, 143, 110) },
-};
-const COL = TINTS[params.get("tint")] ?? TINTS.natural;
+const COL = CONSTELLATION[params.get("tint")] ?? CONSTELLATION.natural;
 
 // ---- the cats: stars (x right, y down, about -1..1) and the lines between them ----
 const POSES = [

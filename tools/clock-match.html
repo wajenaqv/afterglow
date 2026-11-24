@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>The clock on every wallpaper</title>
+    <style>
+      body { margin: 0; padding: 10px; background: #111; color: #9c9; font: 13px/1.3 "JetBrains Mono", Consolas, monospace; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .frame { position: relative; height: 250px; overflow: hidden; background: #000; }
+      iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      // The hover clock over each wallpaper, in the colours it takes from it
+      // (?tint= picks a palette, ?style= a clock style): for judging the match.
+      import { hoverClock } from "/src/wallpapers/hoverclock.js";
+      import { WALLPAPERS } from "/src/wallpapers/catalog.js";
+      const q = new URLSearchParams(location.search);
+      const tint = q.get("tint") ?? "";
+      for (const w of WALLPAPERS.filter((x) => x.id !== "clock")) {
+        const f = document.createElement("div");
+        f.innerHTML = `<div class="frame"><iframe src="/wallpapers/${w.id}.html?hover=0&fps=15${tint ? `&tint=${tint}` : ""}"></iframe></div>${w.id}`;
+        document.body.append(f);
+        const box = f.firstChild;
+        hoverClock([{ x: 0, y: 0, w: box.clientWidth, h: 250 }], { always: true, style: q.get("style") ?? "doom", colour: q.get("colour") ?? "wallpaper" }, { wall: w.id, tint }, box);
+      }
+    </script>
+  </body>
+</html>

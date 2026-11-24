@@ -43,8 +43,15 @@ pub struct Settings {
     pub connectors: BTreeMap<String, bool>,
     /// App registrations for the account connectors (client id, secret), by id
     pub clients: BTreeMap<String, crate::connectors::oauth::Client>,
-    /// What each app's signals do (signals.rs Rule), first match wins
-    pub rules: Vec<crate::signals::Rule>,
+    /// The apps heard from: allowed or blocked, and what they do (apps.rs)
+    pub apps: crate::apps::Apps,
+    /// Apps not heard from before start blocked
+    pub new_apps_blocked: bool,
+    /// The apps page's first-time card was finished or skipped
+    pub apps_setup_done: bool,
+    /// What older versions saved instead; load() turns them into apps
+    #[serde(skip_serializing)]
+    pub rules: Vec<crate::apps::Rule>,
     /// Rotating through wallpapers (extras.rs)
     pub rotate: crate::extras::Rotate,
     /// Steam connector parts and Steam ID (connectors/steam.rs; the key is in the keychain)
@@ -55,13 +62,17 @@ pub struct Settings {
     pub scramble: bool,
     /// OLED care (src/wallpapers/oled.js; host.rs apply_pause says when to rest)
     pub oled: bool,
+    /// ...which rests the screen after this many minutes away
+    pub oled_minutes: u32,
     /// Look for a newer version once a day (updates.rs)
     pub check_updates: bool,
 }
 
-/// The frame rates on offer (Settings → performance)
+/// The frame rates on offer (Settings → power)
 pub const FPS_CHOICES: &[u32] = &[30, 20, 15];
-/// The rendering choices (Settings → performance)
+/// OLED care's choices of minutes away
+pub const OLED_MINUTES: &[u32] = &[2, 5, 10, 30];
+/// The rendering choices (Settings → power)
 pub const RENDERERS: &[&str] = &["auto", "gpu", "cpu"];
 
 impl Default for Settings {
@@ -77,12 +88,16 @@ impl Default for Settings {
             renderer: "auto".into(),
             connectors: BTreeMap::new(),
             clients: BTreeMap::new(),
+            apps: Default::default(),
+            new_apps_blocked: false,
+            apps_setup_done: false,
             rules: Vec::new(),
             rotate: Default::default(),
             steam: Default::default(),
             clock: Default::default(),
             scramble: true,
             oled: false,
+            oled_minutes: 5,
             check_updates: true,
         }
     }
@@ -141,11 +156,15 @@ pub fn load(app: &AppHandle) -> Settings {
             }
         },
     };
+    crate::apps::migrate(&mut s);
     if !is_known(&s.wallpaper) {
         s.wallpaper = Settings::default().wallpaper;
     }
     if !FPS_CHOICES.contains(&s.fps) {
         s.fps = 30;
+    }
+    if !OLED_MINUTES.contains(&s.oled_minutes) {
+        s.oled_minutes = 5;
     }
     if !RENDERERS.contains(&s.renderer.as_str()) {
         s.renderer = "auto".into();
@@ -228,17 +247,22 @@ pub fn set_scramble(app: AppHandle, on: bool) {
     host::show_wallpaper(&app);
 }
 
-/// Settings → performance: OLED care on or off (no reload needed)
+/// Settings → power: OLED care on or off (no reload needed)
 #[tauri::command]
-pub fn set_oled(app: AppHandle, on: bool) {
+pub fn set_oled(app: AppHandle, on: bool, minutes: u32) -> Result<(), String> {
+    if !OLED_MINUTES.contains(&minutes) {
+        return Err(format!("unsupported number of minutes {minutes}"));
+    }
     let host = app.state::<Host>();
     let snapshot = {
         let mut s = host.settings.lock().unwrap();
         s.oled = on;
+        s.oled_minutes = minutes;
         s.clone()
     };
     save(&app, &snapshot);
     host::apply_pause(&app);
+    Ok(())
 }
 
 /// How wallpapers are drawn: "auto", "gpu" or "cpu" (reloads them).

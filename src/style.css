@@ -296,36 +296,167 @@ button.still {
 }
 
 /* ---- apps ---- */
-.connectors {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+#page-apps [hidden] {
+  display: none !important;
+}
+#page-apps .box {
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+  padding: 10px 14px;
+  margin: 0 0 12px;
   max-width: 820px;
 }
-.connector .head {
-  display: flex;
-  gap: 8px 12px;
-  align-items: baseline;
-  flex-wrap: wrap;
+#page-apps .box.needs {
+  border-color: var(--accent);
 }
-.connector .head label {
+#page-apps .box p {
+  margin: 4px 0 10px;
+  max-width: 68ch;
+}
+#listen,
+.app-tools {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+}
+#listen-status[data-state="off"] {
+  color: var(--dim);
+}
+#setup ol {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+#setup li {
+  color: var(--quiet);
+}
+#setup li[data-now="true"] {
+  color: var(--bright);
+}
+.app-tools {
+  justify-content: flex-start;
+  align-items: baseline;
+  margin: 0 0 10px;
+}
+#app-find {
+  font: inherit;
+  font-size: 13px;
+}
+.app-list {
+  max-width: 820px;
+  font-size: 13px;
+}
+.app-row {
+  border-top: 1px solid color-mix(in srgb, var(--dim) 25%, var(--bg));
+}
+.app-head {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(130px, 1.2fr) 13ch;
+  gap: 10px;
+  align-items: center;
+  padding: 5px 0;
+}
+.app-head label {
+  display: flex;
+  gap: 9px;
   align-items: baseline;
   cursor: pointer;
 }
-.connector .status[data-state="ok"] {
-  color: var(--accent);
+.app-name {
+  color: var(--bright);
+  overflow-wrap: anywhere;
 }
-.connector .status[data-state="setup"],
-.connector .status[data-state="error"] {
-  color: var(--fg);
-}
-.connector .how {
+.app-head .open {
+  justify-self: end;
   font-size: 12px;
   padding: 1px 8px;
-  margin-left: auto;
+  white-space: nowrap;
 }
+.app-head .open:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.app-row .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--c);
+  border: 1px solid var(--c);
+}
+.app-row.blocked .dot {
+  background: none;
+}
+.app-more {
+  display: grid;
+  grid-template-columns: 17ch minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  margin: 2px 0 12px 3.6ch;
+  padding: 4px 0 4px 16px;
+  border-left: 2px solid var(--c);
+  color: var(--quiet);
+}
+.swatches,
+.app-acts,
+.wiz-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+button.swatch,
+button.swatch:hover:not(:disabled) {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: var(--c);
+  border-color: var(--c);
+  border-radius: 50% !important;
+}
+.swatch[aria-pressed="true"] {
+  outline: 2px solid var(--bright);
+  outline-offset: 2px;
+}
+.swatches .hex {
+  width: 34px;
+  height: 22px;
+  padding: 0;
+}
+.wizard .step-of {
+  color: var(--accent);
+}
+.wizard .step,
+.wizard .wiz-nav {
+  margin: 6px 0;
+  max-width: 72ch;
+}
+.wizard .account {
+  margin-left: 0;
+}
+.wiz-note {
+  min-height: 1.4em;
+  color: var(--accent);
+}
+.advanced {
+  margin-top: 24px;
+}
+.advanced summary {
+  cursor: pointer;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+@media (max-width: 640px) {
+  .app-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .app-head .app-status {
+    grid-row: 2;
+  }
+}
+
 /* the setup guide, under its connector */
 .guide {
   margin: 8px 0 4px 6px;
@@ -394,34 +525,6 @@ table.apps {
 .apps td.name {
   white-space: nowrap;
 }
-/* an app following the default: its controls shown, dimmed */
-.apps tr.inherit select,
-.apps tr.inherit input,
-.apps tr.inherit .name > span:not(.dot) {
-  opacity: 0.55;
-}
-.apps .dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  border: 1px solid var(--dim);
-  vertical-align: 1px;
-}
-.apps input.src {
-  width: 14ch;
-}
-.apps .waiting {
-  min-width: 3ch;
-}
-.apps .row-actions {
-  white-space: nowrap;
-}
-.apps .row-actions button {
-  font-size: 12px;
-  padding: 1px 7px;
-}
 .apps-actions {
   margin: 10px 0 0;
 }
@@ -430,6 +533,80 @@ table.apps {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+/* ---- power, activity ---- */
+#page-power [hidden],
+#page-activity [hidden],
+#page-clock [hidden] {
+  display: none !important;
+}
+.power-now {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+  padding: 10px 14px;
+  margin: 0 0 12px;
+  max-width: 820px;
+}
+.oled-more {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0 3.6ch;
+  padding-left: 14px;
+  border-left: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+  color: var(--quiet);
+  font-size: 13px;
+}
+.act-tools,
+.about-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+.act-tools label {
+  cursor: pointer;
+}
+.act-row {
+  display: grid;
+  grid-template-columns: 22ch minmax(120px, 1fr) minmax(160px, 1.6fr) 8ch;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 0;
+  min-height: 34px;
+  border-top: 1px solid color-mix(in srgb, var(--dim) 25%, var(--bg));
+}
+.act-row button {
+  justify-self: end;
+  font-size: 12px;
+  padding: 1px 8px;
+}
+.act-app .dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
+/* what only one system has (data-os: powerpage.js) */
+html[data-os="macos"] .not-mac,
+html[data-os="windows"] .not-win,
+html:not([data-os="windows"]) .only-win {
+  display: none;
+}
+@media (max-width: 640px) {
+  .act-row {
+    grid-template-columns: 17ch minmax(0, 1fr) auto;
+  }
+  .act-row > :nth-child(3) {
+    grid-column: 1 / 3;
+    grid-row: 2;
+  }
 }
 
 /* ---- about ---- */
@@ -493,53 +670,310 @@ table.apps {
   min-width: 30ch;
 }
 
-/* the hover clock's styles, as previews to pick from */
-.clock-styles {
+/* ---- the clock page (clockpage.js): styles left, preview and choices right ---- */
+.clock-show {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  max-width: 1180px;
+  margin: 0 0 16px;
+}
+.clock-show button {
+  display: grid;
+  gap: 1px;
+  padding: 7px 14px;
+  text-align: left;
+}
+.clock-show b {
+  font-size: 15px;
+}
+.clock-show b::before {
+  content: "( ) ";
+  font-weight: 400;
+}
+.clock-show button[aria-pressed="true"] b::before {
+  content: "(•) ";
+}
+.clock-show span {
+  font-size: 12px;
+  color: var(--quiet);
+}
+.clock-show button[aria-pressed="true"] {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+}
+.clock-show button[aria-pressed="true"] span,
+.clock-show button:hover span {
+  color: var(--bg);
+}
+.clock-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 0 18px;
+}
+/* the four corners, where they are on the screen */
+.corners {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--ctl-edge);
+}
+.corners button {
+  border: 0;
+  background: none;
+  padding: 8px 2px;
+  color: var(--quiet);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.corners button:nth-child(even) {
+  border-left: 1px solid var(--ctl-edge);
+}
+.corners button:nth-child(n + 3) {
+  border-top: 1px solid var(--ctl-edge);
+}
+.corners button[aria-pressed="true"] {
+  background: var(--fg);
+  color: var(--bg);
+}
+#clock-choices {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 22px;
+  align-items: start;
+  max-width: 1180px;
+}
+#clock-choices.off {
+  opacity: 0.35;
+}
+.clock-side {
+  position: sticky;
+  top: 0;
+}
+#clock-note:empty {
+  display: none;
+}
+/* a 1120 x 630 screen, scaled to the column (--k) */
+#clock-screen {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+  background: var(--bg);
+}
+#clock-screen iframe,
+#clock-screen .face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1120px;
+  height: 630px;
+  border: 0;
+  transform: scale(var(--k, 0.35));
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+#clock-screen .spot {
+  position: absolute;
+  z-index: 3;
+  width: 38%;
+  height: 42%;
+  padding: 0;
+  border: 1px dashed transparent;
+  background: none;
+  color: transparent;
+}
+#clock-screen .spot:hover,
+#clock-screen .spot:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  color: var(--accent);
+}
+#clock-screen .spot[aria-pressed="true"]:hover {
+  background: none;
+  color: transparent;
+}
+.spot.top-left,
+.spot.bottom-left {
+  left: 6px;
+}
+.spot.top-right,
+.spot.bottom-right {
+  right: 6px;
+}
+.spot.top-left,
+.spot.top-right {
+  top: 6px;
+}
+.spot.bottom-left,
+.spot.bottom-right {
+  bottom: 6px;
+}
+#clock-tip {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+/* the choices: a label and a row of equal parts, every row alike */
+.clock-rows {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 12px;
+}
+.clock-rows > span {
+  color: var(--dim);
+}
+.seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+}
+.seg button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--quiet);
+  white-space: nowrap;
+}
+.seg button + button {
+  border-left: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+}
+.seg button:hover:not(:disabled) {
+  background: var(--ctl-faint);
+  color: var(--bright);
+}
+.seg button[aria-pressed="true"],
+.seg button[aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--fg) 20%, var(--bg));
+  box-shadow: inset 0 -2px 0 var(--fg);
+  color: var(--bright);
+}
+.seg i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+/* a little screen, the clock in its corner */
+.seg i.mon {
+  position: relative;
+  width: 26px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 0;
+}
+.mon::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 5px;
+  background: currentColor;
+}
+.mon.top-left::after,
+.mon.bottom-left::after {
+  left: 1px;
+}
+.mon.top-right::after,
+.mon.bottom-right::after {
+  right: 1px;
+}
+.mon.top-left::after,
+.mon.top-right::after {
+  top: 1px;
+}
+.mon.bottom-left::after,
+.mon.bottom-right::after {
+  bottom: 1px;
+}
+.clock-picks,
+#clock-swatches {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  height: 30px;
+}
+.clock-picks {
+  gap: 12px;
+}
+#page-clock .swatch[aria-pressed="true"] {
+  outline: 2px solid var(--bright);
+  outline-offset: 2px;
+}
+#clock-own {
+  width: 34px;
+  height: 22px;
+  padding: 0;
+}
+.clock-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 10px 0;
+  gap: 4px 16px;
+  margin-bottom: 8px;
 }
-.clock-styles.off {
-  opacity: 0.45;
+.clock-tabs button,
+.clock-tabs button:hover:not(:disabled) {
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  padding: 0 0 2px;
+  color: var(--dim);
+}
+.clock-tabs button:hover:not(:disabled) {
+  color: var(--bright);
+}
+.clock-tabs button[aria-pressed="true"] {
+  border-color: var(--fg);
+  color: var(--bright);
+}
+.clock-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(102px, 1fr));
+  gap: 8px;
 }
 .clock-style {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  min-width: 150px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  height: 92px;
+  padding: 4px;
+  overflow: hidden;
 }
-.clock-style.on {
-  border-color: var(--fg);
-  box-shadow: 0 0 12px rgba(var(--glow), 0.25);
+.clock-style .art {
+  display: grid;
+  place-items: center;
 }
 .clock-style pre {
   margin: 0;
+  text-align: left;
+  text-shadow: none;
+  font: 700 10px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+.clock-style .name {
+  color: var(--dim);
+  font-size: 11px;
+}
+.clock-style[aria-pressed="true"] .name {
+  color: var(--bright);
+}
+.clock-style[aria-pressed="true"] .name::before {
+  content: "● ";
   color: var(--fg);
-  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
-  font: 700 7px/1.05 "JetBrains Mono", ui-monospace, Consolas, monospace;
-  font-variant-ligatures: none;
 }
-.clock-style.lcd pre {
-  font: 400 13px/0.95 "JetBrains Mono", ui-monospace, Consolas, monospace;
-}
-.clock-style.plain pre {
-  font: 300 26px/1 "JetBrains Mono", ui-monospace, monospace;
-}
-.clock-opts {
-  margin-top: 0;
-}
-
-/* the clock page: its options fade while the clock is set to never */
-#page-clock.clock-off .clock-styles,
-#page-clock.clock-off .clock-opts {
-  opacity: 0.45;
-}
-.clock-style.lcd pre {
-  font: 700 8px/1 "JetBrains Mono", ui-monospace, Consolas, monospace;
+@media (max-width: 860px) {
+  #clock-choices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .clock-side {
+    position: static;
+    order: -1;
+  }
 }
 
 /* scrollbars in the app's colours: thin, dim green on black */
@@ -595,13 +1029,6 @@ table.apps {
   color: var(--dim);
 }
 
-.clock-style.heywajih pre {
-  font-size: 2.7px;
-  line-height: 1.05;
-}
-.clock-style.big pre {
-  font-size: 6px;
-}
 
 /* =====================================================================
    The terminal look (with src/terminal.js): a CRT feel without
@@ -838,37 +1265,21 @@ button.still {
   color: var(--bg);
 }
 
-/* the apps table: faint until the cursor is on the row */
-#apps .cyc,
-#apps button {
-  background: var(--ctl-faint);
-  border-color: transparent;
-}
-#apps tr:hover .cyc,
-#apps tr:focus-within .cyc,
-#apps tr:hover button,
-#apps tr:focus-within button {
-  background: var(--ctl);
-  border-color: var(--ctl-edge);
-}
-#apps tr button:hover:not(:disabled) {
-  background: var(--fg);
-  color: var(--bg);
-}
-
 /* the clock's style tiles */
 .clock-style {
-  border: 1px dashed var(--ctl-edge);
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
   background: none;
   color: var(--fg);
 }
 button.clock-style:hover:not(:disabled) {
   background: var(--ctl-faint);
-  border-color: var(--fg);
+  border-color: var(--dim);
   color: var(--fg);
 }
-.clock-style.on {
-  border-style: solid;
+button.clock-style[aria-pressed="true"],
+button.clock-style[aria-pressed="true"]:hover {
+  border-color: var(--fg);
+  box-shadow: 0 0 12px rgba(var(--glow), 0.25);
 }
 
 /* ---- text fields ---- */

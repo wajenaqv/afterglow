@@ -4,6 +4,9 @@
 //   restore_desktop()            on quit: repaint the normal wallpaper
 //   fullscreen_app_in_front()    a fullscreen app, game or presentation is up
 //   on_battery()                 running on battery power
+//   has_battery()                this computer has a battery at all
+//   cpu_seconds()                CPU time of AfterGlow and its webviews so far
+//                                (None where that can't be told)
 //   do_not_disturb()             the OS is holding notifications back
 //   covered(screens)             per monitor (x, y, w, h physical px, scale): are app
 //                                windows hiding its desktop?
@@ -30,6 +33,12 @@ mod other {
     }
     pub fn on_battery() -> bool {
         false
+    }
+    pub fn has_battery() -> bool {
+        true
+    }
+    pub fn cpu_seconds() -> Option<f64> {
+        None
     }
     pub fn do_not_disturb() -> bool {
         false

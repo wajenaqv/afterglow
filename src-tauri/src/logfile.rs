@@ -12,7 +12,6 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 static FILE: Mutex<Option<File>> = Mutex::new(None);
 static PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
@@ -70,21 +69,41 @@ pub fn line(msg: &str) {
     }
 }
 
-/// "2026-11-21 16:04:09Z" (UTC; no date crate needed)
+/// "2026-11-21 16:04:09", local time
+#[cfg(windows)]
 fn stamp() -> String {
+    let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond)
+}
+
+/// "2026-11-21 16:04:09", local time (C's localtime_r; no date crate needed)
+#[cfg(not(windows))]
+fn stamp() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    #[repr(C)]
+    struct Tm {
+        sec: i32,
+        min: i32,
+        hour: i32,
+        mday: i32,
+        mon: i32,
+        year: i32,
+        wday: i32,
+        yday: i32,
+        isdst: i32,
+        gmtoff: std::ffi::c_long,
+        zone: *const std::ffi::c_char,
+    }
+    unsafe extern "C" {
+        fn localtime_r(time: *const i64, out: *mut Tm) -> *mut Tm;
+    }
     let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-    let (days, rem) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
-    // days since 1970-01-01 -> civil date (Howard Hinnant's algorithm)
-    let z = days + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
-    format!("{y:04}-{m:02}-{d:02} {:02}:{:02}:{:02}Z", rem / 3600, rem % 3600 / 60, rem % 60)
+    let mut t = std::mem::MaybeUninit::<Tm>::zeroed();
+    let t = unsafe {
+        localtime_r(&secs, t.as_mut_ptr());
+        t.assume_init()
+    };
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", t.year + 1900, t.mon + 1, t.mday, t.hour, t.min, t.sec)
 }
 
 /// Settings → about: open the log in the default text editor

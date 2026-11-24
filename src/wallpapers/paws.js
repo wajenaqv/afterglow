@@ -28,6 +28,7 @@
 
 import { num, seeded, hash, params, HOVER, pointer, stillFor, STILL, STILL_AT, onReaction } from "./common.js";
 const TRAIL = params.has("trail");
+import { PAWS } from "./palettes.js";
 import { C, setPalette, startScene, scale, add, mix, smooth, ellipse, circle, reduced } from "./nightscene.js";
 
 const SIZE = num("size", 1, 0.3, 2.5);
@@ -35,37 +36,7 @@ const BG = C(3, 3, 8);
 const FLASH = C(255, 240, 230);
 // Palettes (?tint=): one colour per walk, and what prints cool to as they
 // fade. natural is the original mix.
-const PALETTES = {
-  natural: {
-    old: C(175, 135, 205),
-    tints: [
-      C(255, 176, 150), // peach
-      C(255, 150, 190), // rose
-      C(255, 204, 128), // amber
-      C(210, 175, 255), // lilac
-      C(150, 235, 210), // mint
-      C(140, 205, 255), // sky
-      C(255, 130, 130), // coral
-      C(170, 160, 255), // periwinkle
-      C(255, 230, 150), // honey
-      C(240, 150, 255), // orchid
-      C(120, 235, 240), // aqua
-    ],
-  },
-  cool: {
-    old: C(110, 120, 200),
-    tints: [C(140, 205, 255), C(120, 235, 240), C(150, 235, 210), C(170, 160, 255), C(110, 160, 255), C(190, 225, 255), C(100, 215, 200)], // sky, aqua, mint, periwinkle, blue, ice, teal
-  },
-  grey: {
-    old: C(110, 112, 120),
-    tints: [C(240, 242, 248), C(200, 205, 215), C(220, 220, 220), C(175, 180, 190), C(245, 240, 232)], // pearl, silver, light grey, slate, warm white
-  },
-  warm: {
-    old: C(170, 90, 110),
-    tints: [C(255, 176, 150), C(255, 150, 190), C(255, 204, 128), C(255, 130, 130), C(255, 230, 150), C(255, 160, 90), C(255, 110, 160)], // peach, rose, amber, coral, honey, tangerine, raspberry
-  },
-};
-const PALETTE = PALETTES[params.get("tint")] ?? PALETTES.natural;
+const PALETTE = PAWS[params.get("tint")] ?? PAWS.natural; // palettes.js
 const OLD = PALETTE.old; // what a print cools to as it fades
 const TINTS = PALETTE.tints;
 setPalette();

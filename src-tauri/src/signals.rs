@@ -8,8 +8,8 @@
 //   optional: "colour": "#rrggbb" (else the app's own colour, see COLOURS),
 //             "afterglow": seconds the pulse takes to fade (default 4)
 //
-// Rules (Settings → rules, Rule below) can change what an app's signals do;
-// without one, the defaults:
+// Each app is allowed or blocked, and can change what its signals do
+// (Settings → apps, apps.rs); the defaults:
 //   new    -> pulse in the app's colour
 //   unread -> count: the total waiting across all apps
 //   clear  -> that app's count back to 0
@@ -26,7 +26,8 @@
 // change ({ "type": "lanterns", items: [{ source, colour }] }).
 //
 // Away: pulses and flashes that arrive while you can't see them (every
-// monitor's wallpaper paused or hidden, or no input for AWAY_SECS) are held
+// monitor's wallpaper paused or hidden, or no input for AWAY_SECS), or during
+// Do Not Disturb when the user wants that quiet, are held
 // and replayed one after another when you're back (replay_missed, called
 // each second by the host's pause loop).
 //
@@ -34,30 +35,14 @@
 // local endpoint (endpoint.rs) and the connectors.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-use crate::host;
-
-/// App colours for pulses (lowercase source name -> RGB); anything else
-/// pulses in the brand green
-const COLOURS: &[(&str, [u8; 3])] = &[
-    ("whatsapp", [0x25, 0xd3, 0x66]),
-    ("signal", [0x3a, 0x76, 0xf0]),
-    ("telegram", [0x29, 0xa9, 0xeb]),
-    ("slack", [0xe0, 0x1e, 0x5a]),
-    ("teams", [0x7b, 0x83, 0xeb]),
-    ("discord", [0x58, 0x65, 0xf2]),
-    ("gmail", [0xea, 0x43, 0x35]),
-    ("outlook", [0x28, 0x8e, 0xe8]),
-    ("mail", [0x4a, 0xa8, 0xff]),
-    ("spotify", [0x1d, 0xb9, 0x54]),
-    ("steam", [0x66, 0xc0, 0xf4]),
-];
-const BRAND: [u8; 3] = [0x33, 0xff, 0x99];
+use crate::{apps, host};
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct Signal {
@@ -108,36 +93,83 @@ pub struct Bus {
     /// the count an app had when its lantern was seen (hovered); it lights
     /// again only when the count goes above that
     seen: Mutex<BTreeMap<String, u32>>,
-    /// pulses and flashes that arrived while you were away (with their app)
-    missed: Mutex<Vec<(String, Reaction)>>,
+    /// pulses and flashes held back: you were away, or Do Not Disturb was on
+    missed: Mutex<Vec<Missed>>,
     /// the latest signals and what became of each (Settings → activity)
     activity: Mutex<VecDeque<Activity>>,
+    /// the next activity entry's number
+    next_id: AtomicU64,
+}
+
+/// A reaction held for later, and its line on the activity page
+struct Missed {
+    source: String,
+    reaction: Reaction,
+    entry: u64,
 }
 
 /// One signal, for the activity page (debugging: which app triggered what,
 /// when, and what AfterGlow did with it)
 #[derive(Serialize, Clone, Debug)]
 pub struct Activity {
+    id: u64,
     /// Unix time, milliseconds
     pub at: u64,
     pub source: String,
     /// new, unread, clear or flash
     pub kind: String,
     pub count: Option<u32>,
-    /// what happened: pulse #rrggbb, flash, counted, ignored by a rule,
-    /// held (Do Not Disturb or away), replayed
-    pub result: String,
+    /// what became of it: pulse, flash, counted, blocked, held-away,
+    /// held-dnd, replayed, missed (too many were held) or dropped (the app
+    /// was blocked while it was held)
+    pub outcome: &'static str,
+    /// a pulse's colour, "#rrggbb", else ""
+    pub colour: String,
 }
 const ACTIVITY_MAX: usize = 500;
 
-fn record(app: &AppHandle, source: &str, kind: &str, count: Option<u32>, result: String) {
+fn record(app: &AppHandle, source: &str, kind: &str, count: Option<u32>, outcome: &'static str, colour: String) -> u64 {
     let at = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
     let bus = app.state::<Bus>();
+    let id = bus.next_id.fetch_add(1, Ordering::Relaxed);
     let mut log = bus.activity.lock().unwrap();
-    log.push_back(Activity { at, source: source.to_string(), kind: kind.to_string(), count, result });
+    log.push_back(Activity { id, at, source: source.to_string(), kind: kind.to_string(), count, outcome, colour });
     while log.len() > ACTIVITY_MAX {
         log.pop_front();
     }
+    id
+}
+
+/// A held signal was replayed or dropped: its line says so (no second line,
+/// which counted the message twice)
+fn settle(app: &AppHandle, id: u64, outcome: &'static str) {
+    if let Some(e) = app.state::<Bus>().activity.lock().unwrap().iter_mut().find(|e| e.id == id) {
+        e.outcome = outcome;
+    }
+}
+
+/// The activity page's colour for a reaction
+fn colour_of(r: &Reaction) -> String {
+    match r {
+        Reaction::Pulse { colour: c, .. } => format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2]),
+        _ => String::new(),
+    }
+}
+
+/// Keep a pulse or flash for later (replay_missed)
+fn hold(app: &AppHandle, sig: &Signal, source: &str, reaction: Reaction, why: &'static str) {
+    let bus = app.state::<Bus>();
+    let full = bus.missed.lock().unwrap().len() >= MISSED_MAX;
+    let entry = record(app, source, &sig.kind, sig.count, if full { "missed" } else { why }, colour_of(&reaction));
+    crate::alog!("afterglow: signal -> {reaction:?} {}", if full { "missed: too many held" } else { why });
+    if !full {
+        bus.missed.lock().unwrap().push(Missed { source: source.to_string(), reaction, entry });
+    }
+}
+
+/// Do Not Disturb is on, and the user wants it quiet then
+fn quiet(app: &AppHandle) -> bool {
+    app.state::<host::Host>().settings.lock().unwrap().quiet_dnd && crate::platform::do_not_disturb()
 }
 
 /// The activity page: newest first
@@ -152,103 +184,82 @@ pub fn clear_activity(app: AppHandle) {
 }
 
 impl Bus {
-    pub fn total(&self) -> u32 {
-        self.unread.lock().unwrap().values().sum()
+    /// How many are waiting per app, blocked ones too
+    pub fn unread(&self) -> BTreeMap<String, u32> {
+        self.unread.lock().unwrap().clone()
     }
 }
 
-fn parse_colour(s: &str) -> Option<[u8; 3]> {
-    let hex = s.strip_prefix('#')?;
-    if hex.len() != 6 {
-        return None;
-    }
-    let v = u32::from_str_radix(hex, 16).ok()?;
-    Some([(v >> 16) as u8, (v >> 8) as u8, v as u8])
-}
-
-fn colour_for(source: &str) -> [u8; 3] {
-    COLOURS.iter().find(|(name, _)| *name == source).map(|(_, c)| *c).unwrap_or(BRAND)
-}
-
-/// A rule (Settings → rules): what an app's signals do. The first rule whose
-/// source matches wins; "*" matches any app. Apps without one: pulse in
-/// their own colour, count as waiting.
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(default)]
-pub struct Rule {
-    /// An app name ("whatsapp", "gmail", "build", …) or "*" for any app
-    pub source: String,
-    /// What a new message does: "pulse", "flash" or "nothing"
-    pub on_new: String,
-    /// "#rrggbb" for the pulse, or "" for the app's own colour
-    pub colour: String,
-    /// Whether its waiting count brings in jellies
-    pub count: bool,
-}
-
-impl Default for Rule {
-    fn default() -> Self {
-        Rule { source: "*".into(), on_new: "pulse".into(), colour: String::new(), count: true }
-    }
-}
-
-fn rule_for(app: &AppHandle, source: &str) -> Option<Rule> {
-    let host = app.state::<host::Host>();
-    let s = host.settings.lock().unwrap();
-    s.rules.iter().find(|r| r.source == source).or_else(|| s.rules.iter().find(|r| r.source == "*")).cloned()
-}
-
-/// Settings → rules: replace the rules (checked and saved)
-#[tauri::command]
-pub fn set_rules(app: AppHandle, rules: Vec<Rule>) -> Result<(), String> {
-    let mut clean = Vec::new();
-    for mut r in rules {
-        r.source = r.source.trim().to_ascii_lowercase();
-        if r.source.is_empty() || r.source.len() > 32 || !(r.source == "*" || r.source.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))) {
-            return Err(format!("rule app name: letters, digits, - _ . or * (got {})", r.source));
+/// How many are waiting in all (the jellies): not blocked apps, nor those
+/// whose count is switched off
+pub fn total(app: &AppHandle) -> u32 {
+    let mut n = 0;
+    for (source, waiting) in app.state::<Bus>().unread() {
+        let a = apps::get(app, &source);
+        if !a.blocked && a.count {
+            n += waiting;
         }
-        if !["pulse", "flash", "nothing"].contains(&r.on_new.as_str()) {
-            return Err("rule: pulse, flash or nothing".into());
-        }
-        if !r.colour.is_empty() && parse_colour(&r.colour).is_none() {
-            return Err(format!("rule colour: #rrggbb (got {})", r.colour));
-        }
-        clean.push(r);
     }
-    let host = app.state::<host::Host>();
-    let snapshot = {
-        let mut s = host.settings.lock().unwrap();
-        s.rules = clean;
-        s.clone()
-    };
-    crate::settings::save(&app, &snapshot);
-    Ok(())
+    n
+}
+
+/// An app was blocked: nothing of it stays lit or held for later
+pub fn drop_waiting(app: &AppHandle, source: &str) {
+    let bus = app.state::<Bus>();
+    bus.pending.lock().unwrap().remove(source);
+    let mut dropped = Vec::new();
+    bus.missed.lock().unwrap().retain(|m| {
+        if m.source == source {
+            dropped.push(m.entry);
+        }
+        m.source != source
+    });
+    for entry in dropped {
+        settle(app, entry, "dropped");
+    }
+}
+
+/// An app's choices changed: bring the wallpapers up to date
+pub fn refresh(app: &AppHandle) {
+    emit_lanterns(app);
+    host::emit_to_walls(app, "reaction", Reaction::Count { n: total(app) });
 }
 
 /// Check a signal and turn it into reactions.
 pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
+    process(app, sig, true)
+}
+
+/// The same for a try-out (the tray, the simulator): the app isn't
+/// remembered as heard from
+pub fn handle_test(app: &AppHandle, sig: Signal) -> Result<(), String> {
+    process(app, sig, false)
+}
+
+fn process(app: &AppHandle, sig: Signal, real: bool) -> Result<(), String> {
     let source = sig.source.trim().to_ascii_lowercase();
-    if source.is_empty() || source.len() > 32 || !source.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.') {
+    if !apps::valid_source(&source) {
         return Err("source: 1-32 letters, digits, - _ .".into());
     }
     let bus = app.state::<Bus>();
-    // The user's rule for this app (Settings → rules), if any
-    let rule = rule_for(app, &source);
+    if real && source != "simulator" && (sig.kind == "new" || (sig.kind == "unread" && sig.count.unwrap_or(0) > 0)) {
+        apps::heard(app, &source, sig.kind == "new");
+    }
+    // What the user chose for this app (Settings → apps)
+    let chosen = apps::get(app, &source);
+    if chosen.blocked && (sig.kind == "new" || sig.kind == "flash") {
+        crate::alog!("afterglow: signal from {source} ignored: blocked");
+        record(app, &source, &sig.kind, None, "blocked", String::new());
+        return Ok(());
+    }
     let reaction = match sig.kind.as_str() {
         "new" => {
-            let on_new = rule.as_ref().map(|r| r.on_new.as_str()).unwrap_or("pulse");
-            let reaction = match on_new {
-                "nothing" => {
-                    crate::alog!("afterglow: signal from {source} ignored by a rule");
-                    record(app, &source, "new", None, "ignored (its rule says nothing)".into());
-                    return Ok(());
-                }
+            let reaction = match chosen.on_new.as_str() {
                 "flash" => Reaction::Flash,
                 _ => {
-                    let colour = match (&sig.colour, rule.as_ref().and_then(|r| parse_colour(&r.colour))) {
-                        (_, Some(ruled)) => ruled,
-                        (Some(c), None) => parse_colour(c).ok_or("colour: #rrggbb")?,
-                        (None, None) => colour_for(&source),
+                    let colour = match (&sig.colour, apps::parse_colour(&chosen.colour)) {
+                        (Some(c), None) => apps::parse_colour(c).ok_or("colour: #rrggbb")?,
+                        _ => chosen.colour_for(&source),
                     };
                     let afterglow = sig.afterglow.unwrap_or(4.0).clamp(0.5, 30.0);
                     Reaction::Pulse { colour, afterglow, source: source.clone() }
@@ -274,12 +285,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
         }
         "unread" => {
             let n = sig.count.ok_or("unread needs a count")?.min(9999);
-            // a rule can keep an app's count out of "waiting"
-            if rule.as_ref().is_some_and(|r| !r.count) {
-                bus.unread.lock().unwrap().remove(&source);
-            } else {
-                bus.unread.lock().unwrap().insert(source.clone(), n);
-            }
+            bus.unread.lock().unwrap().insert(source.clone(), n);
             // read down below what was seen: the next rise lights it again
             if let Some(s) = bus.seen.lock().unwrap().get_mut(&source) {
                 *s = (*s).min(n);
@@ -287,48 +293,41 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
             if n == 0 {
                 bus.pending.lock().unwrap().remove(&source);
             }
-            Reaction::Count { n: bus.total() }
+            Reaction::Count { n: total(app) }
         }
         "clear" => {
             bus.unread.lock().unwrap().remove(&source);
             bus.pending.lock().unwrap().remove(&source);
             bus.seen.lock().unwrap().remove(&source);
-            Reaction::Count { n: bus.total() }
+            Reaction::Count { n: total(app) }
         }
         "flash" => Reaction::Flash,
         other => return Err(format!("kind: new, unread, clear or flash (got {other})")),
     };
+    if chosen.blocked {
+        // recorded (it shows if you unblock the app), nothing drawn
+        record(app, &source, &sig.kind, sig.count, "blocked", String::new());
+        return Ok(());
+    }
     if sig.kind != "flash" {
         emit_lanterns(app);
     }
-    // Do Not Disturb: no pulses or flashes (counts and lanterns still update)
-    if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash)
-        && app.state::<host::Host>().settings.lock().unwrap().quiet_dnd
-        && crate::platform::do_not_disturb()
-    {
-        crate::alog!("afterglow: signal -> {reaction:?} held back: Do Not Disturb");
-        record(app, &source, &sig.kind, sig.count, "held back (Do Not Disturb)".into());
-        return Ok(());
-    }
-    // Away: held, and replayed when you're back
-    if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash) && !watching(app) {
-        let mut missed = bus.missed.lock().unwrap();
-        if missed.len() < MISSED_MAX {
-            missed.push((source.clone(), reaction.clone()));
+    // Pulses and flashes wait while Do Not Disturb is on or you're away, and
+    // are replayed after (counts and lanterns still update)
+    if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash) {
+        let why = if quiet(app) { Some("held-dnd") } else if !watching(app) { Some("held-away") } else { None };
+        if let Some(why) = why {
+            hold(app, &sig, &source, reaction, why);
+            return Ok(());
         }
-        crate::alog!("afterglow: signal -> {reaction:?} held: you're away ({} held)", missed.len());
-        drop(missed);
-        record(app, &source, &sig.kind, sig.count, "held (you're away)".into());
-        return Ok(());
     }
     crate::alog!("afterglow: signal -> {reaction:?}");
-    let result = match &reaction {
-        Reaction::Pulse { colour, .. } => format!("pulse #{:02x}{:02x}{:02x}", colour[0], colour[1], colour[2]),
-        Reaction::Flash => "flash".to_string(),
-        Reaction::Count { n } => format!("counted ({n} waiting in all)"),
-        Reaction::Lanterns { .. } => "lanterns".to_string(),
+    let outcome = match &reaction {
+        Reaction::Pulse { .. } => "pulse",
+        Reaction::Flash => "flash",
+        _ => "counted",
     };
-    record(app, &source, &sig.kind, sig.count, result);
+    record(app, &source, &sig.kind, sig.count, outcome, colour_of(&reaction));
     host::emit_to_walls(app, "reaction", reaction);
     Ok(())
 }
@@ -336,7 +335,7 @@ pub fn handle(app: &AppHandle, sig: Signal) -> Result<(), String> {
 // ---- lanterns ----
 
 /// Every app with something waiting that hasn't been seen, in its colour.
-/// An app whose rule says "nothing" gets none.
+/// A blocked app gets none.
 pub fn lanterns(app: &AppHandle) -> Vec<Lantern> {
     let bus = app.state::<Bus>();
     let unread = bus.unread.lock().unwrap().clone();
@@ -347,11 +346,11 @@ pub fn lanterns(app: &AppHandle) -> Vec<Lantern> {
     sources
         .into_iter()
         .filter_map(|source| {
-            let rule = rule_for(app, &source);
-            if rule.as_ref().is_some_and(|r| r.on_new == "nothing") {
+            let chosen = apps::get(app, &source);
+            if chosen.blocked {
                 return None;
             }
-            let colour = rule.and_then(|r| parse_colour(&r.colour)).unwrap_or_else(|| colour_for(&source));
+            let colour = chosen.colour_for(&source);
             Some(Lantern { source, colour })
         })
         .collect()
@@ -394,17 +393,17 @@ pub fn watching(app: &AppHandle) -> bool {
 /// missed, one after another, so the first thing you see is what happened
 pub fn replay_missed(app: &AppHandle) {
     let bus = app.state::<Bus>();
-    if bus.missed.lock().unwrap().is_empty() || !watching(app) {
+    if bus.missed.lock().unwrap().is_empty() || !watching(app) || quiet(app) {
         return;
     }
-    let held: Vec<(String, Reaction)> = std::mem::take(&mut *bus.missed.lock().unwrap());
+    let held: Vec<Missed> = std::mem::take(&mut *bus.missed.lock().unwrap());
     crate::alog!("afterglow: you're back: replaying {} missed", held.len());
     let app = app.clone();
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(800));
-        for (source, r) in held {
-            record(&app, &source, "new", None, "replayed (you're back)".into());
-            host::emit_to_walls(&app, "reaction", r);
+        for m in held {
+            settle(&app, m.entry, "replayed");
+            host::emit_to_walls(&app, "reaction", m.reaction);
             std::thread::sleep(Duration::from_millis(1400));
         }
     });
@@ -413,7 +412,7 @@ pub fn replay_missed(app: &AppHandle) {
 /// The Settings window's simulator
 #[tauri::command]
 pub fn send_signal(app: AppHandle, signal: Signal) -> Result<(), String> {
-    handle(&app, signal)
+    handle_test(&app, signal)
 }
 
 /// Wallpaper windows report what they did with a reaction (they sit behind
@@ -427,11 +426,11 @@ pub fn wall_log(msg: String) {
 /// What a wallpaper that just loaded needs to know (the current count)
 #[tauri::command]
 pub fn signal_state(app: AppHandle) -> u32 {
-    app.state::<Bus>().total()
+    total(&app)
 }
 
-/// Settings → apps: how many are waiting, per app
+/// The Settings status bar: how many are waiting, per app (not blocked ones)
 #[tauri::command]
 pub fn unread_by_app(app: AppHandle) -> BTreeMap<String, u32> {
-    app.state::<Bus>().unread.lock().unwrap().clone()
+    app.state::<Bus>().unread().into_iter().filter(|(s, _)| !apps::get(&app, s).blocked).collect()
 }

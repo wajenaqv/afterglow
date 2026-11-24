@@ -117,6 +117,63 @@ pub fn on_battery() -> bool {
     unsafe { GetSystemPowerStatus(&mut status).is_ok() && status.ACLineStatus == 0 }
 }
 
+pub fn has_battery() -> bool {
+    let mut status = SYSTEM_POWER_STATUS::default();
+    // BatteryFlag: 128 = no battery, 255 = unknown (then say there is one)
+    unsafe { GetSystemPowerStatus(&mut status).is_err() || status.BatteryFlag == 255 || status.BatteryFlag & 128 == 0 }
+}
+
+/// CPU time used so far by AfterGlow and its webview processes (they're our
+/// child processes). A child must be younger than its parent: Windows reuses
+/// process ids, so an older one only looks like ours.
+pub fn cpu_seconds() -> Option<f64> {
+    use windows::Win32::Foundation::{CloseHandle, FILETIME};
+    use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+    use windows::Win32::System::Threading::{GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+
+    let ticks = |f: FILETIME| ((f.dwHighDateTime as u64) << 32) | f.dwLowDateTime as u64; // 100 ns
+    // when a process started, and the CPU time it has used
+    let times = |pid: u32| -> Option<(u64, u64)> {
+        unsafe {
+            let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+            let (mut start, mut exit, mut kernel, mut user) = (FILETIME::default(), FILETIME::default(), FILETIME::default(), FILETIME::default());
+            let ok = GetProcessTimes(process, &mut start, &mut exit, &mut kernel, &mut user).is_ok();
+            let _ = CloseHandle(process);
+            ok.then(|| (ticks(start), ticks(kernel) + ticks(user)))
+        }
+    };
+    let mut all: Vec<(u32, u32)> = Vec::new(); // (pid, parent)
+    unsafe {
+        let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).ok()?;
+        let mut entry = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut more = Process32FirstW(snapshot, &mut entry).is_ok();
+        while more {
+            all.push((entry.th32ProcessID, entry.th32ParentProcessID));
+            more = Process32NextW(snapshot, &mut entry).is_ok();
+        }
+        let _ = CloseHandle(snapshot);
+    }
+    let me = unsafe { GetCurrentProcessId() };
+    let (start, mut total) = times(me)?;
+    let mut ours = vec![(me, start)];
+    let mut i = 0;
+    while i < ours.len() {
+        let (parent, born) = ours[i];
+        for &(pid, p) in &all {
+            if p == parent && pid != parent && !ours.iter().any(|(o, _)| *o == pid) {
+                if let Some((start, used)) = times(pid) {
+                    if start >= born {
+                        ours.push((pid, start));
+                        total += used;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    Some(total as f64 / 1e7)
+}
+
 // ---- which monitors are covered by app windows ----
 //
 // For each monitor (physical px, as Tauri reports them), whether app windows
