@@ -80,7 +80,11 @@ jobs:
 
   macos:
     needs: draft
-    runs-on: macos-latest
+    # An Intel Mac: GitHub's Apple Silicon Macs (macos-latest) were too busy
+    # in Nov 2026 and the job got cancelled unstarted. It still builds the
+    # universal app (both chips). GitHub retires its Intel Macs in 2027:
+    # switch back to macos-latest before then.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v5
 
