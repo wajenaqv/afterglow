@@ -185,14 +185,15 @@ const current = () => [SHAPE, 1];
 
 // ---- the camera: orthographic, rocking round the object's magic viewpoint ----
 let dims = null, cols = 0, rows = 0, cwH = 0, chH = 0, SX = 1, SY = 0.5, ZOOM = 0.42;
+let TOP = new Int32Array(0), EDG = new Uint8Array(0); // per cell: the face on top, and whether it drew an edge
 function layout(d) {
   dims = d;
   cols = d.cols;
   rows = d.rows;
   cwH = d.cw / d.H;
   chH = d.ch / d.H;
-  SX = d.A > 1.2 ? d.A * 0.6 : d.A / 2;
-  SY = 0.52;
+  SX = d.A / 2; // centred (owner's choice, over keeping the left fifth clear for icons)
+  SY = 0.5;
   ZOOM = Math.min(0.5, d.A * 0.45);
   cells.resize(cols, rows);
 }
@@ -299,7 +300,12 @@ function frame(t) {
     }
     return col ? [col, k] : null;
   };
-  for (const { f } of vis) {
+  // which face is on top in each cell (its place in the painting order), and
+  // whether it drew an edge there: for the second pass below
+  if (TOP.length !== cols * rows) (TOP = new Int32Array(cols * rows)), (EDG = new Uint8Array(cols * rows));
+  TOP.fill(0);
+  EDG.fill(0);
+  for (const [k, { f }] of vis.entries()) {
     const p0 = project(f.o, cam);
     const p1 = project([f.o[0] + f.e1[0], f.o[1] + f.e1[1], f.o[2] + f.e1[2]], cam);
     const p2 = project([f.o[0] + f.e2[0], f.o[1] + f.e2[1], f.o[2] + f.e2[2]], cam);
@@ -312,8 +318,14 @@ function frame(t) {
     const r0 = Math.max(0, Math.floor(Math.min(...ys) / chH) - 1), r1 = Math.min(rows - 1, Math.ceil(Math.max(...ys) / chH) + 1);
     // three clear tones, like the classic drawings: the lit face bright, one mid, one dark
     const nl = dot(f.n, LIGHT), lit = nl > 0.6 ? 0.95 : nl > 0 ? 0.55 : 0.22;
-    // edge width in face units, about half a cell
-    const ea = (0.55 * Math.max(cwH, chH)) / Math.hypot(q1[0], q1[1]), eb = (0.55 * Math.max(cwH, chH)) / Math.hypot(q2[0], q2[1]);
+    // Edges: a cell is on an edge when its centre is within half a cell of it,
+    // half a cell measured across that edge (so a flat edge gets half a row, a
+    // steep one half a column). One fixed width in face units dropped flat
+    // edges that fell between rows of cell centres: lines went missing.
+    const l1 = Math.hypot(q1[0], q1[1]), l2 = Math.hypot(q2[0], q2[1]);
+    const perB = Math.abs(det) / l1, perA = Math.abs(det) / l2; // screen distance per unit of b, of a
+    const half1 = 0.52 * (Math.abs(q1[1] / l1) * cwH + Math.abs(q1[0] / l1) * chH); // across an edge along q1
+    const half2 = 0.52 * (Math.abs(q2[1] / l2) * cwH + Math.abs(q2[0] / l2) * chH); // across an edge along q2
     for (let r = r0; r <= r1; r++)
       for (let c = c0; c <= c1; c++) {
         const X = (c + 0.5) * cwH - p0[0], Y = (r + 0.5) * chH - p0[1];
@@ -321,7 +333,9 @@ function frame(t) {
         if (a < 0 || a > 1 || b < 0 || b > 1) continue;
         const p3 = [f.o[0] + f.e1[0] * a + f.e2[0] * b, f.o[1] + f.e1[1] * a + f.e2[1] * b, f.o[2] + f.e1[2] * a + f.e2[2] * b];
         const g = glowAt(p3);
-        const onA = a < ea || a > 1 - ea, onB = b < eb || b > 1 - eb;
+        const onA = Math.min(a, 1 - a) * perA < half2, onB = Math.min(b, 1 - b) * perB < half1;
+        TOP[r * cols + c] = k + 1;
+        EDG[r * cols + c] = onA || onB ? 1 : 0;
         if (onA || onB) {
           const dir = onA ? q2 : q1; // an edge: the slope of the side it runs along
           let col = scale(PH.ink, (0.85 * obj.edge + 0.6 * flash) * fade);
@@ -336,6 +350,31 @@ function frame(t) {
         }
       }
   }
+  // Second pass: where one face passes in front of another, the line between
+  // them is not an edge of either face's own outline, so it was never drawn
+  // (the joins of an impossible figure are exactly where that matters). Draw
+  // it on the front face's side, sloped along the boundary.
+  const lineCol = scale(PH.ink, (0.85 * obj.edge + 0.6 * flash) * fade);
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c, o = TOP[i];
+      if (!o || EDG[i]) continue;
+      let nx = 0, ny = 0, hit = false;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          if (!dr && !dc) continue;
+          const rr = r + dr, cc = c + dc;
+          const on = rr < 0 || cc < 0 || rr >= rows || cc >= cols ? 0 : TOP[rr * cols + cc];
+          if (on < o) { // a face behind, or empty space (where corners overlap, a later face can cover an outline)
+            nx += dc;
+            ny += dr;
+            if (!dr || !dc) hit = true; // a face behind, right beside this one
+          }
+        }
+      if (!hit || (!nx && !ny)) continue;
+      // the boundary runs across (nx, ny): perpendicular to it, in cell units
+      cells.putAt(c, r, slopeChar((-ny * chH) / cwH, (nx * cwH) / chH), lineCol);
+    }
   // the waiting apps' lights on top: a bright point in brackets, easy to spot
   for (const l of lanterns) {
     const [x, y] = project(obj.loopAt(lanternU(obj, l, T)), cam);
