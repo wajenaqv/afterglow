@@ -49,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.sh 
 irm https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.ps1 | iex
 ```
 
-Free, no admin needed. Run the same line again to update. Read [install.sh](install.sh) or [install.ps1](install.ps1) first if you like.
+Free, no admin needed. It updates from its own menu: a line there says when a new version is ready. Read [install.sh](install.sh) or [install.ps1](install.ps1) first if you like.
 
 > [!IMPORTANT]
 > Quit other live wallpaper apps first, or they cover AfterGlow.
@@ -118,7 +118,7 @@ AfterGlow listens on your own computer only, and refuses requests from web pages
 
 - No server, no account and no telemetry.
 - AfterGlow keeps *which app* and *how many*, never what a message says.
-- It only goes online for the accounts you connect yourself.
+- It only goes online to look for updates on GitHub once a day (you can switch that off), and for the accounts you connect yourself.
 - Sign-in tokens stay in your OS keychain.
 
 ## ▤ Next
@@ -126,7 +126,7 @@ AfterGlow listens on your own computer only, and refuses requests from web pages
 - [x] First release, with one-line installs
 - [ ] More wallpapers
 - [ ] winget and the Microsoft Store
-- [ ] In-app updates
+- [x] In-app updates
 
 Ideas and bugs are welcome in [issues](https://github.com/wajenaqv/afterglow/issues).
 
