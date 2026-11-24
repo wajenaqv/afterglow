@@ -21,7 +21,7 @@ What fails: anything small and many-part (flocks, fish, insects: each member is 
 | cloud sea | shipped (2026-11-22): rolling swells lit from behind, dim ASCII symbols, violet night view held still, palettes, pulse and flash, CPU and GPU. Still to do: waiting-app reaction (lights) and the waiting count |
 | aurora | sketched, branch `wip/aurora`: smooth mock and characters done, the owner liked it; GPU, reactions and Settings card to do |
 | ocean | half done, branch `wip/ocean`: needs shorter swells so the foreground is rows of waves |
-| sakura branch | idea, below (2026-11-24) |
+| sakura branch | built (2026-11-24, branch `wip/sakura`), after a Python video sketch the owner shared (taken as reference only): branch from the top right across the moon, outlined five-petal blossoms, petals falling in gusts, CPU and GPU, palettes, pulse / lanterns / flash. Owner's verdict on the real desktop pending |
 | clownfish and anemone | idea, below (2026-11-24) |
 | wind grass | idea, below (2026-11-24) |
 | samurai | idea, below: only as a silhouette, inside the wind grass scene |
