@@ -57,10 +57,22 @@ You decide what each app does in **Settings → apps**: light up, flash or nothi
 
 ## ↓ Download
 
-**Windows**: download `AfterGlow_<version>_x64-setup.exe` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest) and run it. It installs just for you, no admin needed.
+**Windows**: paste this into PowerShell. It installs or updates AfterGlow just for you (no admin) and starts it ([read the script](install.ps1)).
+
+```powershell
+irm https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.ps1 | iex
+```
+
+Or with winget (coming soon):
+
+```powershell
+winget install wajenaqv.AfterGlow
+```
+
+Or download `AfterGlow_<version>_x64-setup.exe` from the [latest release](https://github.com/wajenaqv/afterglow/releases/latest) and run it.
 
 > [!NOTE]
-> The installer isn't code-signed (AfterGlow is a hobby project), so Windows may say *"Windows protected your PC"*. Click **More info → Run anyway**.
+> AfterGlow is a hobby project and its installer isn't code-signed, so the downloaded `.exe` makes Windows say *"Windows protected your PC"*: click **More info → Run anyway**. The PowerShell line and winget don't show that warning.
 
 **macOS** (Apple Silicon and Intel): paste this into Terminal. It installs or updates AfterGlow in Applications and opens it ([read the script](install.sh)).
 

@@ -1,8 +1,12 @@
 ### Windows
 
-Download `AfterGlow_*_x64-setup.exe` below and run it. It installs for your user only (no admin needed).
+Easiest: paste this into PowerShell. It downloads the installer below, installs AfterGlow for your user only (no admin) and starts it.
 
-This build isn't code-signed, so Windows may show "Windows protected your PC". Click **More info**, then **Run anyway**.
+```powershell
+irm https://raw.githubusercontent.com/wajenaqv/afterglow/main/install.ps1 | iex
+```
+
+Or download `AfterGlow_*_x64-setup.exe` below and run it. It isn't code-signed, so Windows shows "Windows protected your PC": click **More info**, then **Run anyway**.
 
 ### macOS (Apple Silicon and Intel)
 

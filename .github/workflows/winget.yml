@@ -1,0 +1,37 @@
+name: winget
+
+# When a release is published, opens a pull request on microsoft/winget-pkgs
+# with the new version of wajenaqv.AfterGlow, so `winget upgrade` finds it.
+# Only for updates: the FIRST version goes in by hand (docs/releasing.md,
+# "winget"). Needs the WINGET_TOKEN secret (a classic GitHub token with the
+# public_repo scope) and a fork of microsoft/winget-pkgs on that account;
+# without the secret this does nothing.
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to submit (v0.1.1)
+        required: true
+
+jobs:
+  winget:
+    runs-on: windows-latest
+    steps:
+      - name: Check for the token
+        id: token
+        env:
+          TOKEN: ${{ secrets.WINGET_TOKEN }}
+        shell: bash
+        run: |
+          if [ -n "$TOKEN" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "No WINGET_TOKEN secret: skipping."; fi
+
+      - if: steps.token.outputs.ok == 'true'
+        uses: vedantmgoyal9/winget-releaser@main
+        with:
+          identifier: wajenaqv.AfterGlow
+          installers-regex: '_x64-setup\.exe$'
+          release-tag: ${{ inputs.tag || github.event.release.tag_name }}
+          token: ${{ secrets.WINGET_TOKEN }}
