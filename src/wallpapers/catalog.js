@@ -98,6 +98,13 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
+    id: "impossible",
+    name: "impossible",
+    about: "Impossible objects that are really there, in turn: a Penrose triangle and Penrose stairs, glowing, that only close from one viewpoint. The view rocks slowly, so each closes, holds, opens and closes again. A new message sends a band of light round the endless loop; an app with something waiting is a light going round it forever.",
+    options: [{ key: "object", label: "object", choices: [["", "both, in turn"], ["triangle", "triangle"], ["stairs", "stairs"]] }, PHOSPHOR, CRT],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), light, a radar, an oscilloscope, or ASCII fonts (slant, big, lcd).",

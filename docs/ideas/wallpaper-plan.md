@@ -22,6 +22,7 @@ What fails: anything small and many-part (flocks, fish, insects: each member is 
 | aurora | sketched, branch `wip/aurora`: smooth mock and characters done, the owner liked it; GPU, reactions and Settings card to do |
 | ocean | half done, branch `wip/ocean`: needs shorter swells so the foreground is rows of waves |
 | sakura branch | built (2026-11-24, branch `wip/sakura`), after a Python video sketch the owner shared (taken as reference only): branch from the top right across the moon, outlined five-petal blossoms, petals falling in gusts, CPU and GPU, palettes, pulse / lanterns / flash. Owner's verdict on the real desktop pending |
+| impossible | built (2026-11-24): a Penrose triangle and Penrose stairs as real 3D objects that close from one viewpoint; the view rocks so they close and open |
 | radar, phosphor life, circuit board | built (2026-11-24): the techy CRT set, through cells.js with a shared CRT overlay (techy.js) |
 | star trails | built (2026-11-24) after the owner's Python sketch: a long exposure round the pole star over mountains; canvas 2D (real arcs) |
 | constellation | ported from heywajih (2026-11-24): cat constellations, a shooting star per message, a star per waiting app; CPU and GPU through cells.js |
