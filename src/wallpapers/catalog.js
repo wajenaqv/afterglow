@@ -53,6 +53,16 @@ export const WALLPAPERS = [
     reacts: ["pulse", "flash"],
   },
   {
+    id: "sakura",
+    name: "sakura",
+    about: "A cherry branch at night crossing the moon, swaying in the wind, its petals torn loose and fluttering down. A notification opens a blossom in the app's colour; an app with something waiting keeps one lit until you rest the cursor on it, then it drops its petals.",
+    options: [
+      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
+      { key: "moon", label: "moon", choices: [["", "on"], ["0", "off"]] },
+    ],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
     id: "clock",
     name: "clock",
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), nixie tubes, a radar, an oscilloscope, or ASCII fonts.",

@@ -51,6 +51,7 @@ export default defineConfig({
         clock: resolve(import.meta.dirname, "wallpapers/clock.html"),
         shore: resolve(import.meta.dirname, "wallpapers/shore.html"),
         cloudsea: resolve(import.meta.dirname, "wallpapers/cloudsea.html"),
+        sakura: resolve(import.meta.dirname, "wallpapers/sakura.html"),
       },
     },
   },
