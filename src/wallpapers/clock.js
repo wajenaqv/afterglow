@@ -6,6 +6,9 @@
 // Options (Settings card; also plain URL options):
 //   ?style=   slant (default) | small-slant | big | colossal | banner |
 //             heywajih | nixie | density | lcd | plain | radar | scope | light
+//             | phosphor
+//             (phosphor: phosphorclock.js, digits drawn by a CRT beam, GPU and
+//             CPU; heywajih: heyclock.js, heywajih.com's clock as it is)
 //             (light: lightclock.js, the time drawn as light like the jellies)
 //             (radar and scope animate: crtclock.js draws them with the
 //             night-scene renderer, GPU and CPU; nixie's tubes are HTML)
