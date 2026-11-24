@@ -1,8 +1,10 @@
-### What's new in 0.1.2
+### What's new
 
-- **Updates from the menu:** AfterGlow looks for a new version once a day. When one is ready, a line at the top of its menu says so; click it to restart into it. No popups, and you can switch it off in Settings → about.
-- **Lighter on macOS:** wallpapers use less graphics power, and hold still while AfterGlow's menu is open.
-- **Settings:** wallpaper previews only run while you can see them.
+- **Apps:** Settings lists every app AfterGlow hears from, each allowed or blocked, with a step-by-step guide for every connection. Your old rules are converted; noisy ones such as OneDrive and Windows Security start blocked unless you had changed them. A rule for "every app" is kept only if it said "nothing".
+- **Do Not Disturb:** messages are held and shown when it ends, instead of being dropped.
+- **Power:** see why each monitor is paused, what draws it and how much CPU AfterGlow uses, and choose how long OLED care waits.
+- **Clock:** 15 new styles, colours taken from the wallpaper that's showing, and a colour of your own.
+- **Activity:** plain words, and a replayed message is no longer counted twice.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 

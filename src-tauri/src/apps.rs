@@ -351,11 +351,11 @@ mod tests {
     #[test]
     fn old_rules_become_apps() {
         let mut s = Settings::default();
-        s.rules = vec![rule("teams", "nothing", ""), rule("claude", "pulse", "#f20707"), rule("onedrive", "pulse", ""), rule("build", "pulse", "")];
+        s.rules = vec![rule("teams", "nothing", ""), rule("discord", "pulse", "#5865f2"), rule("onedrive", "pulse", ""), rule("build", "pulse", "")];
         migrate(&mut s);
         assert!(s.rules.is_empty() && s.apps_setup_done);
         assert!(s.apps["teams"].blocked);
-        assert!(!s.apps["claude"].blocked && s.apps["claude"].colour == "#f20707");
+        assert!(!s.apps["discord"].blocked && s.apps["discord"].colour == "#5865f2");
         assert!(s.apps["onedrive"].blocked);
         assert!(!s.apps["build"].blocked);
     }

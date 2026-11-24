@@ -1,10 +1,18 @@
 Third-party material in AfterGlow
 
-1. figlet fonts Slant and Big, by Glenn Chappell (Big: Greek characters by
-   Bruce Jakeway), modified by Paul Burton. The clock digits and the logo are
-   made from them; the digit 8 of Slant was redrawn for AfterGlow. Their notice:
-   "Permission is hereby given to modify this font, as long as the modifier's
-   name is placed on a comment line."
+1. figlet fonts. The clock digits are made from these, and the logo from
+   Slant (the digit 8 of Slant was redrawn for AfterGlow):
+
+     Slant, Small, Lean   Glenn Chappell; modified by Paul Burton
+     Big                  Glenn Chappell; Greek characters by Bruce Jakeway;
+                          modified by Paul Burton
+     Doom                 Frans P. de Vries, based on Big by Glenn Chappell
+     Larry 3D             Larry Gelberg, from Juan Car's Puffy; tweaked by
+                          Glenn Chappell
+
+   Notice in all of them but Larry 3D, which has none: "Permission is hereby
+   given to modify this font, as long as the modifier's name is placed on a
+   comment line."
 
 2. JetBrains Mono, bundled with the app:
 
