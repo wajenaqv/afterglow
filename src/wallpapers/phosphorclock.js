@@ -63,13 +63,11 @@ const FADE = 9; // how long the old digits take to fade (seconds, e-folding)
 const HEAD = 0.07; // how long the beam's hot head lasts at a point
 
 // ---- layout: the text as segments along the beam's path ----
-// Wide screens: one line, "4:43". Tall screens (a portrait monitor): hours
-// above minutes, no colon, so the digits stay big and fill the height. Either
-// way the time is fitted to the width (sized by height alone, it ran off the
-// sides of a portrait monitor).
+// Always one line, "4:43", fitted to the width as well as the height (sized
+// by height alone, it ran off the sides of a portrait monitor; hours stacked
+// above minutes was tried there and the owner preferred one line).
 function build(text, A, cy = 0.43) {
-  const tall = A < 0.9;
-  const lines = tall ? text.split(":") : [text];
+  const lines = [text];
   const lineW = (line) => [...line].reduce((w, c) => w + (c === ":" ? 0.3 : 1 / 1.4), 0) + 0.3 * (line.length - 1); // in digit heights
   const hd = Math.min(0.25 * SIZE, (0.86 * A) / Math.max(...lines.map(lineW))); // digit height
   const dw = hd / 1.4;
@@ -99,7 +97,9 @@ function build(text, A, cy = 0.43) {
       x += (c === ":" ? colon : dw) + gap;
     });
   });
-  return { segs: segs.slice(0, MAXSEG), dots, L: s, w: hd * 0.045, box: [left, cy - blockH / 2, right, cy + blockH / 2] };
+  // stroke half-width: a share of the digit, but never thinner than about a
+  // character row, so narrow (portrait) screens keep bold strokes
+  return { segs: segs.slice(0, MAXSEG), dots, L: s, w: Math.max(hd * 0.045, 0.0072), box: [left, cy - blockH / 2, right, cy + blockH / 2] };
 }
 
 // ---- state, worked out once per frame (shared by the CPU and GPU) ----
