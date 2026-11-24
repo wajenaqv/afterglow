@@ -17,7 +17,9 @@
 //   pause     every 1 s: pause everything when the tray says so, when a fullscreen
 //             app or game is in front, or on battery; and any monitor whose
 //             desktop is hidden behind app windows. Sent as a "paused" event
-//             with one flag per monitor the window covers
+//             with one flag per monitor the window covers. With OLED care on,
+//             also everything once you've been away a while (an "oled" event
+//             tells host.html to go black)
 //   monitors  every 3 s: if monitors were added, removed or moved, rebuild
 //
 // Events go to each window by label (emit_to); host.html listens on its own
@@ -271,16 +273,38 @@ pub fn emit_to_walls<S: Serialize + Clone>(app: &AppHandle, event: &str, payload
     }
 }
 
+/// OLED care, for host.html (src/wallpapers/oled.js).
+#[derive(Serialize, Clone)]
+struct Oled {
+    on: bool,
+    rest: bool,
+}
+
+/// How long without keyboard or mouse before OLED care rests the screen:
+/// five minutes (AFTERGLOW_REST_SECS overrides it for testing).
+fn rest_secs() -> f64 {
+    std::env::var("AFTERGLOW_REST_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(300.0)
+}
+
+fn resting(oled: bool, idle: f64, after: f64) -> bool {
+    oled && idle >= after
+}
+
 /// Work out whether wallpapers should be paused and tell them. Also called
 /// straight away from the tray when Pause is toggled.
 pub fn apply_pause(app: &AppHandle) {
     let host = app.state::<Host>();
-    let (rule_fullscreen, rule_battery, rule_covered) = {
+    let (rule_fullscreen, rule_battery, rule_covered, oled) = {
         let s = host.settings.lock().unwrap();
-        (s.pause_fullscreen, s.pause_on_battery, s.pause_covered)
+        (s.pause_fullscreen, s.pause_on_battery, s.pause_covered, s.oled)
     };
+    // OLED care: away long enough, so the screen goes black (and pauses).
+    // Sent every time, like "paused" below, so new windows learn it too
+    let rest = resting(oled, platform::idle_seconds(), rest_secs());
+    emit_to_walls(app, "oled", Oled { on: oled, rest });
     // Everything pauses...
-    let all = host.user_paused.load(Ordering::Relaxed)
+    let all = rest
+        || host.user_paused.load(Ordering::Relaxed)
         || (rule_fullscreen && platform::fullscreen_app_in_front())
         || (rule_battery && platform::on_battery());
     // ...or just the monitors whose desktop is hidden behind app windows
@@ -357,5 +381,17 @@ fn monitor_loop(app: AppHandle) {
                 }
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resting;
+
+    #[test]
+    fn rests_only_with_oled_care_on_and_after_the_wait() {
+        assert!(!resting(false, 9999.0, 300.0));
+        assert!(!resting(true, 299.0, 300.0));
+        assert!(resting(true, 300.0, 300.0));
     }
 }

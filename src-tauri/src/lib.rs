@@ -64,6 +64,7 @@ pub fn run() {
             extras::open_link,
             extras::set_clock,
             settings::set_scramble,
+            settings::set_oled,
             logfile::open_log,
             connectors::connectors_state,
             connectors::set_connector,

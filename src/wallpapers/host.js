@@ -17,6 +17,7 @@
 // "wallpaper" event ({ wall, query }) swaps the page every frame shows.
 
 const config = window.__AFTERGLOW__ ?? {};
+let log = () => {}; // set below, in the app
 const screens = Array.isArray(config.screens) && config.screens.length ? config.screens : [[0, 0, innerWidth, innerHeight]];
 
 // The page a frame shows: only known-looking names and options get through
@@ -42,6 +43,12 @@ const tintOf = (query) => new URLSearchParams(query ?? "").get("tint") ?? "";
 const clock = hoverClock(frames, config.clock ?? {}, tintOf(config.query));
 clock.setHidden(config.wall === "clock"); // the clock wallpaper is a clock already
 
+// OLED care: a slow shift, and black instead of a frozen picture (oled.js).
+// In a browser, ?oled switches it on (dark after 2 s paused).
+import { oledCare } from "./oled.js";
+const tryOled = !("__TAURI_INTERNALS__" in window) && new URLSearchParams(location.search).has("oled");
+const oled = oledCare(frames, { on: tryOled }, { darkAfter: tryOled ? 2000 : undefined, log: (msg) => log(msg) });
+
 // Settings or the tray picked another wallpaper: swap every frame's page
 function show({ wall, query }) {
   clock.setTint(tintOf(query));
@@ -58,7 +65,9 @@ let under = null; // the frame the cursor is over
 function cursor(p) {
   const hit = p ? frames.find((fr) => p.x >= fr.x && p.y >= fr.y && p.x < fr.x + fr.w && p.y < fr.y + fr.h) : null;
   if (under && under !== hit) send(under, { type: "cursor", at: null });
-  if (hit) send(hit, { type: "cursor", at: { x: p.x - hit.x, y: p.y - hit.y } });
+  // the picture may be shifted (OLED care): the wallpaper hears its own coordinates
+  const [dx, dy] = oled.shift();
+  if (hit) send(hit, { type: "cursor", at: { x: p.x - hit.x - dx, y: p.y - hit.y - dy } });
   under = hit ?? null;
   clock.cursor(p);
 }
@@ -72,6 +81,7 @@ function pause(p) {
     fr.paused = value;
     send(fr, { type: "paused", value });
   });
+  oled.paused();
 }
 // Reactions (pulse, count, flash, lanterns) go to every frame. The latest
 // count and lanterns are kept, so a frame that loads later (another
@@ -84,10 +94,10 @@ function reaction(r) {
   frames.forEach((fr) => send(fr, { type: "reaction", reaction: r }));
 }
 window.__afterglowReact = reaction; // dev aid: fire a reaction from the console
+if (tryOled) window.__afterglowOled = { oled, pause }; // dev aid
 
 // The app's log gets a line per reaction: received here, handled by a frame
 // (these windows sit behind the desktop icons, out of the inspector's reach)
-let log = () => {};
 if ("__TAURI_INTERNALS__" in window)
   import("@tauri-apps/api/core").then(({ invoke }) => (log = (msg) => invoke("wall_log", { msg }).catch(() => {})));
 // A frame says you've seen an app's lantern (rested the cursor on it)
@@ -114,6 +124,7 @@ if ("__TAURI_INTERNALS__" in window) {
     win.listen("cursor", ({ payload }) => cursor(payload));
     win.listen("paused", ({ payload }) => pause(payload));
     win.listen("wallpaper", ({ payload }) => show(payload));
+    win.listen("oled", ({ payload }) => oled.configure(payload ?? {}));
     win.listen("clock", ({ payload }) => clock.configure(payload ?? {}));
     win.listen("reaction", ({ payload }) => {
       log(`host got ${payload?.type} for ${frames.length} frame(s)`);

@@ -57,6 +57,9 @@ function standIn(cmd, a) {
     case "set_scramble":
       s.scramble = a.on;
       return save();
+    case "set_oled":
+      s.oled = a.on;
+      return save();
     case "set_rotation":
       s.rotate = { on: a.on, minutes: a.minutes, walls: a.walls };
       return save();
@@ -394,6 +397,9 @@ function showClock(c = {}) {
 
 // Hover scramble on or off (settings.rs set_scramble; the wallpaper reloads)
 $("#scramble").addEventListener("change", (e) => invoke("set_scramble", { on: e.target.checked }).catch((err) => (stillNote.textContent = String(err))));
+
+// OLED care on or off (settings.rs set_oled)
+$("#oled").addEventListener("change", (e) => invoke("set_oled", { on: e.target.checked }).catch(() => (e.target.checked = !e.target.checked)));
 
 function showRotation(r = {}) {
   rotateOn.checked = !!r.on;
@@ -961,6 +967,7 @@ async function load() {
   showRotation(saved.rotate);
   showClock(saved.clock);
   $("#scramble").checked = saved.scramble ?? true;
+  $("#oled").checked = saved.oled ?? false;
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {

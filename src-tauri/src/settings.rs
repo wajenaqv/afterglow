@@ -7,6 +7,7 @@
 //   pause_on_battery
 //   pause_covered     pause a monitor's wallpaper while app windows hide it
 //   quiet_dnd         no pulses or flashes during Do Not Disturb
+//   oled             OLED care: slow shift, black when paused or you're away
 //   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //
 // Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps, set_renderer).
@@ -52,6 +53,8 @@ pub struct Settings {
     pub clock: crate::extras::Clock,
     /// Hovering a jelly scrambles its characters (off: ?scramble=0)
     pub scramble: bool,
+    /// OLED care (src/wallpapers/oled.js; host.rs apply_pause says when to rest)
+    pub oled: bool,
 }
 
 /// The frame rates on offer (Settings → performance)
@@ -77,6 +80,7 @@ impl Default for Settings {
             steam: Default::default(),
             clock: Default::default(),
             scramble: true,
+            oled: false,
         }
     }
 }
@@ -219,6 +223,19 @@ pub fn set_scramble(app: AppHandle, on: bool) {
     };
     save(&app, &snapshot);
     host::show_wallpaper(&app);
+}
+
+/// Settings → performance: OLED care on or off (no reload needed)
+#[tauri::command]
+pub fn set_oled(app: AppHandle, on: bool) {
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.oled = on;
+        s.clone()
+    };
+    save(&app, &snapshot);
+    host::apply_pause(&app);
 }
 
 /// How wallpapers are drawn: "auto", "gpu" or "cpu" (reloads them).
