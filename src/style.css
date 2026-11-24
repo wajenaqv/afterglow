@@ -889,3 +889,22 @@ input[type="password"]:focus {
 .clock-style pre {
   font-variant-ligatures: none !important;
 }
+
+/* The wallpaper picker's tabs (main.js showTab): one kind of wallpaper at a
+   time. Unpicked tabs dim, the picked one lit. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+  margin: 0.2rem 0 1rem;
+}
+.tabs button[aria-selected="false"] {
+  color: var(--dim);
+  text-shadow: none;
+}
+.tabs button[aria-selected="true"] {
+  color: var(--bright);
+}
+.cards > [hidden] {
+  display: none !important;
+}

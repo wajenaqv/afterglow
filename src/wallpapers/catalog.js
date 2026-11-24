@@ -13,6 +13,10 @@ const PALETTE = {
   choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"]],
 };
 
+// The picker's tabs: each wallpaper's `tag` is one of these (keep `about` to
+// one short line: long ones made the cards too tall)
+export const TAGS = ["creatures", "nature", "sky", "tech", "clock"];
+
 // The techy wallpapers (radar, life, circuit): the phosphor, and the CRT overlay
 const PHOSPHOR = { key: "tint", label: "phosphor", choices: [["", "green"], ["amber", "amber"], ["ice", "ice blue"], ["white", "white"]] };
 const CRT = { key: "crt", label: "scanlines", choices: [["", "on"], ["0", "off"]] };
@@ -24,35 +28,40 @@ export const WALLPAPERS = [
   {
     id: "jellyfish",
     name: "jellyfish",
-    about: "Glowing, see-through jellyfish pulsing up through dark water, trailing their tentacles. Touch one with the cursor and its characters dissolve into shading blocks.",
+    about: "Glowing jellyfish drifting up through dark water.",
+    tag: "creatures",
     options: [PALETTE, { key: "count", label: "count", choices: [["", "auto"], ...Array.from({ length: 10 }, (_, i) => [String(i + 1), String(i + 1)])] }, SPECKS],
     reacts: ["pulse", "lanterns", "count", "flash"],
   },
   {
     id: "big-jellyfish",
     name: "big jellyfish",
-    about: "One big jellyfish that stays where it is and just pulses, each pulse rippling down its tentacles. Touch it and its characters dissolve into shading blocks.",
+    about: "One big jellyfish, pulsing where it floats.",
+    tag: "creatures",
     options: [PALETTE, { key: "hue", label: "colour", choices: [["", "random"], ...Array.from({ length: 6 }, (_, i) => [String(i + 1), String(i + 1)])], hues: true }, SPECKS],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
     id: "paws",
     name: "paw prints",
-    about: "Glowing paw prints of an invisible cat walking across the screen. Rest the cursor and the curious cat comes over, circles it and sits a moment.",
+    about: "Glowing paw prints of an invisible cat.",
+    tag: "creatures",
     options: [PALETTE],
     reacts: ["pulse", "flash"],
   },
   {
     id: "cloudsea",
     name: "cloud sea",
-    about: "A sea of cloud seen from above after sunset: a band of glow along the horizon and rolling swells below, their crests lit from behind. A notification sends a wave of the app's colour rolling in from the horizon, then it fades away slowly.",
+    about: "A sea of cloud after sunset, its swells lit from behind.",
+    tag: "nature",
     options: [PALETTE],
     reacts: ["pulse", "flash"],
   },
   {
     id: "sakura",
     name: "sakura",
-    about: "A cherry branch at night crossing the moon, swaying in the wind, its petals torn loose and fluttering down. A notification opens a blossom in the app's colour; an app with something waiting keeps one lit until you rest the cursor on it, then it drops its petals.",
+    about: "A cherry branch at night, petals on the wind.",
+    tag: "nature",
     options: [
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
       { key: "moon", label: "moon", choices: [["", "on"], ["0", "off"]] },
@@ -62,7 +71,8 @@ export const WALLPAPERS = [
   {
     id: "constellation",
     name: "constellation",
-    about: "Cats in the stars: chart lines join a few bright stars into a cat (sitting, asleep, pouncing, a loaf...), its Latin name fades in, then it dissolves and the next forms elsewhere. Sweep the cursor fast for a shooting star. A notification is a shooting star in the app's colour whose trail lingers; an app with something waiting is a bright star in its colour.",
+    about: "Cats drawn in the stars, one after another.",
+    tag: "sky",
     options: [
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
       { key: "pose", label: "cat", choices: [["", "all of them"], ["sitting", "sitting"], ["sleeping", "sleeping"], ["walking", "walking"], ["face", "face"], ["pouncing", "pouncing"], ["loaf", "loaf"], ["stretching", "stretching"]] },
@@ -72,42 +82,48 @@ export const WALLPAPERS = [
   {
     id: "startrails",
     name: "star trails",
-    about: "A long exposure of the night sky: stars turn slowly around the pole star, leaving thin arcs of light above dark mountains. A notification lights one star's trail in the app's colour; an app with something waiting keeps a trail in its colour until you rest the cursor on its star.",
+    about: "A long exposure of the stars over mountains.",
+    tag: "sky",
     options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["colour", "star colours"], ["cool", "cool"], ["warm", "warm"], ["green", "AfterGlow green"]] }],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
     id: "radar",
     name: "radar",
-    about: "A phosphor radar screen: the beam sweeps round and everything it passes flares and slowly fades. Every app with something waiting is a contact labelled with its name, refreshed each pass; a new message comes in from the edge in the app's colour.",
+    about: "A phosphor radar sweep; waiting apps are contacts.",
+    tag: "tech",
     options: [PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
     id: "life",
     name: "phosphor life",
-    about: "Conway's Game of Life on a phosphor screen: cells live and die, and the dead fade slowly, leaving glowing trails. A new message launches gliders in the app's colour; an app with something waiting keeps a pulsar beating in its colour.",
+    about: "Conway's Game of Life on a glowing phosphor screen.",
+    tag: "tech",
     options: [PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
     id: "circuit",
     name: "circuit board",
-    about: "A dark circuit board: chips and buses of traces, with packets of light running along them and fading behind. A new message comes in from the edge of the board in the app's colour and lights a chip; an app with something waiting takes a chip with its name and a blinking LED.",
+    about: "A circuit board with pulses of light on its traces.",
+    tag: "tech",
     options: [PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
     id: "impossible",
     name: "impossible",
-    about: "An impossible object that is really there, glowing, that only closes from one viewpoint: pick a Penrose triangle, Penrose stairs, a triangle of cubes, an impossible frame or pentagon. It holds closed, swings open now and then, and closes again. A new message sends a band of light round the endless loop; an app with something waiting is a light going round it forever.",
+    about: "Impossible shapes that only close from one viewpoint.",
+    tag: "tech",
     options: [{ key: "object", label: "shape", choices: [["", "Penrose triangle"], ["stairs", "Penrose stairs"], ["reutersvard", "triangle of cubes"], ["square", "impossible frame"], ["pentagon", "impossible pentagon"]] }, PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
     id: "clock",
     name: "clock",
-    about: "The time, big and glowing in the middle of the screen, in any of the clock styles: phosphor (drawn by the beam of a glowing CRT; old digits fade slowly when the minute turns), heywajih (the clock from heywajih.com), light, a radar, an oscilloscope, or ASCII fonts (slant, big, lcd).",
+    about: "The time, big and glowing, in many styles.",
+    tag: "clock",
     options: [
       {
         key: "style",

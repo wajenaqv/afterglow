@@ -13,7 +13,7 @@
 
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/700.css";
-import { WALLPAPERS, HUE_NAMES, queryFor } from "./wallpapers/catalog.js";
+import { WALLPAPERS, HUE_NAMES, TAGS, queryFor } from "./wallpapers/catalog.js";
 import { describe } from "./wallpapers/gpu.js";
 import { GUIDES } from "./guides.js";
 import { clockRows, STYLES as CLOCK_STYLES, validStyle } from "./wallpapers/hoverclock.js";
@@ -184,7 +184,7 @@ for (const w of WALLPAPERS) {
     <div class="body">
       <h3>${w.name}</h3>
       <p class="dim about">${w.about}</p>
-      <p class="dim reacts">reacts to: ${(w.reacts ?? []).join(" · ") || "nothing yet"}</p>
+      <p class="dim reacts">reacts: ${(w.reacts ?? []).join(" · ") || "nothing yet"}</p>
       <div class="opts"></div>
       <div class="actions"><button type="button" class="use"></button> <button type="button" class="still">save a still</button></div>
     </div>`;
@@ -199,6 +199,7 @@ for (const w of WALLPAPERS) {
     opts.append(label);
     selects.set(o.key, sel);
   }
+  el.dataset.tag = w.tag ?? "";
   const card = { el, preview: $("iframe", el), selects, button: $(".use", el) };
   cards.set(w.id, card);
   for (const sel of selects.values())
@@ -215,8 +216,8 @@ for (const w of WALLPAPERS) {
 // Coming soon: wallpapers on their way (from heywajih.com), as dim tiles
 // with a sketch, so the picker shows there's more to come
 const SOON = [
-  { name: "black hole", about: "Light bending around a black hole, traced ray by ray: a glowing disk, its lensed halo and warped stars.", art: "  .   *    .\n   .-~~~~-.\n  ( ( @@ ) )\n   '-~~~~-'\n .    *   ." },
-  { name: "cats", about: "Glowing text-art cats: one asleep in the corner, a whole family, and a troupe that dances.", art: "  /\\_/\\\n ( -.- )\n  > ^ <\n (__)_)~" },
+  { name: "black hole", tag: "sky", about: "Light bending round a black hole, traced ray by ray.", art: "  .   *    .\n   .-~~~~-.\n  ( ( @@ ) )\n   '-~~~~-'\n .    *   ." },
+  { name: "cats", tag: "creatures", about: "Glowing text-art cats, asleep, in families, dancing.", art: "  /\\_/\\\n ( -.- )\n  > ^ <\n (__)_)~" },
 ];
 for (const w of SOON) {
   const el = document.createElement("article");
@@ -231,8 +232,31 @@ for (const w of SOON) {
   el.querySelector("pre").textContent = w.art;
   el.querySelector("h3").textContent = w.name;
   el.querySelector(".about").textContent = w.about;
+  el.dataset.tag = w.tag;
   $("#cards").append(el);
 }
+
+// Tabs over the cards (the list had grown long): all, or one kind of
+// wallpaper (catalog.js TAGS, each card's data-tag); the choice is remembered
+const TAB_KEY = "afterglow:wallpaper-tab";
+const tabsEl = $("#wall-tabs");
+function showTab(tag) {
+  for (const b of tabsEl.children) b.setAttribute("aria-selected", String(b.dataset.tag === tag));
+  for (const el of $("#cards").children) el.hidden = !!tag && el.dataset.tag !== tag;
+  localStorage.setItem(TAB_KEY, tag);
+}
+for (const tag of ["", ...TAGS]) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.dataset.tag = tag;
+  b.setAttribute("role", "tab");
+  b.textContent = tag || "all";
+  b.title = `${[...$("#cards").children].filter((el) => !tag || el.dataset.tag === tag).length} wallpapers`;
+  b.addEventListener("click", () => showTab(tag));
+  tabsEl.append(b);
+}
+const savedTab = localStorage.getItem(TAB_KEY) ?? "";
+showTab(["", ...TAGS].includes(savedTab) ? savedTab : "");
 
 // Previews render at 960x540 and are scaled to fit their card
 const fit = new ResizeObserver((entries) => {
