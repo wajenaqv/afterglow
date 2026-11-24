@@ -25,7 +25,7 @@ What fails: anything small and many-part (flocks, fish, insects: each member is 
 | star trails | built (2026-11-24) after the owner's Python sketch: a long exposure round the pole star over mountains; canvas 2D (real arcs) |
 | constellation | ported from heywajih (2026-11-24): cat constellations, a shooting star per message, a star per waiting app; CPU and GPU through cells.js |
 | clownfish and anemone | idea, below (2026-11-24) |
-| wind grass | idea, below (2026-11-24) |
+| wind grass (susuki field) | parked (2026-11-24, `parked/susuki`): a brief and a smooth mock of a moonlit susuki field; owner: too sparse, dropped for now. A restart needs a much fuller field (the plumes as a dense sea, not scattered heads) |
 | samurai | idea, below: only as a silhouette, inside the wind grass scene |
 | eclipse | idea, below |
 
