@@ -105,23 +105,47 @@ jobs:
       # keeps the Accessibility permission across updates. Without them the app
       # is signed ad hoc ("-"): it runs, but Accessibility must be granted again
       # after each update.
+      #
+      # Tauri can't import a self-signed certificate itself: it only looks for
+      # identities macOS trusts ("failed to resolve signing identity"). So the
+      # certificate goes into a keychain here and Tauri gets its SHA-1
+      # fingerprint, which it hands straight to codesign (codesign signs with
+      # an untrusted certificate; only Gatekeeper cares, and we don't notarize).
       - name: Choose the signing identity
         env:
           CERT: ${{ secrets.APPLE_CERTIFICATE }}
           CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          if [ -n "$CERT" ] && [ -n "$IDENTITY" ]; then
-            echo "Signing with the self-signed certificate."
-            {
-              echo "APPLE_CERTIFICATE=$(printf %s "$CERT" | tr -d '\n\r ')"
-              echo "APPLE_CERTIFICATE_PASSWORD=$CERT_PASSWORD"
-              echo "APPLE_SIGNING_IDENTITY=$IDENTITY"
-            } >> "$GITHUB_ENV"
-          else
+          if [ -z "$CERT" ] || [ -z "$IDENTITY" ]; then
             echo "No certificate secrets: signing ad hoc."
             echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+            exit 0
           fi
+          echo "Signing with the self-signed certificate."
+          KC="$RUNNER_TEMP/afterglow-signing.keychain-db"
+          KC_PASS=$(uuidgen)
+          printf %s "$CERT" | tr -d '\n\r ' | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KC_PASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PASS" "$KC"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          rm "$RUNNER_TEMP/cert.p12"
+          # Let codesign use the key without a password prompt.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" > /dev/null
+          # Put the keychain in the search list (codesign looks there).
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          # The fingerprint of the identity with this name (untrusted is fine).
+          HASH=$(security find-identity -p codesigning "$KC" \
+            | grep -F "\"$IDENTITY\"" | head -n 1 | awk '{print $2}')
+          if [ -z "$HASH" ]; then
+            echo "No code-signing identity named \"$IDENTITY\" in the certificate. Identities found:" >&2
+            security find-identity -p codesigning "$KC" >&2
+            exit 1
+          fi
+          echo "Identity \"$IDENTITY\": $HASH"
+          echo "APPLE_SIGNING_IDENTITY=$HASH" >> "$GITHUB_ENV"
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -129,3 +153,6 @@ jobs:
         with:
           releaseId: ${{ needs.draft.outputs.id }}
           args: --target universal-apple-darwin --bundles app,dmg
+
+      - name: Show the signature
+        run: codesign -dv --verbose=2 src-tauri/target/universal-apple-darwin/release/bundle/macos/AfterGlow.app 2>&1 | grep -E "Authority|Signature|TeamIdentifier|Identifier"

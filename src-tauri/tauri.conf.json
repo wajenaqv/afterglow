@@ -25,7 +25,8 @@
     "longDescription": "AfterGlow puts glowing text-art wallpapers (jellyfish, paw prints) behind your desktop icons on every monitor, pauses them for fullscreen apps and games, and will let your apps nudge them when something is waiting.",
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
       }
     },
     "icon": [
