@@ -39,13 +39,6 @@ export const WALLPAPERS = [
     reacts: ["pulse", "flash"],
   },
   {
-    id: "shore",
-    name: "shore",
-    about: "A bioluminescent beach at night, seen from above: trains of glowing crests roll in along the curve of the beach, break into blue foam that runs up the sand, and slide back.",
-    options: [{ key: "tint", label: "glow", choices: [["", "blue"], ["green", "green"], ["violet", "violet"], ["grey", "grey"]] }],
-    reacts: ["pulse", "lanterns", "flash"],
-  },
-  {
     id: "cloudsea",
     name: "cloud sea",
     about: "A sea of cloud seen from above after sunset: a band of glow along the horizon and rolling swells below, their crests lit from behind. A notification sends a wave of the app's colour rolling in from the horizon, then it fades away slowly.",

@@ -51,7 +51,8 @@ pub fn start_rotation(app: &AppHandle) {
         if !due {
             continue;
         }
-        let list: Vec<String> = if rot.walls.is_empty() { WALLPAPERS.iter().map(|(id, _)| id.to_string()).collect() } else { rot.walls.clone() };
+        // (a saved list can name a wallpaper that has since been removed: skip those)
+        let list: Vec<String> = if rot.walls.is_empty() { WALLPAPERS.iter().map(|(id, _)| id.to_string()).collect() } else { rot.walls.iter().filter(|w| settings::is_known(w)).cloned().collect() };
         if list.len() < 2 {
             continue;
         }

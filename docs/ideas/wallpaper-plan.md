@@ -17,7 +17,7 @@ What fails: anything small and many-part (flocks, fish, insects: each member is 
 | wallpaper | state |
 | --- | --- |
 | jellyfish, big jellyfish | done, the reference |
-| shore | installed, being refined (2026-11-22: cursor wake removed, waves as trains of crests, drifting streaks for the water, backwash leaves foam instead of a line); the owner's verdict on the real desktop is pending. Next: more varied foam lace, a wet sheen on the sand |
+| shore | parked (2026-11-24): the top-down version and a side view (`parked/shore`) both read as stripes and noise; removed from the app. A restart would begin with a reference and a smooth mock |
 | cloud sea | shipped (2026-11-22): rolling swells lit from behind, dim ASCII symbols, violet night view held still, palettes, pulse and flash, CPU and GPU. Still to do: waiting-app reaction (lights) and the waiting count |
 | aurora | sketched, branch `wip/aurora`: smooth mock and characters done, the owner liked it; GPU, reactions and Settings card to do |
 | ocean | half done, branch `wip/ocean`: needs shorter swells so the foreground is rows of waves |
@@ -28,7 +28,7 @@ What fails: anything small and many-part (flocks, fish, insects: each member is 
 | samurai | idea, below: only as a silhouette, inside the wind grass scene |
 | eclipse | idea, below |
 
-Cut or parked: tesseract (`wip/tesseract`: lovely smooth, but 4D edges are line art and never held up as characters), rings (`parked/rings`: hairline detail turned to noise), goldfish and schools of fish (`wip/goldfish`: blobs), comb jellies (too close to the jellies), a lantern scene (owner doesn't like it; the waiting-app *reaction* is still called lanterns in the code).
+Cut or parked: shore (`parked/shore`, see above), tesseract (`wip/tesseract`: lovely smooth, but 4D edges are line art and never held up as characters), rings (`parked/rings`: hairline detail turned to noise), goldfish and schools of fish (`wip/goldfish`: blobs), comb jellies (too close to the jellies), a lantern scene (owner doesn't like it; the waiting-app *reaction* is still called lanterns in the code).
 
 ## Cloud sea, "the afterglow"
 
@@ -102,4 +102,4 @@ A lone figure drawn as a rim-lit silhouette: a wide hat, a long coat moving in t
 
 ## More candidates (ranked when we get here)
 
-Storm clouds from above (lightning inside the cloud: a new message is a flash in the app's colour), rain on a still pond (a new message is a drop in the app's colour, the cursor is a finger in the water), ink in water (glowing plumes, needs a small fluid simulation), a manta ray gliding (one big translucent shape), a slowly turning spiral galaxy.
+A deep-sea jelly after the owner's glowy reference ([deep-sea-glow.md](deep-sea-glow.md)), storm clouds from above (lightning inside the cloud: a new message is a flash in the app's colour), rain on a still pond (a new message is a drop in the app's colour, the cursor is a finger in the water), ink in water (glowing plumes, needs a small fluid simulation), a manta ray gliding (one big translucent shape), a slowly turning spiral galaxy.
