@@ -18,6 +18,7 @@
 pub mod logfile;
 mod apps;
 mod awake;
+mod commands;
 mod connectors;
 mod endpoint;
 mod extras;

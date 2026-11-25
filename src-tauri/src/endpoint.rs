@@ -2,7 +2,8 @@
 //
 //   curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
 //
-// (the JSON is a signals.rs Signal). It listens on 127.0.0.1 only, so other
+// (the JSON is a signals.rs Signal), and buttons send commands.rs commands
+// (pause, next wallpaper) to /command. It listens on 127.0.0.1 only, so other
 // computers can't reach it. Web pages can't use it either: browsers add an
 // Origin header to every cross-site request, and requests with one are
 // refused (curl, scripts and Home Assistant's REST commands don't send it).
@@ -14,6 +15,7 @@ use std::thread;
 use tauri::AppHandle;
 use tiny_http::{Header, Method, Response, Server};
 
+use crate::commands::{self, Command};
 use crate::signals::{self, Signal};
 
 pub const PORT: u16 = 47811;
@@ -38,7 +40,8 @@ pub fn start(app: &AppHandle) {
                 reply(403, r#"{"error":"requests from web pages are not accepted"}"#.into())
             } else if req.method() == &Method::Get && req.url() == "/" {
                 let usage = format!("POST http://127.0.0.1:{PORT}/signal with JSON: source (a name), kind (new, unread, clear or flash), optional count, colour (#rrggbb), afterglow (seconds)");
-                reply(200, serde_json::json!({ "afterglow": usage }).to_string())
+                let commands = format!("POST http://127.0.0.1:{PORT}/command with JSON: do (pause, resume, toggle-pause, next, previous or wallpaper with id)");
+                reply(200, serde_json::json!({ "afterglow": usage, "commands": commands }).to_string())
             } else if req.method() == &Method::Post && req.url() == "/signal" {
                 let mut body = String::new();
                 match req.as_reader().take(MAX_BODY).read_to_string(&mut body) {
@@ -51,8 +54,20 @@ pub fn start(app: &AppHandle) {
                         },
                     },
                 }
+            } else if req.method() == &Method::Post && req.url() == "/command" {
+                let mut body = String::new();
+                match req.as_reader().take(MAX_BODY).read_to_string(&mut body) {
+                    Err(_) => reply(400, r#"{"error":"unreadable body"}"#.into()),
+                    Ok(_) => match serde_json::from_str::<Command>(&body) {
+                        Err(e) => reply(400, serde_json::json!({ "error": e.to_string() }).to_string()),
+                        Ok(cmd) => match commands::handle(&app, cmd) {
+                            Ok(()) => reply(200, r#"{"ok":true}"#.into()),
+                            Err(e) => reply(400, serde_json::json!({ "error": e }).to_string()),
+                        },
+                    },
+                }
             } else {
-                reply(404, r#"{"error":"POST /signal"}"#.into())
+                reply(404, r#"{"error":"POST /signal or /command"}"#.into())
             };
             let _ = req.respond(response);
         }

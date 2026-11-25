@@ -51,17 +51,38 @@ pub fn start_rotation(app: &AppHandle) {
         if !due {
             continue;
         }
-        // (a saved list can name a wallpaper that has since been removed: skip those)
-        let list: Vec<String> = if rot.walls.is_empty() { WALLPAPERS.iter().map(|(id, _)| id.to_string()).collect() } else { rot.walls.iter().filter(|w| settings::is_known(w)).cloned().collect() };
-        if list.len() < 2 {
-            continue;
-        }
-        let next = list.iter().position(|w| *w == current).map(|i| list[(i + 1) % list.len()].clone()).unwrap_or_else(|| list[0].clone());
+        let Some(next) = neighbour(&rot.walls, &current, true) else { continue };
         if let Err(e) = settings::choose(&app, &next, None) {
             crate::alog!("afterglow: rotation: {e}");
         }
         *LAST_SWITCH.lock().unwrap() = Some(Instant::now());
     });
+}
+
+/// The wallpaper after (or before) the current one in the rotation's list;
+/// None when there's no other one to go to.
+fn neighbour(walls: &[String], current: &str, forward: bool) -> Option<String> {
+    // (a saved list can name a wallpaper that has since been removed: skip those)
+    let list: Vec<String> = if walls.is_empty() { WALLPAPERS.iter().map(|(id, _)| id.to_string()).collect() } else { walls.iter().filter(|w| settings::is_known(w)).cloned().collect() };
+    let n = list.len();
+    match list.iter().position(|w| w == current) {
+        Some(_) if n < 2 => None,
+        Some(i) => Some(list[if forward { (i + 1) % n } else { (i + n - 1) % n }].clone()),
+        None => list.first().cloned(),
+    }
+}
+
+/// Go to the next or previous wallpaper by hand (commands.rs). The rotation's
+/// clock starts afresh, so it doesn't switch again a moment later.
+pub fn step_wallpaper(app: &AppHandle, forward: bool) -> Result<(), String> {
+    let (walls, current) = {
+        let host = app.state::<Host>();
+        let s = host.settings.lock().unwrap();
+        (s.rotate.walls.clone(), s.wallpaper.clone())
+    };
+    let next = neighbour(&walls, &current, forward).ok_or("there's only one wallpaper in the rotation's list")?;
+    *LAST_SWITCH.lock().unwrap() = Some(Instant::now());
+    settings::choose(app, &next, None)
 }
 
 /// Settings → rotation (saved). Turning it on starts the clock afresh.
@@ -201,4 +222,20 @@ pub fn set_clock(app: AppHandle, clock: Clock) -> Result<(), String> {
     settings::save(&app, &snapshot);
     crate::host::emit_to_walls(&app, "clock", clock);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::neighbour;
+
+    #[test]
+    fn steps_through_the_list_both_ways() {
+        let list: Vec<String> = ["radar", "gone", "sakura", "life"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(neighbour(&list, "radar", true).as_deref(), Some("sakura"));
+        assert_eq!(neighbour(&list, "life", true).as_deref(), Some("radar"));
+        assert_eq!(neighbour(&list, "radar", false).as_deref(), Some("life"));
+        assert_eq!(neighbour(&list, "paws", true).as_deref(), Some("radar"));
+        assert_eq!(neighbour(&list[..1], "radar", true), None);
+        assert_eq!(neighbour(&[], "jellyfish", true).as_deref(), Some("big-jellyfish"));
+    }
 }
