@@ -121,11 +121,11 @@ export const DETAILS = {
     hover: "None.",
   },
   impossible: {
-    about: "An impossible shape that is really there: it only closes from one viewpoint, and now and then the view swings to show it never was closed.",
-    message: "A band of light in the app's colour runs round the endless loop.",
-    waiting: "Each app is a light going round the loop for ever. Rest your cursor on it for a moment to mark it seen.",
-    flash: "The edges flare.",
-    hover: "None.",
+    about: "An impossible shape in solid glowing pieces, each tucked under the next all the way round. A light runs along them, under and over, and never reaches the end.",
+    message: "A light in the app's colour races round the shape and fades.",
+    waiting: "Each app is a light in its colour going round for ever. Rest your cursor on it for a moment to mark it seen.",
+    flash: "The whole shape lights up.",
+    hover: "None: the cursor only marks waiting apps as seen.",
   },
   clock: {
     about: "The time, big and glowing in the middle of the screen, in any of the clock styles, with the date underneath.",
@@ -268,9 +268,9 @@ export const WALLPAPERS = [
   {
     id: "impossible",
     name: "impossible",
-    about: "Impossible shapes that only close from one viewpoint.",
+    about: "Impossible shapes with a light running through them.",
     tag: "tech",
-    options: [{ key: "object", label: "shape", choices: [["", "Penrose triangle"], ["stairs", "Penrose stairs"], ["reutersvard", "triangle of cubes"], ["square", "impossible frame"], ["pentagon", "impossible pentagon"]] }, PHOSPHOR, CRT],
+    options: [{ key: "object", label: "shape", choices: [["", "triangle"], ["square", "square"], ["pentagon", "pentagon"], ["hexagon", "hexagon"], ["cube", "cube"], ["reutersvard", "triangle of cubes"], ["stairs", "stairs"]] }, PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
