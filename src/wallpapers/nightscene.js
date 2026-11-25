@@ -198,7 +198,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     resize();
     render(performance.now());
   });
-  // ?fps lowers the rate (Settings → power), never raises it
+  // ?fps lowers the rate (Settings → performance), never raises it
   const rate = typeof fps === "function" ? fps() : fps; // a scene can ask which renderer it got first
   paceFrames(reduced ? 1 : preview ? 8 : Math.min(rate, num("fps", rate, 10, 60)), render);
   return dims;

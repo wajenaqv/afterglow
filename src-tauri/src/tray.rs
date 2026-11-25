@@ -314,7 +314,7 @@ fn sync_here(app: &AppHandle) {
     }
 }
 
-/// Settings → power and apps: the pause rules (also in the tray), quiet
+/// Settings → performance and apps: the pause rules (also in the tray), quiet
 #[tauri::command]
 pub fn set_pausing(app: AppHandle, covered: bool, fullscreen: bool, battery: bool, quiet_dnd: bool) {
     let host = app.state::<Host>();

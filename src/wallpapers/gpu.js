@@ -1,7 +1,7 @@
 // Which renderer a wallpaper uses: the GPU (WebGL2) or the CPU (canvas 2D).
 //
 // Every wallpaper has both (docs/architecture.md). The choice is
-// the Settings → power "Rendering" setting, passed to wallpaper pages
+// the Settings → performance "Rendering" setting, passed to wallpaper pages
 // as ?render=gpu|cpu (no parameter = automatic):
 //   automatic  the GPU when WebGL2 works on real hardware, else the CPU
 //   gpu        the GPU whenever WebGL2 works at all (even software emulation)

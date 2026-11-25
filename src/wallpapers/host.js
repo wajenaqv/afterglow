@@ -109,7 +109,7 @@ addEventListener("message", (e) => {
   if (e.origin === location.origin && e.data?.type === "reacted") log(`frame ${e.data.page} handled ${e.data.reaction} (${e.data.handlers} handler)`);
 });
 
-// Settings → power shows what really draws each monitor: wallpapers put it in
+// Settings → performance shows what really draws each monitor: wallpapers put it in
 // data-renderer, which changes when the GPU fails and the CPU takes over
 let reportRenderer = () => {};
 function watchRenderer(fr, i) {

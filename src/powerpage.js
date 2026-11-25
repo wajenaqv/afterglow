@@ -1,4 +1,4 @@
-// Settings → power: is each monitor's wallpaper running, and if not, why;
+// Settings → performance: is each monitor's wallpaper running, and if not, why;
 // the Pause switch; the rules that pause it; frame rate, OLED care and
 // rendering. Refreshed every 2 s while the page is open (host.rs power_state).
 
@@ -18,7 +18,7 @@ const WHY = {
 
 /** Returns { refresh, last() }: last() is the latest power_state, or null */
 export function startPower({ invoke, inApp }) {
-  const page = $("#page-power");
+  const page = $("#page-performance");
   const note = $("#power-note");
   let state = null;
 

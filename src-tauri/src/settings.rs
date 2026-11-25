@@ -82,11 +82,11 @@ pub struct Settings {
     pub theme: String,
 }
 
-/// The frame rates on offer (Settings → power)
+/// The frame rates on offer (Settings → performance)
 pub const FPS_CHOICES: &[u32] = &[30, 20, 15];
 /// OLED care's choices of minutes away
 pub const OLED_MINUTES: &[u32] = &[2, 5, 10, 30];
-/// The rendering choices (Settings → power)
+/// The rendering choices (Settings → performance)
 pub const RENDERERS: &[&str] = &["auto", "gpu", "cpu"];
 /// The themes (Settings → general)
 pub const THEMES: &[&str] = &["afterglow", "dark", "light"];
@@ -295,7 +295,7 @@ pub fn set_theme(app: AppHandle, theme: String) -> Result<(), String> {
     Ok(())
 }
 
-/// Settings → power: OLED care on or off (no reload needed)
+/// Settings → performance: OLED care on or off (no reload needed)
 #[tauri::command]
 pub fn set_oled(app: AppHandle, on: bool, minutes: u32) -> Result<(), String> {
     if !OLED_MINUTES.contains(&minutes) {

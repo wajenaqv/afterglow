@@ -20,17 +20,22 @@
     <div class="shell">
       <nav class="side" aria-label="settings">
         <pre id="mark" class="mark" aria-label="AfterGlow"></pre>
-        <p class="tree-root">~/afterglow/</p>
-        <ul class="tree">
-          <li><a href="#wallpaper" data-page="wallpaper">wallpaper</a></li>
-          <li><a href="#clock" data-page="clock">clock</a></li>
-          <li><a href="#apps" data-page="apps">apps</a></li>
-          <li><a href="#edge" data-page="edge">edge</a></li>
-          <li><a href="#jobs" data-page="jobs">jobs</a></li>
-          <li><a href="#power" data-page="power">power</a></li>
-          <li><a href="#awake" data-page="awake">awake</a></li>
-          <li><a href="#activity" data-page="activity">activity</a></li>
-          <li><a href="#general" data-page="general">general</a></li>
+        <h2 class="side-head" id="side-desktop">desktop</h2>
+        <ul aria-labelledby="side-desktop">
+          <li><a href="#wallpaper" data-page="wallpaper"><span>wallpaper</span> <i></i></a></li>
+          <li><a href="#clock" data-page="clock"><span>clock</span> <i></i></a></li>
+          <li><a href="#edge" data-page="edge"><span>edge</span> <i></i></a></li>
+        </ul>
+        <h2 class="side-head" id="side-aware">aware</h2>
+        <ul aria-labelledby="side-aware">
+          <li><a href="#apps" data-page="apps"><span>apps</span> <i></i></a></li>
+          <li><a href="#awake" data-page="awake"><span>awake</span> <i></i></a></li>
+          <li><a href="#jobs" data-page="jobs"><span>jobs</span> <i></i></a></li>
+        </ul>
+        <ul class="side-settings" aria-label="settings">
+          <li><a href="#activity" data-page="activity"><span>activity</span></a></li>
+          <li><a href="#performance" data-page="performance"><span>performance</span></a></li>
+          <li><a href="#general" data-page="general"><span>general</span></a></li>
         </ul>
         <p class="dim side-foot" id="version">afterglow</p>
       </nav>
@@ -172,7 +177,7 @@
           </div>
         </section>
 
-        <!-- power (src/powerpage.js) -->
+        <!-- performance (src/powerpage.js) -->
         <section id="page-edge" data-page="edge" hidden>
           <h2>edge</h2>
           <p class="dim hint">When windows hide your desktop, the edge of the screen shows what's waiting. Clicks go straight through it, and it stays away from fullscreen apps and Do Not Disturb.</p>
@@ -227,8 +232,8 @@
           <p class="hint" id="jobs-note" role="status"></p>
         </section>
 
-        <section id="page-power" data-page="power" hidden>
-          <h2>power</h2>
+        <section id="page-performance" data-page="performance" hidden>
+          <h2>performance</h2>
           <div class="box power-now">
             <div><div id="power-screens" role="status"></div><div class="dim" id="power-cpu" hidden></div></div>
             <button type="button" id="pause-now">pause</button>

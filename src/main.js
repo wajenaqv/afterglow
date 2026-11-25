@@ -1,5 +1,5 @@
-// The Settings window: a sidebar of pages (wallpaper, clock, apps, power,
-// activity, general), one shown at a time, chosen by the URL hash.
+// The Settings window: a sidebar of pages (sidebar.js), one shown at a time,
+// chosen by the URL hash.
 //
 // In the app every change goes straight to Rust (invoke):
 //   settings.rs   get_settings, set_wallpaper, set_fps, set_renderer, set_theme
@@ -27,6 +27,7 @@ import { startEdge } from "./edgepage.js";
 import { startJobs } from "./jobspage.js";
 import { startActivity } from "./activitypage.js";
 import { startClock } from "./clockpage.js";
+import { startSidebar } from "./sidebar.js";
 import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
 
 const IN_APP = "__TAURI_INTERNALS__" in window;
@@ -206,7 +207,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "edge", "jobs", "power", "awake", "activity", "general"];
+const PAGES = ["wallpaper", "clock", "edge", "apps", "awake", "jobs", "activity", "performance", "general"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -772,6 +773,7 @@ startTerminal({
     "listening for your apps",
   ],
 });
+startSidebar({ invoke });
 $("#boot").checked = bootOn();
 $("#boot").addEventListener("change", (e) => setBoot(e.target.checked));
 load();

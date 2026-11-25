@@ -663,7 +663,7 @@ function style(r, g, b) {
 
 const start = performance.now();
 let last = 0;
-// ?fps=15-30 (Settings → power)
+// ?fps=15-30 (Settings → performance)
 const FPS = reduced ? 1 : preview ? 8 : num("fps", 30, 10, 30);
 function frame(now) {
   const dt = Math.min(0.2, (now - last) / 1000);

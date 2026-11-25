@@ -115,7 +115,7 @@ pub struct Host {
     menu_turn: AtomicUsize,
     /// What each window was last told (to log changes)
     pub(crate) last_paused: Mutex<std::collections::HashMap<String, Vec<bool>>>,
-    /// Why each window's monitors are paused ("" = running), for Settings → power
+    /// Why each window's monitors are paused ("" = running), for Settings → performance
     reasons: Mutex<std::collections::HashMap<String, Vec<&'static str>>>,
     /// What draws each monitor ("gpu" or "cpu"), as its wallpaper reported
     renderers: Mutex<std::collections::HashMap<(String, usize), String>>,
@@ -392,7 +392,7 @@ pub fn apply_pause(app: &AppHandle) {
     }
 }
 
-// ---- Settings → power ----
+// ---- Settings → performance ----
 
 /// The Pause switch (the tray's and Settings')
 #[tauri::command]
