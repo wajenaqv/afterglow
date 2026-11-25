@@ -304,6 +304,11 @@ const ALL = {
 
 /** Every style, in the order Settings shows them (extras.rs CLOCK_STYLES) */
 export const STYLES = Object.keys(ALL);
+/** The styles the clock wallpaper offers, in order. The others (big, doom, lean,
+ * isometric, lcd, dial, circuit, constellation, binary, split-flap, scope, and the older phosphor and light) are
+ * only switched off: add a name here to bring it back. The corner clock has
+ * every style in STYLES. */
+export const WALL_STYLES = ["slant", "heywajih", "extruded", "tube", "jelly", "eclipse", "radar", "flip-dot", "hatch", "rain", "bars", "words", "text"];
 export const validStyle = (s) => (STYLES.includes(s) ? s : "slant");
 /** The hover clock's font size at medium, px */
 export const sizeOf = (style) => ALL[style].px;

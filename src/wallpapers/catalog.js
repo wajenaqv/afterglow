@@ -7,6 +7,8 @@
 // [value, label], and the empty value means the wallpaper's own default (left
 // out of the URL).
 
+import { WALL_STYLES } from "./clockstyles.js";
+
 const PALETTE = {
   key: "tint",
   label: "palette",
@@ -173,7 +175,7 @@ export const WALLPAPERS = [
       {
         key: "style",
         label: "style",
-        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["radar", "radar"], ["scope", "oscilloscope"], ["big", "big"], ["lcd", "lcd"], ["text", "plain text"], ...["doom", "lean", "isometric", "flip-dot", "split-flap", "constellation", "circuit", "extruded", "hatch", "rain", "binary", "dial", "bars", "words"].map((s) => [s, s])],
+        choices: WALL_STYLES.map((s) => [s === "slant" ? "" : s, { tube: "phosphor tube", text: "plain text" }[s] ?? s]),
       },
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"], ["custom", "pick a colour"]] },
       // a colour of your own, used while the palette is "pick a colour"

@@ -16,16 +16,16 @@
     <div class="grid" id="g"></div>
     <script type="module">
       import { STYLES } from "/src/wallpapers/clockstyles.js";
-      // Every clock wallpaper style, live, side by side. ?portrait: as on a
+      // Every clock wallpaper style (the switched-off ones too), live, side by side. ?portrait: as on a
       // vertical monitor (1080 x 1920 scaled down) instead of 1920 x 1080.
       const portrait = new URLSearchParams(location.search).has("portrait");
       const [W, H] = portrait ? [540, 960] : [640, 360];
-      const styles = [...STYLES, "phosphor", "light", "radar", "scope"];
+      const styles = [...STYLES, "tube", "jelly", "eclipse", "phosphor", "light", "radar", "scope"];
       const g = document.getElementById("g");
       g.style.gridTemplateColumns = `repeat(${portrait ? 8 : 4}, 1fr)`;
       styles.forEach((s, i) => {
         const f = document.createElement("figure");
-        f.innerHTML = `<div class="frame" style="aspect-ratio:${W} / ${H}"><iframe style="width:${W}px;height:${H}px" src="/wallpapers/clock.html?style=${s}&hover=0${location.search.replace("?", "&")}"></iframe></div><figcaption>${i + 1}. ${s}</figcaption>`;
+        f.innerHTML = `<div class="frame" style="aspect-ratio:${W} / ${H}"><iframe style="width:${W}px;height:${H}px" src="/wallpapers/clock.html?all&style=${s}&hover=0${location.search.replace("?", "&")}"></iframe></div><figcaption>${i + 1}. ${s}</figcaption>`;
         g.append(f);
       });
       const fit = () => document.querySelectorAll(".frame").forEach((fr) => (fr.firstChild.style.transform = `scale(${fr.clientWidth / W})`));

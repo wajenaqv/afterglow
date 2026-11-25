@@ -5,14 +5,17 @@
 //
 // Options (Settings card; also plain URL options):
 //   ?style=   slant (default) and the other styles of clockstyles.js (page
-//             text), or phosphor | heywajih | light | radar | scope (drawn on a
+//             text), or tube | jelly | eclipse | heywajih | radar (and, switched
+//             off, phosphor | light | scope) (drawn on a
 //             canvas)
+//             (tube, jelly, eclipse: glowclock.js)
 //             (phosphor: phosphorclock.js, digits drawn by a CRT beam, GPU and
 //             CPU; heywajih: heyclock.js, heywajih.com's clock as it is)
 //             (light: lightclock.js, the time drawn as light like the jellies)
 //             (radar and scope animate: crtclock.js draws them with the
 //             night-scene renderer, GPU and CPU)
-//             (anything else falls back to slant)
+//             (only those in clockstyles.js WALL_STYLES are offered; anything
+//             else falls back to slant)
 //   ?tint=    natural (default) | cool | grey | warm | green (the logo's fade) |
 //             custom, with ?colour=rrggbb (one flat colour)
 //   ?fill=    gradient (default) | solid
@@ -21,7 +24,7 @@
 //
 // Reactions (signals.rs): pulse -> the glow swells in the app's colour and
 // fades over the afterglow; lanterns -> a glowing dot per waiting app under
-// the date (rest the cursor on them for a moment: seen); flash -> a quick
+// the date (rest the cursor on one for a moment: seen); flash -> a quick
 // brightening. count -> nothing (no jellies to add).
 //
 // Rendering: plain DOM text, not GPU/CPU renderers like the other
@@ -33,13 +36,20 @@
 
 import { params, num, STILL, STILL_AT, fontReady, sendStill, isPaused, whenResumed, onReaction, seenLantern, pointer, HOVER, cssRGB } from "./common.js";
 import { timeText, dateText, is12 } from "./hoverclock.js";
-import { STYLES, clockGrid, everyOf, weightOf } from "./clockstyles.js";
+import { STYLES, WALL_STYLES, clockGrid, everyOf, weightOf } from "./clockstyles.js";
 import { brandColours, paintGrid, parseHex, rowColour as colourOfRow } from "./clockcolours.js";
 
 // drawn on a canvas, not as page text: radar, scope and light by a scene
 // renderer (GPU and CPU); heywajih by heyclock.js (heywajih.com's clock)
-const CRT = ["radar", "scope", "light", "heywajih", "phosphor"];
-const STYLE = [...STYLES, ...CRT].includes(params.get("style")) ? params.get("style") : "slant";
+// tube, jelly and eclipse by glowclock.js; phosphor and light are the older
+// clocks tube and jelly replaced, switched off
+const GLOW = ["tube", "jelly", "eclipse"];
+const CRT = ["radar", "scope", "light", "heywajih", "phosphor", ...GLOW];
+const RENAMED = { phosphor: "tube", light: "jelly" };
+// ?all (tools/clocks.html) shows the switched-off ones too
+const OFFERED = params.has("all") ? [...STYLES, ...CRT] : WALL_STYLES;
+const asked = params.get("style");
+const STYLE = OFFERED.includes(asked) ? asked : (RENAMED[asked] ?? "slant");
 const IS_CRT = CRT.includes(STYLE);
 const TINT = ["natural", "cool", "grey", "warm", "green", "custom"].includes(params.get("tint")) ? params.get("tint") : "natural";
 const FILL = params.get("fill") === "solid" ? "solid" : "gradient";
@@ -70,9 +80,15 @@ style.textContent = `
   .clock-wall.paused .glow { animation-play-state: paused; }
   @keyframes breathe { 50% { filter: brightness(1.18); } }
   .clock-wall .date { margin-top: 1.4em; font: 400 1em/1.2 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.08em; }
-  .clock-wall .lanterns { margin-top: 1em; height: 1em; display: flex; gap: 0.9em; justify-content: center; }
-  .clock-wall .lanterns i { width: 0.55em; height: 0.55em; border-radius: 50%; display: block; transition: opacity 1.5s; }
-  @media (prefers-reduced-motion: reduce) { .clock-wall .glow { animation: none; } }
+  .clock-wall .lanterns { margin-top: 1.3em; height: 1.2em; display: flex; gap: 1.7em; justify-content: center; align-items: center; }
+  .clock-wall .lanterns i { width: 0.5em; height: 0.5em; border-radius: 50%; display: block; position: relative; background: var(--c); animation: lantern 4.5s ease-in-out infinite; animation-delay: var(--late); transition: opacity 0.5s, transform 0.8s; }
+  .clock-wall .lanterns i::before { content: ""; position: absolute; inset: -1.1em; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--c) 46%, transparent) 0, color-mix(in srgb, var(--c) 15%, transparent) 38%, transparent 70%); transition: opacity 0.8s, transform 0.8s; }
+  .clock-wall .lanterns i.drain { animation: none; transform: scale(0.45); opacity: 0.35; }
+  .clock-wall .lanterns i.drain::before { opacity: 0; transform: scale(0.4); }
+  .clock-wall .lanterns i.gone { animation: none; opacity: 0; }
+  .clock-wall.paused .lanterns i { animation-play-state: paused; }
+  @keyframes lantern { 0%, 100% { opacity: 0.72; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .clock-wall .glow, .clock-wall .lanterns i { animation: none; } }
   .clock-wall.crt { position: fixed; left: 0; right: 0; z-index: 1; }
   .clock-wall.crt .glow { display: none; }
   .clock-wall.crt .date { margin-top: 0; }`;
@@ -152,7 +168,7 @@ function tick(first = false) {
   const now = new Date();
   if (IS_CRT) {
     // radar and scope draw themselves; the time and date go under the face
-    dateEl.textContent = `${timeText(now, HOURS)} · ${dateText(now, HOURS)}`;
+    dateEl.textContent = GLOW.includes(STYLE) ? dateText(now, HOURS) : `${timeText(now, HOURS)} · ${dateText(now, HOURS)}`;
     setTimeout(() => tick(), 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 30);
     return;
   }
@@ -192,32 +208,54 @@ onReaction((r) => {
     }, 120);
   }
   if (r.type === "pulse" || r.type === "flash") crt?.react(r);
-  if (r.type === "lanterns") {
-    lanternsEl.textContent = "";
-    for (const l of Array.isArray(r.items) ? r.items : []) {
-      const dot = document.createElement("i");
-      const c = `rgb(${l.colour.join(",")})`;
-      dot.style.background = c;
-      dot.style.boxShadow = `0 0 10px ${c}, 0 0 22px ${c}`;
-      dot.dataset.source = l.source;
-      lanternsEl.append(dot);
-    }
-  }
+  if (r.type === "lanterns") showLanterns(Array.isArray(r.items) ? r.items : []);
 });
 
-// Rest the cursor on the dots (or just above or below them) for 0.8 s: seen
-let overSince = null;
+// Waiting apps: a glowing dot each, under the date. A dot keeps its place (and
+// its breathing) while others come and go.
+const dots = () => [...lanternsEl.children].filter((d) => !d.classList.contains("gone"));
+function showLanterns(items) {
+  for (const dot of dots())
+    if (!items.some((l) => l.source === dot.dataset.source)) {
+      dot.classList.add("gone");
+      setTimeout(() => dot.remove(), 500);
+    }
+  for (const l of items) {
+    const c = `rgb(${l.colour.join(",")})`;
+    let dot = dots().find((d) => d.dataset.source === l.source);
+    if (!dot) {
+      dot = document.createElement("i");
+      dot.dataset.source = l.source;
+      dot.style.setProperty("--late", `${-1.4 * lanternsEl.children.length}s`);
+      lanternsEl.append(dot);
+    }
+    dot.classList.remove("drain");
+    dot.style.setProperty("--c", c);
+  }
+}
+
+// Rest the cursor on a dot for 0.8 s: it drains, and its app is seen
+let over = null; // { dot, since }
 function hoverLoop() {
-  if (HOVER && pointer.on && lanternsEl.children.length) {
-    const b = lanternsEl.getBoundingClientRect();
-    const over = pointer.x > b.left - 30 && pointer.x < b.right + 30 && pointer.y > b.top - 30 && pointer.y < b.bottom + 30;
-    if (over) {
-      overSince ??= performance.now();
-      if (performance.now() - overSince > 800) {
-        for (const dot of [...lanternsEl.children]) seenLantern(dot.dataset.source);
-        overSince = null;
-      }
-    } else overSince = null;
+  const reach = Math.max(13, (parseFloat(getComputedStyle(lanternsEl).fontSize) || 16) * 1.05);
+  const hit =
+    HOVER && pointer.on
+      ? dots().find((d) => {
+          // the middle of the dot: it shrinks while it drains
+          const b = d.getBoundingClientRect();
+          return Math.hypot(pointer.x - b.left - b.width / 2, pointer.y - b.top - b.height / 2) < reach;
+        })
+      : null;
+  if (over && over.dot !== hit) {
+    over.dot.classList.remove("drain");
+    over = null;
+  }
+  if (hit && !over) {
+    over = { dot: hit, since: performance.now() };
+    hit.classList.add("drain");
+  } else if (over && performance.now() - over.since > 800) {
+    seenLantern(over.dot.dataset.source);
+    over.since = Infinity; // once; the app sends the new list back
   }
   setTimeout(hoverLoop, 150);
 }
@@ -284,7 +322,17 @@ if (IS_CRT) {
   // natural: the green of real phosphor; the other palettes their main colour
   const tint = TINT === "natural" ? [0.2, 1, 0.55] : unit(COLOURS[1]);
   wall.classList.add("crt");
-  if (STYLE === "phosphor") {
+  if (GLOW.includes(STYLE)) {
+    import("./glowclock.js").then(({ startGlowClock }) => {
+      crt = startGlowClock({ kind: STYLE, tint: TINT, colours: TINT === "natural" ? null : COLOURS.map(unit).map((c, i, all) => (FILL === "solid" ? all[1] : c)), hours: HOURS, size: SIZE });
+      crt.onLayout(({ bottom }) => {
+        wall.style.top = `${bottom + innerHeight * 0.075}px`;
+        wall.style.fontSize = `${Math.max(13, Math.min(26, Math.min(innerWidth, innerHeight) * 0.022))}px`;
+        const low = STYLE === "tube" && TINT !== "custom" ? { natural: [128, 255, 107], green: [51, 255, 153], warm: [255, 168, 41], cool: [87, 168, 255], grey: [199, 214, 242] }[TINT] : COLOURS[1];
+        dateEl.style.color = `color-mix(in srgb, ${rgb(low)} 62%, #000)`;
+      });
+    });
+  } else if (STYLE === "phosphor") {
     // the beam-drawn CRT clock; it draws its own date
     dateEl.style.display = "none";
     import("./phosphorclock.js").then(({ startPhosphorClock }) => {
@@ -331,7 +379,7 @@ if (STILL && IS_CRT) {
 else {
   fontReady().then(() => {
     tick(true);
-    if (IS_CRT) return hoverLoop();
+    if (IS_CRT) return pauseLoop(), hoverLoop();
     addEventListener("resize", fit);
     pauseLoop();
     hoverLoop();
