@@ -386,6 +386,39 @@ fn fullscreen_on_by(screens: &[(i32, i32, u32, u32, f64)], windows: &[CGRect]) -
 
 /// Show or hide a wall window without taking it off its Spaces (alpha 0
 /// rather than orderOut, so it's back instantly). Main thread only.
+pub fn overlay(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let ns_window = window.ns_window().map_err(|e| e.to_string())? as *mut AnyObject;
+    if ns_window.is_null() {
+        return Err("no NSWindow".into());
+    }
+    const STATUS_LEVEL: isize = 25; // NSStatusWindowLevel
+    unsafe {
+        let ns_window: &AnyObject = &*ns_window;
+        let _: () = msg_send![ns_window, setLevel: STATUS_LEVEL];
+        let _: () = msg_send![ns_window, setCollectionBehavior: CAN_JOIN_ALL_SPACES | STATIONARY | IGNORES_CYCLE];
+        let _: () = msg_send![ns_window, setIgnoresMouseEvents: true];
+    }
+    Ok(())
+}
+
+/// Show or hide an edge window without activating AfterGlow (main thread)
+pub fn show_overlay(window: &tauri::WebviewWindow, on: bool) {
+    let Ok(ns_window) = window.ns_window() else { return };
+    let ns_window = ns_window as *mut AnyObject;
+    if ns_window.is_null() {
+        return;
+    }
+    unsafe {
+        let ns_window: &AnyObject = &*ns_window;
+        if on {
+            let _: () = msg_send![ns_window, orderFrontRegardless];
+        } else {
+            let nil: *const AnyObject = std::ptr::null();
+            let _: () = msg_send![ns_window, orderOut: nil];
+        }
+    }
+}
+
 pub fn set_visible(window: &tauri::WebviewWindow, visible: bool) {
     let Ok(ns_window) = window.ns_window() else { return };
     let ns_window = ns_window as *mut AnyObject;

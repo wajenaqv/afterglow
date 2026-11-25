@@ -312,6 +312,9 @@ fn process(app: &AppHandle, sig: Signal, real: bool) -> Result<(), String> {
     if sig.kind != "flash" {
         emit_lanterns(app);
     }
+    if sig.kind == "new" && sig.linger != Some(false) {
+        crate::edge::pop(app, &source);
+    }
     // Pulses and flashes wait while Do Not Disturb is on or you're away, and
     // are replayed after (counts and lanterns still update)
     if matches!(reaction, Reaction::Pulse { .. } | Reaction::Flash) {
@@ -357,6 +360,7 @@ pub fn lanterns(app: &AppHandle) -> Vec<Lantern> {
 }
 
 fn emit_lanterns(app: &AppHandle) {
+    crate::edge::nudge(app);
     host::emit_to_walls(app, "reaction", Reaction::Lanterns { items: lanterns(app) });
 }
 

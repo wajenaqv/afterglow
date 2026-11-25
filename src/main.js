@@ -7,6 +7,7 @@
 //   apps.rs       apps_state, set_app, add_app, … (appspage.js)
 //   signals.rs    send_signal, unread_by_app
 //   awake.rs      awake_state, awake_apps, set_awake, set_awake_now (awakepage.js)
+//   edge.rs       set_edge, try_edge (edgepage.js)
 //   host.rs       power_state, set_paused (powerpage.js)
 //   tray.rs       set_pausing, autostart_state, set_autostart
 //   connectors/   connectors_state, set_connector, accounts_state, set_client,
@@ -21,6 +22,7 @@ import { describe } from "./wallpapers/gpu.js";
 import { startApps } from "./appspage.js";
 import { startPower, attempt } from "./powerpage.js";
 import { startAwake } from "./awakepage.js";
+import { startEdge } from "./edgepage.js";
 import { startActivity } from "./activitypage.js";
 import { startClock } from "./clockpage.js";
 import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
@@ -151,6 +153,9 @@ function standIn(cmd, a) {
     }
     case "power_state":
       return { paused: !!s.paused, screens: [{ w: 2560, h: 1440, reason: s.paused ? "you" : "", renderer: "gpu" }, { w: 1080, h: 1920, reason: s.paused ? "you" : "covered", renderer: "cpu" }], has_battery: false, os: /Mac/.test(navigator.userAgent) ? "macos" : "windows", cpu: 1.24 };
+    case "set_edge":
+      s.edge = a.edge;
+      return save();
     case "set_awake":
       s.awake = a.awake;
       return save();
@@ -188,7 +193,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "power", "awake", "activity", "general"];
+const PAGES = ["wallpaper", "clock", "apps", "edge", "power", "awake", "activity", "general"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -557,6 +562,7 @@ startActivity({ invoke }); // activitypage.js
 // =========================== power (and the quiet rule on apps) ===========================
 const power = startPower({ invoke, inApp: IN_APP }); // powerpage.js
 const awakePage = startAwake({ invoke, inApp: IN_APP }); // awakepage.js
+const edgePage = startEdge({ invoke }); // edgepage.js
 const powerNote = $("#power-note");
 const pauseBoxes = $$("[data-pause]");
 const pauseBox = (k) => pauseBoxes.find((b) => b.dataset.pause === k).checked;
@@ -707,6 +713,7 @@ async function load() {
   showOled();
   $("#check-updates").checked = saved.check_updates ?? true;
   awakePage.show(saved.awake);
+  edgePage.show(saved.edge);
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {

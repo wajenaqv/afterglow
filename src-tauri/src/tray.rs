@@ -11,7 +11,8 @@
 //   Quit AfterGlow
 // Only what you'd change on the spot; what you set once (frame rate, Do Not
 // Disturb, start at login) is in Settings.
-// The tooltip names the wallpaper that's showing.
+// The tooltip names the wallpaper that's showing and who's waiting; the icon
+// takes the waiting apps' colours (set_colour, edge.rs).
 
 use std::sync::atomic::Ordering;
 use std::sync::Mutex;
@@ -143,11 +144,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     // menu bar for light and dark mode
     #[cfg(target_os = "macos")]
     {
-        tray = tray.icon(Image::from_bytes(include_bytes!("../icons/tray/mac/tray.png"))?).icon_as_template(true);
+        tray = tray.icon(Image::from_bytes(ICON)?).icon_as_template(true);
     }
     #[cfg(not(target_os = "macos"))]
     {
-        tray = tray.icon(Image::from_bytes(include_bytes!("../icons/tray/win/32x32.png"))?);
+        tray = tray.icon(Image::from_bytes(ICON)?);
     }
     tray.on_menu_event(move |app, event| {
         let id = event.id.as_ref();
@@ -214,6 +215,48 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+const ICON: &[u8] = include_bytes!("../icons/tray/mac/tray.png");
+#[cfg(not(target_os = "macos"))]
+const ICON: &[u8] = include_bytes!("../icons/tray/win/32x32.png");
+
+/// The icon's pixels in another colour. Windows: green letters on a black
+/// plate, so how green a pixel is says how much of the colour it gets (the
+/// letters are also a little brighter than the plate's edge: the plate stays
+/// black). macOS: black letters on nothing, where only the alpha matters.
+fn recolour(rgba: &mut [u8], c: [u8; 3], template: bool) {
+    for p in rgba.chunks_exact_mut(4) {
+        let much = if template { 255 } else { p[1] as u32 };
+        for k in 0..3 {
+            p[k] = (c[k] as u32 * much / 255) as u8;
+        }
+    }
+}
+
+/// The icon in a waiting app's colour; None: as it normally is
+pub fn set_colour(app: &AppHandle, colour: Option<[u8; 3]>) {
+    let a = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        let Some(tray) = a.tray_by_id(TRAY_ID) else { return };
+        let mac = cfg!(target_os = "macos");
+        let Ok(icon) = Image::from_bytes(ICON) else { return };
+        let icon = match colour {
+            None => icon,
+            Some(c) => {
+                let mut rgba = icon.rgba().to_vec();
+                recolour(&mut rgba, c, mac);
+                Image::new_owned(rgba, icon.width(), icon.height())
+            }
+        };
+        // macOS: a template image takes the menu bar's colour, so it's one
+        // only while nothing waits (set together, or it blinks)
+        #[cfg(target_os = "macos")]
+        let _ = tray.set_icon_with_as_template(Some(icon), colour.is_none());
+        #[cfg(not(target_os = "macos"))]
+        let _ = tray.set_icon(Some(icon));
+    });
+}
+
 /// Bring the menu and the tooltip in step with what's set. Always on the main
 /// thread: menu changes from another thread wait for it, so two threads here
 /// at once could wait for each other.
@@ -263,7 +306,11 @@ fn sync_here(app: &AppHandle) {
         }
     }
     if let Some(tray) = app.tray_by_id(TRAY_ID) {
-        let _ = tray.set_tooltip(Some(tooltip(&s)));
+        let text = match crate::edge::waiting_line(app) {
+            Some(line) => format!("{}\n{line}", tooltip(&s)),
+            None => tooltip(&s),
+        };
+        let _ = tray.set_tooltip(Some(text));
     }
 }
 

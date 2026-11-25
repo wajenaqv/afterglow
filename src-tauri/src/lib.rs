@@ -6,6 +6,7 @@
 //   settings.rs  the saved choices (settings.json) and the Settings window's commands
 //   signals.rs   the signal bus: signals in, reactions out to the wallpapers
 //   apps.rs      the apps heard from: allowed or blocked, what each one does
+//   edge.rs      what's waiting as light at a screen edge, and the tray icon's colour
 //   awake.rs     keep the computer awake, by hand or while chosen apps run
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
 //   connectors/  watchers that turn other apps' activity into signals
@@ -20,6 +21,7 @@ mod apps;
 mod awake;
 mod commands;
 mod connectors;
+mod edge;
 mod endpoint;
 mod extras;
 mod host;
@@ -47,6 +49,7 @@ pub fn run() {
         .manage(host::Host::default())
         .manage(awake::Keeper::default())
         .manage(signals::Bus::default())
+        .manage(edge::Edges::default())
         .manage(connectors::Connectors::default())
         // what the Settings window and the wallpapers call
         .invoke_handler(tauri::generate_handler![
@@ -64,6 +67,8 @@ pub fn run() {
             apps::finish_apps_setup,
             apps::preview_app,
             extras::set_rotation,
+            edge::set_edge,
+            edge::try_edge,
             awake::awake_state,
             awake::awake_apps,
             awake::set_awake,
@@ -108,6 +113,7 @@ pub fn run() {
             host::start(app.handle())?;
             tray::build(app.handle())?;
             awake::start(app.handle());
+            edge::start(app.handle());
             endpoint::start(app.handle());
             connectors::start(app.handle());
             extras::start_rotation(app.handle());

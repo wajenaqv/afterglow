@@ -94,12 +94,17 @@ pub fn valid_source(s: &str) -> bool {
     !s.is_empty() && s.len() <= 32 && s.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
 }
 
-fn own_colour(source: &str) -> [u8; 3] {
+pub fn own_colour(source: &str) -> [u8; 3] {
     KNOWN.iter().find(|(id, _, _)| *id == source).map(|(_, _, c)| *c).unwrap_or(BRAND)
 }
 
 fn known_name(source: &str) -> Option<&'static str> {
     KNOWN.iter().find(|(id, _, _)| *id == source).map(|(_, name, _)| *name)
+}
+
+/// An app's name for people
+pub fn name_of(app: &AppHandle, source: &str) -> String {
+    shown_name(source, &get(app, source))
 }
 
 /// An app not heard from before

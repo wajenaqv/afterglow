@@ -537,6 +537,57 @@ table.apps {
   align-items: center;
 }
 
+/* ---- edge ---- */
+#edge-choices.off .edge-rows {
+  opacity: 0.55;
+}
+.edge-looks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 8px;
+  max-width: 760px;
+  margin-top: 12px;
+}
+.edge-look {
+  display: grid;
+  gap: 2px;
+  padding: 0 0 8px;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg)) !important;
+  background: none;
+  color: var(--fg);
+}
+.edge-look::before,
+.edge-look::after {
+  content: none !important;
+}
+.edge-look canvas {
+  width: 100%;
+  height: 84px;
+  background: #000;
+}
+.edge-look b,
+.edge-look span {
+  padding: 0 10px;
+  font-weight: 400;
+}
+.edge-look span {
+  color: var(--dim);
+  font-size: 11px;
+}
+.edge-look[aria-pressed="true"] {
+  border-color: var(--on) !important;
+}
+.edge-look[aria-pressed="true"] b {
+  color: var(--on);
+}
+.edge-rows {
+  max-width: 560px;
+  margin-bottom: 18px;
+  grid-template-columns: 78px minmax(0, 1fr);
+}
+
 /* ---- power, activity ---- */
 #page-power [hidden],
 #page-awake [hidden],

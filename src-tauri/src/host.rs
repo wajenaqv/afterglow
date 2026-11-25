@@ -281,6 +281,7 @@ fn cursor_loop(app: AppHandle) {
             continue;
         }
         last = Some((pos.x, pos.y));
+        crate::edge::cursor(&app, pos.x, pos.y);
 
         let walls = app.state::<Host>().walls.lock().unwrap().clone();
         let here = walls.iter().find(|w| w.contains(pos.x, pos.y));
@@ -328,6 +329,16 @@ fn rest_secs(minutes: u32) -> f64 {
 
 fn resting(oled: bool, idle: f64, after: f64) -> bool {
     oled && idle >= after
+}
+
+/// OLED care has the screen resting right now
+pub fn resting_now(app: &AppHandle) -> bool {
+    let (oled, minutes) = {
+        let host = app.state::<Host>();
+        let s = host.settings.lock().unwrap();
+        (s.oled, s.oled_minutes)
+    };
+    resting(oled, platform::idle_seconds(), rest_secs(minutes))
 }
 
 /// Work out whether wallpapers should be paused and tell them. Also called

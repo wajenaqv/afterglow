@@ -25,6 +25,7 @@
           <li><a href="#wallpaper" data-page="wallpaper">wallpaper</a></li>
           <li><a href="#clock" data-page="clock">clock</a></li>
           <li><a href="#apps" data-page="apps">apps</a></li>
+          <li><a href="#edge" data-page="edge">edge</a></li>
           <li><a href="#power" data-page="power">power</a></li>
           <li><a href="#awake" data-page="awake">awake</a></li>
           <li><a href="#activity" data-page="activity">activity</a></li>
@@ -171,6 +172,25 @@
         </section>
 
         <!-- power (src/powerpage.js) -->
+        <section id="page-edge" data-page="edge" hidden>
+          <h2>edge</h2>
+          <p class="dim hint">When windows hide your desktop, the edge of the screen shows what's waiting. Clicks go straight through it, and it stays away from fullscreen apps and Do Not Disturb.</p>
+          <div class="list">
+            <label><input type="checkbox" id="edge-on" /> show what's waiting at the screen's edge</label>
+            <label><input type="checkbox" id="edge-tray" /> <span id="edge-tray-label">colour the tray icon too</span> <span class="dim">works with the edge off as well</span></label>
+          </div>
+          <div id="edge-choices">
+            <div class="edge-looks" role="group" aria-label="look"><button type="button" class="edge-look" data-set="look" data-v="thread"><canvas></canvas><b>thread</b><span>a hair of light</span></button><button type="button" class="edge-look" data-set="look" data-v="glyphs"><canvas></canvas><b>glyphs</b><span>two rows of characters</span></button><button type="button" class="edge-look" data-set="look" data-v="embers"><canvas></canvas><b>embers</b><span>a small ember each</span></button><button type="button" class="edge-look" data-set="look" data-v="tide"><canvas></canvas><b>tide</b><span>light pooling in</span></button></div>
+            <div class="clock-rows edge-rows">
+              <span>side</span><div class="seg" role="group" aria-label="side"><button type="button" data-set="side" data-v="bottom">bottom</button><button type="button" data-set="side" data-v="top">top</button><button type="button" data-set="side" data-v="left">left</button><button type="button" data-set="side" data-v="right">right</button></div>
+              <span>strength</span><div class="seg" role="group" aria-label="strength"><button type="button" data-set="strength" data-v="faint">faint</button><button type="button" data-set="strength" data-v="soft">soft</button><button type="button" data-set="strength" data-v="clear">clear</button></div>
+            </div>
+          </div>
+          <p class="hint"><button type="button" id="edge-try">try it</button> <span class="dim">shows three apps waiting for ten seconds</span></p>
+          <p class="dim hint">Rest the cursor on a light for a moment and it counts as seen, like a lantern on the wallpaper.</p>
+          <p class="hint" id="edge-note" role="status"></p>
+        </section>
+
         <section id="page-power" data-page="power" hidden>
           <h2>power</h2>
           <div class="box power-now">

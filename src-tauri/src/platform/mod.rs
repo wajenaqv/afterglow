@@ -1,6 +1,9 @@
 // The per-OS part of the wallpaper host. Each OS file provides:
 //   attach(window, x, y, w, h)   put the window behind the desktop icons,
 //                                covering that monitor (physical px)
+//   overlay(window)              make it an overlay: above other windows, never
+//                                taking focus or clicks (edge.rs)
+//   show_overlay(window, on)     show or hide it without activating it
 //   restore_desktop()            on quit: repaint the normal wallpaper
 //   fullscreen_app_in_front()    a fullscreen app, game or presentation is up
 //   on_battery()                 running on battery power
@@ -29,6 +32,10 @@ mod other {
     pub fn attach(_: &tauri::WebviewWindow, _: i32, _: i32, _: u32, _: u32) -> Result<(), String> {
         Err("not supported on this OS yet".into())
     }
+    pub fn overlay(_: &tauri::WebviewWindow) -> Result<(), String> {
+        Err("not supported on this OS yet".into())
+    }
+    pub fn show_overlay(_: &tauri::WebviewWindow, _: bool) {}
     pub fn restore_desktop() {}
     pub fn fullscreen_app_in_front() -> bool {
         false

@@ -78,6 +78,30 @@ pub fn attach(window: &tauri::WebviewWindow, x: i32, y: i32, w: u32, h: u32) -> 
     Ok(())
 }
 
+/// Edge windows (edge.rs): clicks go through, no focus, no Alt+Tab. Our own
+/// style bits go on after Tauri's, which rewrites the whole style when it
+/// changes one of its own.
+pub fn overlay(window: &tauri::WebviewWindow) -> Result<(), String> {
+    use windows::Win32::UI::WindowsAndMessaging::{WS_EX_LAYERED, WS_EX_TOPMOST};
+    let raw = window.hwnd().map_err(|e| e.to_string())?;
+    let hwnd = HWND(raw.0);
+    unsafe {
+        let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+        let ours = WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOPMOST;
+        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex | ours.0 as isize);
+    }
+    Ok(())
+}
+
+pub fn show_overlay(window: &tauri::WebviewWindow, on: bool) {
+    use windows::Win32::UI::WindowsAndMessaging::{HWND_TOPMOST, SWP_HIDEWINDOW, SWP_NOMOVE, SWP_NOSIZE};
+    let Ok(raw) = window.hwnd() else { return };
+    let how = if on { SWP_SHOWWINDOW } else { SWP_HIDEWINDOW };
+    unsafe {
+        let _ = SetWindowPos(HWND(raw.0), Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | how);
+    }
+}
+
 /// Re-applies the current desktop wallpaper so Explorer repaints it; without
 /// this the last AfterGlow frame stays on the desktop after quitting.
 /// (Same image, not saved to the user's settings.)

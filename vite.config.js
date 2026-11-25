@@ -45,6 +45,7 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, "index.html"),
         host: resolve(import.meta.dirname, "wallpapers/host.html"),
+        edge: resolve(import.meta.dirname, "wallpapers/edge.html"),
         jellyfish: resolve(import.meta.dirname, "wallpapers/jellyfish.html"),
         "big-jellyfish": resolve(import.meta.dirname, "wallpapers/big-jellyfish.html"),
         paws: resolve(import.meta.dirname, "wallpapers/paws.html"),
