@@ -44,7 +44,7 @@ export function startActivity({ invoke }) {
   let drawn = "";
 
   const nameOf = (source) => (source === "simulator" ? "test signal" : (apps.get(source)?.name ?? source));
-  const dot = (source, colour) => `<span class="dot" style="--c: ${esc(colour || apps.get(source)?.colour || apps.get(source)?.own_colour || "var(--fg)")}" aria-hidden="true"></span>`;
+  const dot = (source, colour) => `<span class="dot" style="--c: ${esc(colour || apps.get(source)?.colour || apps.get(source)?.own_colour || "var(--logo-bottom)")}" aria-hidden="true"></span>`;
 
   function paint() {
     const all = $("#act-all").checked;

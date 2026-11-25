@@ -1,9 +1,10 @@
-/* The download page. Colours come from brand.css (copied from src/). */
+/* The download page: white on black, green only as the accent. Colours come from
+   brand.css and the dark theme in themes.css (both copied from src/). */
 @font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url(mono-400.woff2) format("woff2"); font-display: swap; }
 @font-face { font-family: "JetBrains Mono"; font-weight: 700; src: url(mono-700.woff2) format("woff2"); font-display: swap; }
 * { box-sizing: border-box; }
 html { color-scheme: dark; scrollbar-color: var(--dim) var(--bg); }
-/* The scroll bar: a green outline on black like the page's boxes, filled on hover.
+/* The scroll bar: an outline on black like the page's boxes, filled on hover.
    Chrome and Safari ignore it while scrollbar-color is set, so that is undone. */
 @supports selector(::-webkit-scrollbar) {
   html { scrollbar-color: auto; }
@@ -17,18 +18,19 @@ main { max-width: 920px; margin: 0 auto; padding: 48px 20px; }
 header { text-align: center; }
 h1 { margin: 0 0 24px; font-size: 1em; }
 /* The Slant wordmark, about 50 characters wide: sized so it always fits. */
-.art { display: inline-block; text-align: left; white-space: pre; font-size: min(22px, 2.9vw); line-height: 1.2; background: linear-gradient(var(--logo-top), var(--logo-bottom)); background-clip: text; -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 10px rgba(var(--glow), var(--glow-a))); }
+.art { display: inline-block; text-align: left; white-space: pre; font-size: min(22px, 2.9vw); line-height: 1.2; background: linear-gradient(var(--logo-top), var(--logo-bottom)); background-clip: text; -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 0 10px rgba(var(--lit), 0.28)); }
 /* With JavaScript each character is its own box (site.js): --base is its row's
    colour, --h how close the pointer is. */
 .art.live { position: relative; background: none; cursor: default; user-select: none; }
-.art.live i { display: inline-block; width: 1ch; font-style: normal; color: color-mix(in srgb, var(--bright) calc(var(--h, 0) * 100%), var(--base)); text-shadow: 0 0 calc(var(--h, 0) * 12px) rgba(var(--glow), calc(var(--glow-a) + 0.1)); transition: transform 120ms ease-out; }
+.art.live i { display: inline-block; width: 1ch; font-style: normal; color: color-mix(in srgb, var(--bright) calc(var(--h, 0) * 100%), var(--base)); text-shadow: 0 0 calc(var(--h, 0) * 12px) rgba(var(--lit), 0.55); transition: transform 120ms ease-out; }
 .art .sparks { position: absolute; inset: 0; font-size: 0.5em; line-height: 1.2; pointer-events: none; }
 .art .sparks i { color: color-mix(in srgb, var(--bright) calc(var(--h, 0) * 60%), var(--fg)); opacity: calc(0.35 + var(--h, 0) * 0.65); }
 h2 { margin: 64px 0 12px; }
 h2::before { content: "> "; color: var(--accent); }
-.lead { font-size: 18px; }
+.lead { font-size: 18px; color: var(--accent); }
+.lead + p { font-size: 14px; }
 h3 { margin: 24px 0 8px; }
-video, main > img { display: block; width: 100%; height: auto; border: 1px solid var(--dim); }
+video, main > img { display: block; width: 100%; height: auto; border: 1px solid color-mix(in srgb, var(--dim) 55%, var(--bg)); }
 /* site.js plays the clips like GIFs, without the player's controls */
 video.clip { cursor: pointer; }
 summary { cursor: pointer; color: var(--bright); padding: 8px 0; list-style: none; }
@@ -37,17 +39,19 @@ summary::before { content: "[+] " / ""; color: var(--accent); }
 details[open] > summary::before { content: "[-] " / ""; }
 details p { margin: 0 0 12px; padding-left: 4ch; }
 a, button, b { color: var(--bright); }
+a { text-decoration-color: var(--on); text-underline-offset: 3px; }
+a:hover { color: var(--on); }
 [hidden] { display: none !important; }
 .tabs { display: flex; gap: 8px; }
 button { font: inherit; font-variant-ligatures: none; background: var(--bg); border: 1px solid var(--dim); padding: 8px 16px; cursor: pointer; }
 button:hover { border-color: var(--accent); color: var(--accent); }
-.tabs button[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: var(--bg); box-shadow: 0 0 12px rgba(var(--glow), var(--glow-a)); }
+.tabs button[aria-pressed="true"] { background: var(--on); border-color: var(--on); color: var(--bg); }
 .tabs button[aria-pressed="false"] { color: var(--fg); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 ol { padding-left: 28px; }
 li { margin: 12px 0; container-type: inline-size; }
 .cmd { display: flex; gap: 8px; margin-top: 8px; }
-.cmd code { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--dim); color: var(--accent); overflow-wrap: anywhere; font: inherit; font-variant-ligatures: none;
+.cmd code { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--dim); color: var(--bright); overflow-wrap: anywhere; font: inherit; font-variant-ligatures: none;
   /* the longest line (macOS) is 85 characters, about 51em: sized to fit beside the Copy button (156px with its gap and the padding) */
   font-size: clamp(11px, (100cqw - 156px) / 51.5, 14px); }
 .copy { flex: 0 0 120px; padding: 8px 0; white-space: nowrap; }

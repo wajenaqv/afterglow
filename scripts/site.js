@@ -11,13 +11,14 @@ mkdirSync(out);
 cpSync(join(root, "site"), out, { recursive: true });
 for (const [from, to] of [
   ["src/brand.css", "brand.css"],
+  ["src/themes.css", "themes.css"],
   ["assets/icon/app.svg", "app.svg"],
   ["assets/site/reaction.mp4", "reaction.mp4"],
   ["assets/site/reel.mp4", "reel.mp4"],
   ["assets/site/reel-poster.webp", "reel-poster.webp"],
   ["assets/site/share.png", "share.png"],
   ["assets/site/poster.webp", "poster.webp"],
-  ["assets/site/awake.webp", "awake.webp"],
+  ["assets/site/awake-white.webp", "awake-white.webp"],
   [font + "400-normal.woff2", "mono-400.woff2"],
   [font + "700-normal.woff2", "mono-700.woff2"],
 ]) cpSync(join(root, from), join(out, to));

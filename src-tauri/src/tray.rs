@@ -306,11 +306,14 @@ pub fn show_settings(app: &AppHandle) {
         let _ = window.set_focus();
         return;
     }
+    let theme = app.state::<Host>().settings.lock().unwrap().theme.clone();
     let built = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
         .title("AfterGlow")
         .inner_size(1040.0, 760.0)
         .min_inner_size(640.0, 480.0)
-        .background_color(Color(0, 0, 0, 255))
+        // one of settings.rs THEMES, so it needs no escaping; read by index.html
+        .initialization_script(format!("window.__AFTERGLOW_THEME__ = \"{theme}\";"))
+        .background_color(settings_background(&theme))
         .build();
     match built {
         // Windows: the taskbar button needs the big icon too
@@ -319,5 +322,14 @@ pub fn show_settings(app: &AppHandle) {
         #[cfg(not(windows))]
         Ok(_) => {}
         Err(e) => crate::alog!("afterglow: could not open settings: {e}"),
+    }
+}
+
+/// The Settings window's background before its page has drawn, per theme
+pub fn settings_background(theme: &str) -> Color {
+    if theme == "light" {
+        Color(255, 255, 255, 255)
+    } else {
+        Color(0, 0, 0, 255)
     }
 }

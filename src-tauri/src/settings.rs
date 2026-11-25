@@ -10,6 +10,7 @@
 //   oled             OLED care: slow shift, black when paused or you're away
 //   awake            keep awake: the apps, screen too, battery, how long after
 //   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
+//   theme            the Settings window's colours: afterglow, dark or light
 //
 // Also the commands the Settings window calls (get_settings, set_wallpaper, set_fps, set_renderer).
 
@@ -69,6 +70,10 @@ pub struct Settings {
     pub awake: crate::awake::Awake,
     /// Look for a newer version once a day (updates.rs)
     pub check_updates: bool,
+    /// The Settings window's colours (src/themes.css)
+    /// New installs start dark; a settings file from before themes stays green
+    #[serde(default = "theme_before_themes")]
+    pub theme: String,
 }
 
 /// The frame rates on offer (Settings → power)
@@ -77,6 +82,12 @@ pub const FPS_CHOICES: &[u32] = &[30, 20, 15];
 pub const OLED_MINUTES: &[u32] = &[2, 5, 10, 30];
 /// The rendering choices (Settings → power)
 pub const RENDERERS: &[&str] = &["auto", "gpu", "cpu"];
+/// The themes (Settings → general)
+pub const THEMES: &[&str] = &["afterglow", "dark", "light"];
+
+fn theme_before_themes() -> String {
+    "afterglow".into()
+}
 
 impl Default for Settings {
     fn default() -> Self {
@@ -103,6 +114,7 @@ impl Default for Settings {
             oled_minutes: 5,
             awake: Default::default(),
             check_updates: true,
+            theme: "dark".into(),
         }
     }
 }
@@ -172,6 +184,9 @@ pub fn load(app: &AppHandle) -> Settings {
     }
     if !RENDERERS.contains(&s.renderer.as_str()) {
         s.renderer = "auto".into();
+    }
+    if !THEMES.contains(&s.theme.as_str()) {
+        s.theme = "dark".into();
     }
     s
 }
@@ -250,6 +265,26 @@ pub fn set_scramble(app: AppHandle, on: bool) {
     host::show_wallpaper(&app);
 }
 
+/// Settings → general: the window's colours. The page recolours itself; only
+/// the window's own background (seen while resizing) is set from here.
+#[tauri::command]
+pub fn set_theme(app: AppHandle, theme: String) -> Result<(), String> {
+    if !THEMES.contains(&theme.as_str()) {
+        return Err(format!("unknown theme {theme}"));
+    }
+    let host = app.state::<Host>();
+    let snapshot = {
+        let mut s = host.settings.lock().unwrap();
+        s.theme = theme;
+        s.clone()
+    };
+    save(&app, &snapshot);
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_background_color(Some(tray::settings_background(&snapshot.theme)));
+    }
+    Ok(())
+}
+
 /// Settings → power: OLED care on or off (no reload needed)
 #[tauri::command]
 pub fn set_oled(app: AppHandle, on: bool, minutes: u32) -> Result<(), String> {
@@ -283,4 +318,18 @@ pub fn set_renderer(app: AppHandle, renderer: String) -> Result<(), String> {
     save(&app, &snapshot);
     host::show_wallpaper(&app);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_new_installs_start_dark() {
+        assert_eq!(Settings::default().theme, "dark");
+        let old: Settings = serde_json::from_str(r#"{"wallpaper": "paws"}"#).unwrap();
+        assert_eq!(old.theme, "afterglow");
+        let picked: Settings = serde_json::from_str(r#"{"theme": "light"}"#).unwrap();
+        assert_eq!(picked.theme, "light");
+    }
 }

@@ -1,5 +1,7 @@
-/* The Settings window: a sidebar of pages. Colours come from brand.css only. */
+/* The Settings window: a sidebar of pages. Colours come from brand.css and
+   themes.css only. */
 @import "./brand.css";
+@import "./themes.css";
 
 * {
   box-sizing: border-box;
@@ -46,7 +48,7 @@ body {
   font-size: 12px;
   line-height: 1.15;
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(var(--glow), var(--glow-a));
+  text-shadow: 0 0 8px rgba(var(--lit), var(--lit-a));
 }
 .side ul {
   list-style: none;
@@ -103,7 +105,7 @@ main {
   display: inline-block;
   width: 0.6em;
   margin-left: 0.3em;
-  background: var(--fg);
+  background: var(--on);
   animation: blink 1.1s steps(1) infinite;
 }
 @keyframes blink {
@@ -205,8 +207,8 @@ input[type="color"] {
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 .card.on {
-  border-color: var(--fg);
-  box-shadow: 0 0 18px rgba(var(--glow), 0.25);
+  border-color: var(--on);
+  box-shadow: 0 0 18px rgba(var(--lit), 0.25);
 }
 /* previews: the real page at 960x540, scaled down to the card */
 .preview {
@@ -445,7 +447,7 @@ button.swatch:hover:not(:disabled) {
 }
 .advanced summary {
   cursor: pointer;
-  color: var(--accent);
+  color: var(--note);
   margin-bottom: 8px;
 }
 @media (max-width: 640px) {
@@ -482,7 +484,7 @@ button.swatch:hover:not(:disabled) {
   font-weight: 700;
 }
 .guide code {
-  color: var(--accent);
+  color: var(--note);
   background: color-mix(in srgb, var(--fg) 8%, var(--bg));
   border-radius: 4px;
   padding: 0 5px;
@@ -568,6 +570,9 @@ table.apps {
 .awake-row button {
   font-size: 12px;
   padding: 1px 8px;
+}
+.seg.themes {
+  max-width: 420px;
 }
 .seg.awake-now {
   grid-auto-columns: auto;
@@ -726,8 +731,8 @@ html:not([data-os="windows"]) .only-win {
   color: var(--quiet);
 }
 .clock-show button[aria-pressed="true"] {
-  background: var(--fg);
-  border-color: var(--fg);
+  background: var(--on);
+  border-color: var(--on);
   color: var(--bg);
 }
 .clock-show button[aria-pressed="true"] span,
@@ -760,7 +765,7 @@ html:not([data-os="windows"]) .only-win {
   border-top: 1px solid var(--ctl-edge);
 }
 .corners button[aria-pressed="true"] {
-  background: var(--fg);
+  background: var(--on);
   color: var(--bg);
 }
 #clock-choices {
@@ -879,8 +884,8 @@ html:not([data-os="windows"]) .only-win {
 }
 .seg button[aria-pressed="true"],
 .seg button[aria-pressed="true"]:hover {
-  background: color-mix(in srgb, var(--fg) 20%, var(--bg));
-  box-shadow: inset 0 -2px 0 var(--fg);
+  background: color-mix(in srgb, var(--on) 20%, var(--bg));
+  box-shadow: inset 0 -2px 0 var(--on);
   color: var(--bright);
 }
 .seg i {
@@ -957,7 +962,7 @@ html:not([data-os="windows"]) .only-win {
   color: var(--bright);
 }
 .clock-tabs button[aria-pressed="true"] {
-  border-color: var(--fg);
+  border-color: var(--on);
   color: var(--bright);
 }
 .clock-styles {
@@ -991,7 +996,7 @@ html:not([data-os="windows"]) .only-win {
 }
 .clock-style[aria-pressed="true"] .name::before {
   content: "● ";
-  color: var(--fg);
+  color: var(--on);
 }
 @media (max-width: 860px) {
   #clock-choices {
@@ -1003,7 +1008,7 @@ html:not([data-os="windows"]) .only-win {
   }
 }
 
-/* scrollbars in the app's colours: thin, dim green on black */
+/* scrollbars in the app's colours: thin, dim on the background */
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--dim) 70%, var(--bg)) var(--bg);
@@ -1048,7 +1053,7 @@ html:not([data-os="windows"]) .only-win {
 }
 .soon-tag {
   margin: auto 0 0;
-  color: var(--accent);
+  color: var(--note);
   font-size: 12px;
 }
 .soon-tag::before {
@@ -1174,7 +1179,7 @@ input[type="radio"]:checked::before {
 input[type="checkbox"]:checked,
 input[type="radio"]:checked {
   color: var(--accent);
-  text-shadow: 0 0 6px rgba(var(--glow), var(--glow-a));
+  text-shadow: 0 0 6px rgba(var(--lit), var(--lit-a));
 }
 input[type="checkbox"]:hover,
 input[type="radio"]:hover,
@@ -1207,7 +1212,7 @@ input[type="radio"]:focus-visible {
   border: 1px solid var(--ctl-edge);
 }
 .cyc-b {
-  color: var(--accent);
+  color: var(--note);
   cursor: pointer;
   padding: 1px 1.1ch;
   font-weight: 700;
@@ -1265,14 +1270,14 @@ a:focus-visible {
 }
 /* the one primary button; "● showing" in its place is only text */
 button.use:not(:disabled) {
-  background: var(--fg);
-  border-color: var(--fg);
+  background: var(--on);
+  border-color: var(--on);
   color: var(--bg);
   font-weight: 700;
 }
 button.use:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--on-hover);
+  border-color: var(--on-hover);
 }
 button.use:disabled {
   background: none;
@@ -1284,7 +1289,7 @@ button.still {
 .guide button.copy {
   background: var(--ctl-faint);
   border-color: transparent;
-  color: var(--accent);
+  color: var(--note);
   line-height: 1.3;
 }
 .guide button.copy:hover {
@@ -1305,8 +1310,8 @@ button.clock-style:hover:not(:disabled) {
 }
 button.clock-style[aria-pressed="true"],
 button.clock-style[aria-pressed="true"]:hover {
-  border-color: var(--fg);
-  box-shadow: 0 0 12px rgba(var(--glow), 0.25);
+  border-color: var(--on);
+  box-shadow: 0 0 12px rgba(var(--lit), 0.25);
 }
 
 /* ---- text fields ---- */
@@ -1350,14 +1355,14 @@ label:has(> input[type="radio"]):hover {
   padding: 2px 12px;
   font-size: 12px;
   background: color-mix(in srgb, var(--fg) 14%, var(--bg));
-  color: var(--accent);
+  color: var(--bar);
   white-space: nowrap;
   overflow: hidden;
   position: relative;
   z-index: 1;
 }
 .statusbar .st-mode {
-  color: var(--bright);
+  color: var(--bar-mode);
   font-weight: 700;
 }
 .statusbar .st-apps {
@@ -1406,8 +1411,8 @@ label:has(> input[type="radio"]):hover {
   color: var(--fg);
 }
 .tabs button[aria-selected="true"] {
-  background: var(--fg);
-  border-color: var(--fg);
+  background: var(--on);
+  border-color: var(--on);
   color: var(--bg);
 }
 .cards > [hidden] {
@@ -1473,7 +1478,7 @@ body:not([data-page="wallpaper"]) .wall-panel {
   content: "configure >";
   margin-top: auto;
   padding-top: 4px;
-  color: var(--accent);
+  color: var(--configure);
   font-size: 12px;
 }
 .card.open[tabindex] .body::after {
@@ -1483,7 +1488,7 @@ body:not([data-page="wallpaper"]) .wall-panel {
 .card.open {
   border-style: solid;
   border-color: var(--accent);
-  box-shadow: 0 0 12px rgba(var(--glow), 0.3);
+  box-shadow: 0 0 12px rgba(var(--lit), 0.3);
 }
 .card:focus-visible {
   outline: 1px solid var(--accent);
@@ -1508,7 +1513,7 @@ body:not([data-page="wallpaper"]) .wall-panel {
   margin: 16px 0 6px;
   font-size: 13px;
   font-weight: 400;
-  color: var(--accent);
+  color: var(--note);
 }
 .wall-detail h4::before {
   content: "── ";

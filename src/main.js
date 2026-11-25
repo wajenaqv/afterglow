@@ -2,7 +2,7 @@
 // activity, general), one shown at a time, chosen by the URL hash.
 //
 // In the app every change goes straight to Rust (invoke):
-//   settings.rs   get_settings, set_wallpaper, set_fps, set_renderer
+//   settings.rs   get_settings, set_wallpaper, set_fps, set_renderer, set_theme
 //   extras.rs     set_rotation, save_png, open_stills_folder, open_link
 //   apps.rs       apps_state, set_app, add_app, … (appspage.js)
 //   signals.rs    send_signal, unread_by_app
@@ -59,6 +59,9 @@ function standIn(cmd, a) {
       return save();
     case "set_clock":
       s.clock = a.clock;
+      return save();
+    case "set_theme":
+      s.theme = a.theme;
       return save();
     case "set_scramble":
       s.scramble = a.on;
@@ -174,12 +177,12 @@ function standIn(cmd, a) {
   }
 }
 
-// ---- the sidebar: the Slant AG, white on top fading to green ----
+// ---- the sidebar: the Slant AG, fading downwards (themes.css) ----
 const AG = ["    ___   ______", "   /   | / ____/", "  / /| |/ / __  ", " / ___ / /_/ /  ", "/_/  |_\\____/   "];
 AG.forEach((line, i) => {
   const row = document.createElement("span");
   const t = Math.round((i / (AG.length - 1)) * 100);
-  row.style.color = `color-mix(in srgb, var(--logo-bottom) ${t}%, var(--logo-top))`;
+  row.style.color = `color-mix(in srgb, var(--mark-bottom) ${t}%, var(--mark-top))`;
   row.textContent = line + "\n";
   $("#mark").append(row);
 });
@@ -665,6 +668,26 @@ $$("a[href^='https://']").forEach((a) =>
   }),
 );
 
+// ---- the theme (themes.css, settings.rs set_theme) ----
+const themeButtons = $$("#themes button");
+function showTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.v === theme)));
+}
+themeButtons.forEach((b) =>
+  b.addEventListener("click", async () => {
+    const before = document.documentElement.dataset.theme;
+    showTheme(b.dataset.v);
+    try {
+      await invoke("set_theme", { theme: b.dataset.v });
+      $("#general-note").textContent = "";
+    } catch (e) {
+      showTheme(before);
+      $("#general-note").textContent = String(e);
+    }
+  }),
+);
+
 // =========================== load ===========================
 // Fill every page from what's saved. Again when the window comes back to
 // the front, so changes made in the tray menu show here too.
@@ -676,6 +699,7 @@ async function load() {
   fpsInputs.forEach((input) => (input.checked = input.value === fps));
   renderInputs.forEach((input) => (input.checked = input.value === settings.renderer));
   showRotation(saved.rotate);
+  showTheme(saved.theme ?? "dark");
   clockPage.show(saved.clock);
   $("#scramble").checked = saved.scramble ?? true;
   oledBox.checked = saved.oled ?? false;

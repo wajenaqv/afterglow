@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AfterGlow</title>
+    <script>
+      // the theme before anything is drawn: from Rust (tray.rs show_settings),
+      // or the browser stand-in's settings
+      try {
+        document.documentElement.dataset.theme = window.__AFTERGLOW_THEME__ ?? JSON.parse(localStorage.getItem("afterglow:settings"))?.theme ?? "dark";
+      } catch {}
+    </script>
     <link rel="stylesheet" href="/src/style.css" />
     <script type="module" src="/src/main.js"></script>
   </head>
@@ -252,6 +259,9 @@
         <!-- general: startup, updates, and about AfterGlow -->
         <section id="page-general" data-page="general" hidden>
           <h2>general</h2>
+          <h3 class="sub">theme</h3>
+          <p class="dim hint" id="theme-hint">This window's colours. Wallpapers, the clock and reactions keep their own.</p>
+          <div class="seg themes" id="themes" role="group" aria-label="theme" aria-describedby="theme-hint"><button type="button" data-set="theme" data-v="light">light</button><button type="button" data-set="theme" data-v="dark">dark</button><button type="button" data-set="theme" data-v="afterglow">afterglow</button></div>
           <h3 class="sub">startup</h3>
           <div class="list">
             <label><input type="checkbox" id="autostart" /> start at login</label>

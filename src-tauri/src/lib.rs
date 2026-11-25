@@ -86,6 +86,7 @@ pub fn run() {
             extras::open_link,
             extras::set_clock,
             settings::set_scramble,
+            settings::set_theme,
             settings::set_oled,
             updates::update_state,
             updates::check_update,

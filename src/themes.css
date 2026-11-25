@@ -1,0 +1,70 @@
+/* The themes of the Settings window (general → theme): afterglow (the
+   brand green, brand.css as it is), dark and light. Only this window: the
+   wallpapers, the corner clock and their reactions keep their own colours, so
+   --logo-top / --logo-bottom are never changed here (the clock's brand colour).
+   The website uses the dark one (site/index.html).
+   main.js sets <html data-theme>; the roles below are what style.css uses
+   beside brand.css's own:
+     --on           what is on, picked or the main button
+     --lit          r, g, b of the glow around those; --lit-a the ticks' strength
+     --note         small headings and arrows that aren't "on"
+     --configure    the line at the foot of a wallpaper card
+     --bar, --bar-mode   the status bar's text, and its page name
+     --mark-top / --mark-bottom   the sidebar's AG */
+:root {
+  --on: var(--fg);
+  --on-hover: var(--accent);
+  --lit: var(--glow);
+  --lit-a: var(--glow-a);
+  --note: var(--accent);
+  --configure: var(--accent);
+  --bar: var(--accent);
+  --bar-mode: var(--bright);
+  --mark-top: var(--logo-top);
+  --mark-bottom: var(--logo-bottom);
+}
+:root[data-theme="dark"],
+:root[data-theme="light"] {
+  --on: var(--accent);
+  --on-hover: var(--bright);
+  --note: var(--bright);
+  --configure: var(--dim);
+  --bar: var(--quiet);
+  --bar-mode: var(--accent);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fg: #dcdfdd;
+  --dim: #868b88;
+  --accent: #33ff99;
+  --glow: 255, 255, 255;
+  --glow-a: 0.22;
+  --lit: 51, 255, 153;
+  --lit-a: 0.35;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --fg: #2b2f2d;
+  --dim: #6b716e;
+  --accent: #007a45;
+  --bright: #000000;
+  --glow: 0, 0, 0;
+  --glow-a: 0;
+  --lit: 0, 122, 69;
+  --lit-a: 0;
+  --mark-top: #111111;
+  --mark-bottom: #00915a;
+}
+/* pictures of wallpapers and clocks are always on black */
+:root[data-theme="light"] :is(.preview, #clock-screen, .clock-style .art) {
+  --bg: #000000;
+  --dim: #868b88;
+  --accent: #33ff99;
+  background: var(--bg);
+}
+/* no scanlines or vignette on white */
+:root[data-theme="light"] body::before,
+:root[data-theme="light"] body::after {
+  display: none;
+}
