@@ -113,6 +113,13 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     });
   } else {
     ctx = canvas.getContext("2d");
+    if (!ctx) {
+      // the GPU was tried and given up on: a canvas that was WebGL stays WebGL
+      const fresh = newCanvas();
+      canvas.replaceWith(fresh);
+      canvas = fresh;
+      ctx = canvas.getContext("2d");
+    }
     document.documentElement.dataset.renderer = "cpu";
   }
   const measure = document.createElement("canvas").getContext("2d"); // for character widths
@@ -195,6 +202,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     render(performance.now());
   });
   // ?fps lowers the rate (Settings → power), never raises it
-  paceFrames(reduced ? 1 : preview ? 8 : Math.min(fps, num("fps", fps, 10, 60)), render);
+  const rate = typeof fps === "function" ? fps() : fps; // a scene can ask which renderer it got first
+  paceFrames(reduced ? 1 : preview ? 8 : Math.min(rate, num("fps", rate, 10, 60)), render);
   return dims;
 }

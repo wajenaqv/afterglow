@@ -12,7 +12,8 @@
 // The scene's spec: { glsl, bind(gl, u, unit) }. `glsl` declares its own
 // uniforms and defines `vec3 sampleCell(vec2 P)` (P in screen heights, like
 // sample(X, Y)); bind() sets those uniforms each frame (texture units from
-// `unit` up are free for it).
+// `unit` up are free for it). Optional: init(gl) once (false = use the CPU) and
+// pre(gl, { cols, rows }) each frame, to draw into textures of its own first.
 
 import { GLYPH_GLSL, QUAD_VS, buildAtlas, compile, floatTex, gpuContext } from "./glyph-atlas.js";
 
@@ -95,6 +96,7 @@ export function createSceneGL(canvas, { still, spec }) {
   try {
     light = compile(gl, QUAD_VS, lightFS(spec.glsl, !!spec.ramp));
     glyph = compile(gl, QUAD_VS, GLYPH_FS);
+    if (spec.init && !spec.init(gl)) throw new Error("the scene needs a feature this GPU lacks");
   } catch (e) {
     console.warn("afterglow: GPU scene unavailable, using the CPU:", e.message);
     return null;
@@ -116,6 +118,7 @@ export function createSceneGL(canvas, { still, spec }) {
   // { H, bg (0..255) }
   function draw({ H, bg }) {
     if (!g) return;
+    spec.pre?.(gl, g);
     gl.bindVertexArray(emptyVao);
     // 1. light per cell. Rows: the texture's row r is the screen's row r
     // (gl_FragCoord.y counts from 0 at the texture's first row)

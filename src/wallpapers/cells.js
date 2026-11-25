@@ -43,6 +43,15 @@ export function cellBuffer(glyphs) {
       CELL[k + 2] = q4(c[2]);
       CELL[k + 3] = s;
     },
+    // the same for a scene that draws many cells: the glyph by its slot (its
+    // place in `glyphs` + 1), the colour as three numbers
+    putSlot(i, s, r, g, b) {
+      const k = i * 4;
+      CELL[k] = q4(r);
+      CELL[k + 1] = q4(g);
+      CELL[k + 2] = q4(b);
+      CELL[k + 3] = s;
+    },
     // put by column and row, ignoring cells off the screen
     putAt(c, r, g, col) {
       if (c >= 0 && r >= 0 && c < cols && r < rows) this.put(r * cols + c, g, col);
