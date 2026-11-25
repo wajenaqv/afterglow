@@ -17,6 +17,7 @@ for (const [from, to] of [
   ["assets/site/reel-poster.webp", "reel-poster.webp"],
   ["assets/site/share.png", "share.png"],
   ["assets/site/poster.webp", "poster.webp"],
+  ["assets/site/awake.webp", "awake.webp"],
   [font + "400-normal.woff2", "mono-400.woff2"],
   [font + "700-normal.woff2", "mono-700.woff2"],
 ]) cpSync(join(root, from), join(out, to));

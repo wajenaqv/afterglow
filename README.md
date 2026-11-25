@@ -32,7 +32,7 @@ No popups. No badges. No sounds.<br>
 You just ***see*** that something is waiting.
 
 <p align="center">
-  <a href="https://afterglow.heywajih.com"><img src="assets/readme/reaction.gif" alt="A WhatsApp message arrives and a jellyfish glows green; more messages arrive and more jellyfish appear" width="100%"></a>
+  <a href="https://afterglow.heywajih.com"><img src="assets/readme/reaction.gif" alt="Three wallpapers react: Claude needs you and red slides down the silk, a WhatsApp message pulls a green pole into the magnet, and Gmail turns strands of the current red" width="100%"></a>
 </p>
 
 ## ↓ Install
@@ -101,8 +101,15 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 - **Stills**: save any wallpaper as a PNG at your screen's size
 - **Frame rate** and rendering, to suit your machine
 - **OLED care**: an option that lowers the risk of burn-in
+- **Keep awake**: stop the computer going to sleep, by hand or while chosen apps run
 
-<p align="center"><img src="assets/readme/settings.png" alt="AfterGlow Settings: wallpapers to pick from, and the jellyfish options" width="100%"></p>
+<p align="center"><img src="assets/readme/settings.png" alt="AfterGlow Settings: wallpapers to pick from, and the silk options" width="100%"></p>
+
+### Keep awake
+
+A render, a long download, a match? AfterGlow can keep your computer from going to sleep: for a while, until you turn it off, or only while the apps you pick are running or in front. It's in the menu and in **Settings → awake**.
+
+<p align="center"><img src="assets/readme/awake.png" alt="AfterGlow Settings, awake: timers by hand, and apps that keep the computer awake while they run" width="100%"></p>
 
 ### Send your own signals
 

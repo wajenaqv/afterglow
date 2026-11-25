@@ -28,6 +28,40 @@ for (const button of document.querySelectorAll(".copy")) {
   });
 }
 
+// The clips play by themselves while on screen, like GIFs: no controls, a click
+// (or Space, Enter) pauses. Without JavaScript, or when the visitor asked for
+// less motion, the browser's own player stays.
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const seen = new IntersectionObserver((list) => {
+    for (const { target, isIntersecting } of list) {
+      if (isIntersecting && !target.dataset.stopped) target.play().catch(() => {});
+      else target.pause();
+    }
+  }, { threshold: 0.25 });
+  for (const clip of document.querySelectorAll("video")) {
+    clip.controls = false;
+    clip.classList.add("clip");
+    clip.tabIndex = 0;
+    clip.title = "click to pause or play";
+    const toggle = () => {
+      if (clip.paused) {
+        delete clip.dataset.stopped;
+        clip.play().catch(() => {});
+      } else {
+        clip.dataset.stopped = "1";
+        clip.pause();
+      }
+    };
+    clip.addEventListener("click", toggle);
+    clip.addEventListener("keydown", (e) => {
+      if (e.key !== " " && e.key !== "Enter") return;
+      e.preventDefault();
+      toggle();
+    });
+    seen.observe(clip);
+  }
+}
+
 // The wordmark reacts to the pointer, like heywajih.com's logo: characters
 // near it light up and move away a little, and small characters sparkle all
 // around, on a grid twice as fine. It only runs while the pointer is near.
