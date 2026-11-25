@@ -15,7 +15,7 @@ const PALETTE = {
 
 // The picker's tabs: each wallpaper's `tag` is one of these (keep `about` to
 // one short line: long ones made the cards too tall)
-export const TAGS = ["creatures", "nature", "sky", "tech", "clock"];
+export const TAGS = ["creatures", "nature", "abstract", "sky", "tech", "clock"];
 
 // The side panel (Settings → wallpaper, a click on a card): what each one is in
 // a few sentences, and how it reacts. "Waiting apps" is what the code calls
@@ -69,6 +69,27 @@ export const DETAILS = {
     message: "The app's colour spills into the current, drifts along with it and fades.",
     waiting: "Each app keeps a patch of strands lit in its colour, breathing slowly. Rest your cursor on it for a moment to mark it seen: the current carries it off.",
     flash: "Every strand brightens and stretches.",
+    hover: "None: the cursor only marks waiting apps as seen.",
+  },
+  magnet: {
+    about: "Filings of light round invisible magnetic poles. The poles drift past each other, and the loops between them bend, part and join again.",
+    message: "A pole in the app's colour appears, pulls the field round itself and fades.",
+    waiting: "Each app is a pole in its colour. Rest your cursor on it for a moment to mark it seen: it lets go.",
+    flash: "Every filing brightens.",
+    hover: "None: the cursor only marks waiting apps as seen.",
+  },
+  attractor: {
+    about: "Thin folded veils of light, the shape of a strange attractor: one small formula over and over. The folds breathe and slide, slowly.",
+    message: "A thread in the app's colour slides through the folds and fades.",
+    waiting: "Each app keeps a thread lit in its colour, with a bright bead on it. Rest your cursor on the bead for a moment to mark it seen.",
+    flash: "Every fold lights up.",
+    hover: "None: the cursor only marks waiting apps as seen.",
+  },
+  silk: {
+    about: "A sheet of sheer silk. You see through it, and it glows where it folds over itself. A veil falling down the screen, or a drape gathered at one point.",
+    message: "The app's colour slides down the cloth, folding with it, and fades.",
+    waiting: "Each app keeps a patch of the cloth lit in its colour, breathing slowly. Rest your cursor on it for a moment to mark it seen.",
+    flash: "The whole sheet lights up.",
     hover: "None: the cursor only marks waiting apps as seen.",
   },
   startrails: {
@@ -181,11 +202,35 @@ export const WALLPAPERS = [
     id: "currents",
     name: "currents",
     about: "Strands of light combed by a slow current.",
-    tag: "nature",
+    tag: "abstract",
     options: [
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
       { key: "flow", label: "flow", choices: [["", "normal"], ["calm", "calm"], ["lively", "lively"]] },
     ],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "magnet",
+    name: "magnet",
+    about: "Filings of light round drifting magnetic poles.",
+    tag: "abstract",
+    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "attractor",
+    name: "attractor",
+    about: "Folded veils of light from one small formula.",
+    tag: "abstract",
+    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "silk",
+    name: "silk",
+    about: "Sheer silk, glowing where it folds.",
+    tag: "abstract",
+    options: [{ key: "shape", label: "shape", choices: [["", "veil"], ["drape", "drape"]] }, { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] }],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {

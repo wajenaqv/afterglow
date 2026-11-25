@@ -6,7 +6,7 @@
 // paw prints, star colours) fade from one into the next; a hue per digit was
 // tried and looked like blocks of colour.
 
-import { TINTS, PAWS, CLOUDS, SAKURA, CONSTELLATION, STARTRAILS, STAR_COOL, STAR_HOT, CURRENTS, PHOSPHORS } from "./palettes.js";
+import { TINTS, PAWS, CLOUDS, SAKURA, CONSTELLATION, STARTRAILS, STAR_COOL, STAR_HOT, CURRENTS, MAGNET, ATTRACTOR, SILK, PHOSPHORS } from "./palettes.js";
 
 const bytes = (c) => c.map((v) => Math.round(v * 255)); // from 0-1
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
@@ -61,6 +61,18 @@ const WALLS = {
   currents: (tint) => {
     const hues = CURRENTS[tint] ?? CURRENTS.natural;
     return [pale(bytes(hues[0]), 0.5), readable(bytes(hues[2]))];
+  },
+  magnet: (tint) => {
+    const p = MAGNET[tint] ?? MAGNET.natural;
+    return [pale(bytes(p.plus), 0.5), readable(bytes(p.minus))];
+  },
+  attractor: (tint) => {
+    const p = ATTRACTOR[tint] ?? ATTRACTOR.natural;
+    return [pale(bytes(p.b), 0.5), readable(bytes(p.a))];
+  },
+  silk: (tint) => {
+    const p = SILK[tint] ?? SILK.natural;
+    return [pale(bytes(p.b), 0.5), readable(bytes(p.a))];
   },
   radar: phosphor,
   life: phosphor,

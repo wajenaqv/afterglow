@@ -1,5 +1,5 @@
-// Currents' strands on the GPU (WebGL2), a spec for scene-gl.js. currents.js
-// traces the strands and hands over their pieces; here
+// Strands on the GPU (WebGL2), a spec for scene-gl.js. strands.js traces them
+// and hands over their pieces; here
 //
 //   1. pieces  one instanced quad per short straight piece, at cell
 //              resolution: each cell's light v from its distance to the
@@ -9,7 +9,7 @@
 //   2. cells   (scene-gl.js's light pass) light -> character and colour
 //   3. glyphs  scene-gl.js's own glyph pass
 //
-// The same maths as the CPU renderer in currents.js frame(): keep them in step.
+// The same maths as the CPU renderer in strands.js: keep them in step.
 
 import { compile } from "./glyph-atlas.js";
 
@@ -32,7 +32,7 @@ void main() {
   vPiece = aPiece;
   vLight = vec4(a.w * (0.1 + 0.95 * pow(fr, 1.3)), a.w * 0.95 * 1.3 * pow(max(fr, 0.02), 0.3) / b.x, 1.0 / (w * w), 0.2 * smoothstep(0.7, 1.0, fr) * b.z);
   vBase = vec4(a.rgb, b.w);
-  // the character for a thin line this way (currents.js glyph())
+  // the character for a thin line this way (strands.js glyph())
   vec2 d = aPiece.zw, ad = abs(d);
   float fy = fract(aPiece.y / uCellH.y);
   if (ad.y > 0.9 * ad.x) vDir = ad.y > 2.9 * ad.x ? 0.0 : d.x * d.y > 0.0 ? 2.0 : 1.0;
@@ -107,7 +107,7 @@ vec4 sampleCell4(vec2 P) {
   return vec4(floor(clamp(col, 0.0, 1.0) * 63.0 + 0.5) * 4.0 / 255.0, g + 1.0); // cells.js's steps of 4
 }`;
 
-// next(): what to draw, from currents.js: { pieces (5 floats each), count,
+// next(): what to draw, from strands.js: { pieces (5 floats each), count,
 //   strands (8 floats each), strandCount, cwH, chH }
 export function strandsGL(ramp, next) {
   let prog = null, vao = null, buf = null, strandTex = null, fbo = null, lit = null, colour = null, depth = null;

@@ -131,6 +131,31 @@ export const CURRENTS = {
   green: [C(51, 255, 153), C(125, 255, 192), C(30, 190, 115), C(170, 255, 215)],
 };
 
+// Magnet: the two kinds of pole
+export const MAGNET = {
+  natural: { plus: C(255, 110, 190), minus: C(95, 145, 255) },
+  cool: { plus: C(110, 235, 225), minus: C(90, 120, 255) },
+  warm: { plus: C(255, 190, 95), minus: C(255, 85, 110) },
+  grey: { plus: C(245, 245, 250), minus: C(140, 148, 165) },
+  green: { plus: C(125, 255, 192), minus: C(51, 255, 153) },
+};
+
+// Attractor and silk: two hues each runs between (and silk's light from behind)
+export const ATTRACTOR = {
+  natural: { a: C(70, 115, 255), b: C(255, 75, 165) },
+  cool: { a: C(60, 130, 255), b: C(95, 240, 225) },
+  warm: { a: C(255, 80, 95), b: C(255, 190, 90) },
+  grey: { a: C(130, 138, 155), b: C(240, 242, 248) },
+  green: { a: C(40, 190, 115), b: C(125, 255, 192) },
+};
+export const SILK = {
+  natural: { a: C(125, 85, 255), b: C(255, 85, 155), rim: C(40, 120, 220) },
+  cool: { a: C(70, 110, 255), b: C(85, 220, 225), rim: C(90, 80, 230) },
+  warm: { a: C(255, 90, 80), b: C(255, 180, 90), rim: C(200, 50, 110) },
+  grey: { a: C(150, 156, 170), b: C(235, 237, 243), rim: C(110, 118, 135) },
+  green: { a: C(51, 255, 153), b: C(125, 255, 192), rim: C(30, 140, 120) },
+};
+
 // The techy wallpapers' phosphors: green = the brand (P1/P31), amber (P3),
 // ice (P7's blue-white flash colour), white (P4)
 export const PHOSPHORS = {
