@@ -106,7 +106,7 @@ fn stamp() -> String {
     format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", t.year + 1900, t.mon + 1, t.mday, t.hour, t.min, t.sec)
 }
 
-/// Settings → about: open the log in the default text editor
+/// Settings → general: open the log in the default text editor
 #[tauri::command]
 pub fn open_log() -> Result<(), String> {
     let path = PATH.lock().unwrap().clone().ok_or("no log file")?;

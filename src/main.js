@@ -1,5 +1,5 @@
 // The Settings window: a sidebar of pages (wallpaper, clock, apps, power,
-// activity, general, about), one shown at a time, chosen by the URL hash.
+// activity, general), one shown at a time, chosen by the URL hash.
 //
 // In the app every change goes straight to Rust (invoke):
 //   settings.rs   get_settings, set_wallpaper, set_fps, set_renderer
@@ -185,7 +185,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "power", "awake", "activity", "general", "about"];
+const PAGES = ["wallpaper", "clock", "apps", "power", "awake", "activity", "general"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -602,7 +602,7 @@ $("#autostart").addEventListener("change", (e) =>
   }),
 );
 
-// =========================== updates (general) and about ===========================
+// =========================== general: updates and about ===========================
 if (IN_APP)
   import("@tauri-apps/api/app").then(async ({ getVersion }) => {
     const v = `AfterGlow v${await getVersion()}`;

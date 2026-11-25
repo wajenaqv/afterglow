@@ -4,7 +4,7 @@
 //! for latest.json (attached to every release by release.yml). A newer
 //! version is downloaded in the background and its signature checked against
 //! the public key in tauri.conf.json. Nothing is installed until you click
-//! "0.1.2 is ready: restart to update" in the tray menu or Settings → about.
+//! "0.1.2 is ready: restart to update" in the tray menu or Settings → general.
 //!
 //! Off when: the setting is off, a debug build, no public key in the config,
 //! or the Microsoft Store's package (the Store updates that one).
@@ -206,13 +206,13 @@ pub fn install(app: &AppHandle) {
     });
 }
 
-/// Settings → about: what the updater is doing
+/// Settings → general: what the updater is doing
 #[tauri::command]
 pub fn update_state(app: AppHandle) -> Status {
     app.state::<Updates>().status.lock().unwrap().clone()
 }
 
-/// Settings → about: "check now" (works with the daily check off, too)
+/// Settings → general: "check now" (works with the daily check off, too)
 #[tauri::command]
 pub fn check_update(app: AppHandle) {
     if unavailable(&app).is_none() {
@@ -220,13 +220,13 @@ pub fn check_update(app: AppHandle) {
     }
 }
 
-/// Settings → about: "restart to update"
+/// Settings → general: "restart to update"
 #[tauri::command]
 pub fn install_update(app: AppHandle) {
     install(&app);
 }
 
-/// Settings → about: the daily check on or off
+/// Settings → general: the daily check on or off
 #[tauri::command]
 pub fn set_check_updates(app: AppHandle, on: bool) {
     let host = app.state::<Host>();
