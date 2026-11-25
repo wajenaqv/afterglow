@@ -1,11 +1,8 @@
 ### What's new
 
-- **Silicon**, a new wallpaper: stacked chips, a processor, a memory bus, or a board you only see where signals have just passed. Waiting apps light up its chips and traces.
-- **Circuit board**, rebuilt: traces routed from pin to pin on two layers, packets of bits, and chips that change and pass things on. Calm or busy.
-- **Constellation**, redrawn: nine cute cats made of nothing but stars, asleep, reaching for a star, with a ball of yarn, or two with their tails in a heart.
-- **Hover effects** are now set in each wallpaper's own panel: jellyfish, constellation, paw prints and the clock. If you had switched the scramble off, it stays off.
-- **Settings:** the wallpapers are in a new order, and the rotation list only shows while rotation is on.
-- Phosphor life has been removed. If it was showing, you get the jellyfish.
+- **Clock wallpaper:** three new styles. **Eclipse** is dark digits with the light behind them, **tube** is the time as a glowing CRT tube, and **jelly** is glassy glowing digits. Tube and jelly replace phosphor and light; if you used those, you get the new ones.
+- **Fewer clock styles** to pick from on the wallpaper: thirteen. If yours was one of the others, the clock switches to slant. The corner clock keeps all its styles.
+- **Waiting apps on the clock** are softer glowing dots, and you mark them seen one at a time: rest the cursor on a dot.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
