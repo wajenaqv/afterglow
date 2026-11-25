@@ -16,7 +16,8 @@ import { params, HOVER, STILL, STILL_AT } from "./common.js";
 import { startScene, reduced } from "./nightscene.js";
 import { watchSeen } from "./techy.js";
 import { ATTRACTOR } from "./palettes.js";
-import { blur, pointFont, pointFps } from "./points-cpu.js";
+import { onCPU } from "./strands.js";
+import { blur, inkCell, pointFont, pointFps } from "./points-cpu.js";
 import { trackApps, now } from "./waiting.js";
 import { attractorGL } from "./attractor-gl.js";
 
@@ -121,22 +122,16 @@ function light() {
     }
   }
   blur(ACC, TMP, cols);
+  blur(ACC, TMP, cols); // twice: there are fewer points than on the GPU
 }
-// points add up without limit: hold the brightest folds, keeping their colour
-const col = [0, 0, 0];
-function sample(X, Y, t, cell) {
-  const i = (cell[1] * cols + cell[0]) * 3, top = Math.max(ACC[i], ACC[i + 1], ACC[i + 2]);
-  const k = top > 0 ? (1.15 * (1 - Math.exp(-top / 0.6))) / top : 0;
-  col[0] = ACC[i] * k;
-  col[1] = ACC[i + 1] * k;
-  col[2] = ACC[i + 2] * k;
-  return [col, null];
-}
+let faint = 0;
+const sample = (X, Y, t, cell) => inkCell(ACC, (cell[1] * cols + cell[0]) * 3, cell, faint);
 
 function frame(t) {
   if (!dims) return;
   apps.tidy();
   setShape(STILL ? STILL_AT : reduced ? 40 : t);
+  faint = onCPU() ? 0.03 : 0;
   if (document.documentElement.dataset.renderer !== "gpu") light();
   if (HOVER) watchSeen(apps.waiting, beadOf, dims.H, 0.06);
 }

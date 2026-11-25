@@ -4,7 +4,7 @@
 
 import { pointsGL } from "./points-gl.js";
 
-const POINTS = 400000;
+const POINTS = 900000;
 
 const VS = `
 uniform vec4 uMap;      // a b c d
@@ -36,17 +36,9 @@ void main() {
   gl_Position = cellPos(s);
   gl_PointSize = 1.0;
 }`;
-const GLSL = `
-vec3 sampleCell(vec2 P) {
-  vec3 s = blurred(ivec2(floor(gl_FragCoord.xy)));
-  float top = max(s.r, max(s.g, s.b));
-  return top > 0.0 ? s * (1.15 * (1.0 - exp(-top / 0.6))) / top : vec3(0.0);
-}`;
-
 export function attractorGL(next) {
   return pointsGL({
     vs: VS,
-    glsl: GLSL,
     draw(gl, u, { cols, rows }) {
       const { F, PAL, cw, ch, VEIL, THREAD } = next();
       gl.uniform2f(u.uCell, cw, ch);

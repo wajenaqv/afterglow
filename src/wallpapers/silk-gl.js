@@ -1,5 +1,5 @@
-// Silk on the GPU: the points of the cloth, then each cell's character and
-// colour. The same maths as light() and sample() in silk.js: keep them in step.
+// Silk on the GPU: the points of the cloth. The same maths as light() in
+// silk.js: keep them in step.
 
 import { pointsGL } from "./points-gl.js";
 
@@ -48,32 +48,9 @@ void main() {
   gl_PointSize = 1.0;
 }`;
 
-const glsl = ({ INK }) => `
-const float INK[${INK.length}] = float[${INK.length}](${INK.map((v) => v.toFixed(3)).join(", ")});
-float hash3(int x, int y, int z) { // common.js hash()
-  uint h = uint(x) * 374761393u + uint(y) * 668265263u + uint(z) * 2147483647u;
-  h = (h ^ (h >> 13u)) * 1274126177u;
-  return float(h ^ (h >> 16u)) / 4294967296.0;
-}
-vec4 sampleCell4(vec2 P) {
-  ivec2 at = ivec2(floor(gl_FragCoord.xy));
-  vec3 s = blurred(at);
-  float top = max(s.r, max(s.g, s.b));
-  float full = 1.0 - exp(-top * 1.5), tone = 0.44 * full;
-  if (tone < 0.008 + 0.016 * hash3(at.x, at.y, 5)) return vec4(0.0);
-  int n = 0;
-  while (n < ${INK.length - 1} && INK[n] < tone * 1.2) n++;
-  vec3 c = s / top;
-  c += (1.0 - c) * 0.3 * smoothstep(0.65, 1.0, full);
-  c = clamp(c * min(1.0, tone / INK[n]) + (hash3(at.x, at.y, 7) - 0.5) / 63.0, 0.0, 1.0);
-  return vec4(floor(c * 63.0 + 0.5) * 4.0 / 255.0, float(n) + 1.0);
-}`;
-
 export function silkGL(spec, next) {
   return pointsGL({
     vs: vs(spec),
-    glsl: glsl(spec),
-    ramp: spec.GLYPHS,
     draw(gl, u, { cols, rows }) {
       const { F, PAL, cw, ch } = next();
       gl.uniform2f(u.uCell, cw, ch);
