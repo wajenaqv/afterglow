@@ -15,6 +15,11 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch: # run it on a tag ("Use workflow from" -> the tag)
+    inputs:
+      intel_mac:
+        description: Build on an Intel Mac (slower; for when the Apple Silicon ones are busy)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -76,6 +81,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # saved by build.yml on main (a tag's own copy would never be reused)
+          shared-key: windows
+          save-if: false
 
       - run: bun install --frozen-lockfile
 
@@ -92,11 +100,11 @@ jobs:
 
   macos:
     needs: draft
-    # An Intel Mac: GitHub's Apple Silicon Macs (macos-latest) were too busy
-    # in Nov 2026 and the job got cancelled unstarted. It still builds the
-    # universal app (both chips). GitHub retires its Intel Macs in 2027:
-    # switch back to macos-latest before then.
-    runs-on: macos-15-intel
+    # The same machine as build.yml, whose saved libraries only fit that chip.
+    # If GitHub has none free (it happened in Nov 2026: the job is cancelled
+    # unstarted), run this workflow by hand on the tag with intel_mac ticked.
+    # It builds the same universal app; GitHub retires its Intel Macs in 2027.
+    runs-on: ${{ inputs.intel_mac && 'macos-15-intel' || 'macos-latest' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -112,6 +120,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # saved by build.yml on main (a tag's own copy would never be reused)
+          shared-key: macos-universal
+          save-if: false
 
       - run: bun install --frozen-lockfile
 
