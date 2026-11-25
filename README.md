@@ -32,7 +32,7 @@ No popups. No badges. No sounds.<br>
 You just ***see*** that something is waiting.
 
 <p align="center">
-  <a href="https://afterglow.heywajih.com"><img src="assets/readme/reaction.gif" alt="Three wallpapers react: Claude needs you and red slides down the silk, a WhatsApp message pulls a green pole into the magnet, and Gmail turns strands of the current red" width="100%"></a>
+  <a href="https://afterglow.heywajih.com"><img src="assets/readme/reaction.gif" alt="Three wallpapers react: Claude needs you and a jellyfish lights up red, a WhatsApp message slides down the silk in green, and Gmail turns strands of the current red" width="100%"></a>
 </p>
 
 ## ↓ Install
