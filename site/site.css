@@ -28,7 +28,9 @@ h2 { margin: 64px 0 12px; }
 h2::before { content: "> "; color: var(--accent); }
 .lead { font-size: 18px; }
 h3 { margin: 24px 0 8px; }
-video { display: block; width: 100%; border: 1px solid var(--dim); }
+video, main > img { display: block; width: 100%; height: auto; border: 1px solid var(--dim); }
+/* site.js plays the clips like GIFs, without the player's controls */
+video.clip { cursor: pointer; }
 summary { cursor: pointer; color: var(--bright); padding: 8px 0; list-style: none; }
 summary::-webkit-details-marker { display: none; }
 summary::before { content: "[+] " / ""; color: var(--accent); }
