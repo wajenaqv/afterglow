@@ -107,7 +107,7 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 
 ### Keep awake
 
-A render, a long download, a match? AfterGlow can keep your computer from going to sleep: for a while, until you turn it off, or only while the apps you pick are running or in front. It's in the menu and in **Settings → awake**.
+Claude working through a long task, a render, a big download? AfterGlow can keep your computer from going to sleep: for a while, until you turn it off, or only while the apps you pick are running or in front. It's in the menu and in **Settings → awake**.
 
 <p align="center"><img src="assets/readme/awake.png" alt="AfterGlow Settings, awake: timers by hand, and apps that keep the computer awake while they run" width="100%"></p>
 
