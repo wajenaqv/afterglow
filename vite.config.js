@@ -61,6 +61,7 @@ export default defineConfig({
         radar: resolve(import.meta.dirname, "wallpapers/radar.html"),
         life: resolve(import.meta.dirname, "wallpapers/life.html"),
         circuit: resolve(import.meta.dirname, "wallpapers/circuit.html"),
+        silicon: resolve(import.meta.dirname, "wallpapers/silicon.html"),
         impossible: resolve(import.meta.dirname, "wallpapers/impossible.html"),
       },
     },

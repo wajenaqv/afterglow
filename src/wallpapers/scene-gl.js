@@ -117,14 +117,14 @@ export function createSceneGL(canvas, { still, spec }) {
   const atlasTex = gl.createTexture();
   let g = null;
 
-  function resize({ dpr, cw, ch, cols, rows, fontPx, font }) {
+  function resize({ dpr, cw, ch, cols, rows, fontPx, font, fill }) {
     if (g) gl.deleteTexture(g.light);
     const lightTex = floatTex(gl, cols, rows, gl.getExtension("EXT_color_buffer_float") != null);
     const fbo = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, lightTex, 0);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    g = { dpr, cw, ch, cols, rows, light: lightTex, fbo, ...buildAtlas(gl, atlasTex, spec.ramp ?? RAMP, { cw, ch, dpr, fontPx, font }) };
+    g = { dpr, cw, ch, cols, rows, light: lightTex, fbo, ...buildAtlas(gl, atlasTex, spec.ramp ?? RAMP, { cw, ch, dpr, fontPx, font, fill }) };
   }
 
   // { H, bg (0..255) }

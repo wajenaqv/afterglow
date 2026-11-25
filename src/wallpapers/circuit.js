@@ -1,268 +1,265 @@
 // Circuit board: a dark PCB in phosphor green. Chips with pins and part
-// numbers; buses of parallel traces run out from their pins, jog at 45 degrees
-// and end at vias, at other chips or at the edge of the board. Packets of light
-// run along the traces now and then, and the copper they pass keeps glowing
-// and fades behind them (the afterglow).
+// numbers, traces routed from pin to pin on two layers (the lower one dotted,
+// passing underneath), small parts in the gaps. Packets of bits run along the
+// traces and the copper they pass glows on behind them (the afterglow). The
+// parts work: what arrives changes what a chip shows, and the chip may send
+// something on; crystals tick; the processor's registers and cores switch.
 //
 // Reactions: a new message is a packet in the app's colour coming in from the
-// edge of the board to a chip, which lights up and sends the signal on along
-// two more traces; every app with something waiting takes a chip, which shows
-// the app's name and a blinking LED in its colour until you rest the cursor on
-// it; a flash surges through all the copper.
+// edge of the board, passed on from chip to chip; every app with something
+// waiting takes a chip, which shows the app's name and a blinking LED in its
+// colour until you rest the cursor on it; a flash surges through the copper.
 //
-// The board is generated once per screen size (seeded, so it is the same each
-// time); a trace cell's glow comes from how long ago a packet passed it, so no
-// memory is needed. Drawn through cells.js. Options: ?tint=green|amber|ice|white ?crt=0
+// The board is made once per screen size (seeded, so it is the same each time)
+// by circuitboard.js. Drawn through cells.js.
+// Options: ?board=processor (one big chip) ?traffic=busy ?tint=green|amber|ice|white ?crt=0
 
-import { seeded, hash, STILL, STILL_AT, onReaction } from "./common.js";
-import { startScene, reduced } from "./nightscene.js";
+import { STILL, HOVER, pointer, params, seeded } from "./common.js";
+import { startScene, reduced, preview } from "./nightscene.js";
 import { cellBuffer } from "./cells.js";
 import { PH, crt, mixc, scale, watchSeen } from "./techy.js";
+import { trackApps } from "./waiting.js";
+import { makeBoard } from "./circuitboard.js";
 
-const cells = cellBuffer("-|/\\o+*=.:[]()#_'" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
-// the eight directions, and the character a trace running that way is drawn with
-const DIRS = [[1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1]];
-const DCH = ["-", "/", "|", "\\", "-", "/", "|", "\\"];
-const PARTS = ["74HC595", "ATMEGA", "LM358", "NE555", "AG-01", "SN7400", "MAX232", "CD4017", "ESP32", "RP2040", "W25Q64", "TL072"];
+const BUSY = params.get("traffic") === "busy", BIG = params.get("board") === "processor";
+// seconds between packets, how many at once, how often a chip sends something on
+const EVERY = BUSY ? 0.09 : 0.32, MAX = BUSY ? 60 : 16, PASS_ON = BUSY ? 0.7 : 0.4;
+const SPEED = BUSY ? 30 : 24; // cells a second
+const TAU = 1.7; // seconds the copper glows on
+const cells = cellBuffer("-|/\\o+*=.:[]()#_'><x" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
+const apps = trackApps();
+const rand = seeded(815);
+const pick = (a) => a[Math.floor(rand() * a.length)];
 
-let dims = null, cols = 0, rows = 0, cwH = 0, chH = 0;
-let STATIC = []; // [c, r, glyph, kind] kind: 0 copper, 1 chip, 2 label, 3 via, 4 decor
-let CHIPS = []; // { x, y, w, h, label, ref }
-let TRACES = []; // { cells: [i...], edge: bool (its far end is at the board edge), chip }
-const EDGE_TRACES = [];
-
-function generate() {
-  const r = seeded(4242);
-  const between = (a, b) => a + Math.floor((b - a + 1) * r());
-  const occ = new Uint8Array(cols * rows); // 0 free, 1 chip, 2 trace
-  STATIC = [];
-  CHIPS = [];
-  TRACES = [];
-  EDGE_TRACES.length = 0;
-  const free = (x, y) => x >= 0 && y >= 0 && x < cols && y < rows && occ[y * cols + x] === 0;
-  // ---- chips: rectangles, kept apart, none in the left fifth ----
-  for (let tries = 0; tries < 400 && CHIPS.length < 9; tries++) {
-    const w = 2 * between(5, 9), h = between(4, 8);
-    const x = between(Math.floor(cols * 0.24), cols - w - 4), y = between(3, rows - h - 3);
-    let ok = true;
-    for (let yy = y - 4; yy < y + h + 4 && ok; yy++) for (let xx = x - 6; xx < x + w + 6 && ok; xx++) if (!free(xx, yy) && xx >= 0 && yy >= 0 && xx < cols && yy < rows) ok = false;
-    if (!ok) continue;
-    const chip = { x, y, w, h, label: PARTS[between(0, PARTS.length - 1)], ref: "U" + (CHIPS.length + 1) };
-    CHIPS.push(chip);
-    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) occ[yy * cols + xx] = 1;
-  }
-  // ---- buses: parallel traces out of a run of pins, with 45 degree jogs ----
-  const route = (starts, dir, chip) => {
-    // a plan along the main direction, with jogs off it and back
-    const main = dir, plan = [[main, between(2, 6)]];
-    for (let s = 0; s < 4; s++) {
-      const side = r() < 0.5 ? 1 : 7; // jog left or right of the main direction
-      if (r() < 0.6) plan.push([(main + side) % 8, between(2, 6)]);
-      plan.push([main, between(4, 22)]);
-    }
-    const paths = starts.map(() => []);
-    let stop = Infinity, edge = false;
-    starts.forEach(([x0, y0], j) => {
-      let x = x0, y = y0, n = 0;
-      for (const [d, len] of plan)
-        for (let k = 0; k < len; k++) {
-          x += DIRS[d][0];
-          y += DIRS[d][1];
-          if (x < 0 || y < 0 || x >= cols || y >= rows) {
-            edge = true;
-            stop = Math.min(stop, n);
-            return;
-          }
-          if (!free(x, y)) return void (stop = Math.min(stop, n));
-          paths[j].push([x, y, DCH[d]]);
-          n++;
-        }
-      stop = Math.min(stop, n);
-    });
-    if (stop < 3) return;
-    // all the traces of a bus end together: at a via, at a chip, or at the edge
-    paths.forEach((p) => {
-      const cut = p.slice(0, stop);
-      for (const [x, y, ch] of cut) {
-        occ[y * cols + x] = 2;
-        STATIC.push([x, y, ch, 0]);
-      }
-      const [ex, ey] = cut[cut.length - 1];
-      const t = { cells: cut.map(([x, y]) => y * cols + x), edge: edge && stop === p.length, chip };
-      if (!t.edge) STATIC.push([ex, ey, "o", 3]);
-      TRACES.push(t);
-      if (t.edge) EDGE_TRACES.push(t);
-    });
-  };
-  for (const chip of CHIPS) {
-    const { x, y, w, h } = chip;
-    // the chip: outline, pins on the long sides, part number and reference
-    for (let xx = x; xx < x + w; xx++) STATIC.push([xx, y, "-", 1], [xx, y + h - 1, "-", 1]);
-    for (let yy = y + 1; yy < y + h - 1; yy++) STATIC.push([x, yy, "|", 1], [x + w - 1, yy, "|", 1]);
-    for (const [cx, cy] of [[x, y], [x + w - 1, y], [x, y + h - 1], [x + w - 1, y + h - 1]]) STATIC.push([cx, cy, "+", 1]);
-    STATIC.push([x + 1, y + 1, "o", 1]); // pin 1
-    chip.labelAt = [x + Math.max(1, (w - chip.label.length) >> 1), y + (h >> 1)];
-    [...chip.ref].forEach((ch, k) => STATIC.push([x + k, y - 1, ch, 2]));
-    const pinsTop = [], pinsBot = [], pinsL = [], pinsR = [];
-    for (let xx = x + 2; xx < x + w - 2; xx += 2) pinsTop.push([xx, y - 1]), pinsBot.push([xx, y + h]);
-    for (let yy = y + 1; yy < y + h - 1; yy++) pinsL.push([x - 1, yy]), pinsR.push([x + w, yy]);
-    for (const [pins, dir] of [[pinsL, 4], [pinsR, 0], [pinsTop, 2], [pinsBot, 6]]) {
-      if (pins.length < 2) continue;
-      // one or two buses per side, from runs of neighbouring pins
-      for (let b = 0; b < 2; b++) {
-        if (r() < 0.25) continue;
-        const k = Math.min(pins.length, between(2, 5)), at = between(0, pins.length - k);
-        const run = pins.slice(at, at + k).filter(([px, py]) => free(px, py));
-        if (run.length >= 2) route(run, dir, chip);
-      }
-    }
-  }
-  // make sure a few buses reach the edge of the board, for the messages to come in on
-  for (const chip of CHIPS) {
-    if (EDGE_TRACES.length >= 6) break;
-    const run = [];
-    for (let yy = chip.y + 1; yy < chip.y + chip.h - 1 && run.length < 3; yy++) if (free(chip.x - 1, yy)) run.push([chip.x - 1, yy]);
-    if (run.length >= 2) route(run, 4, chip);
-  }
-  // decoration: stray vias and a faint dotted ground pour in the empty board
-  for (let y = 0; y < rows; y++)
-    for (let x = 0; x < cols; x++) {
-      if (!free(x, y)) continue;
-      if (hash(x, y, 31) < 0.004) STATIC.push([x, y, "o", 3]);
-      else if (x % 4 === 0 && y % 2 === 0) STATIC.push([x, y, ".", 4]);
-    }
-}
+let dims = null, cols = 0, rows = 0, B = null, ICS = [], clock = 0, next = 0;
+let GLYPH = [], TOP = [], GLOW = [], HUE = [], REST = [];
+const hot = new Set(); // cells still glowing
+let packs = []; // { t: trace, back, colour or null, n: bits, bits, power, hops, pos }
 
 function layout(d) {
   dims = d;
-  cols = d.cols;
-  rows = d.rows;
-  cwH = d.cw / d.H;
-  chH = d.ch / d.H;
+  if (d.cols === cols && d.rows === rows) return; // the fonts arriving changes nothing
+  ({ cols, rows } = d);
   cells.resize(cols, rows);
-  generate();
+  B = makeBoard(cols, rows, BIG);
+  ICS = B.chips.filter((c) => c.kind === "ic");
+  const N = cols * rows;
+  GLYPH = [new Array(N), new Array(N)];
+  TOP = new Uint8Array(N);
+  GLOW = [new Float32Array(N), new Float32Array(N)];
+  HUE = [new Array(N).fill(null), new Array(N).fill(null)];
+  hot.clear();
+  packs = [];
+  for (const t of B.traces)
+    t.cells.forEach((i, k) => {
+      GLYPH[t.L][i] = t.via && k === t.cells.length - 1 ? "o" : t.L ? (t.ch[k] === "-" ? "." : ":") : t.ch[k];
+      if (!t.L) TOP[i] = 1;
+    });
+  // the board at rest: [cell, character, light]
+  REST = [];
+  const add = (x, y, g, k) => REST.push([y * cols + x, g, k * (0.45 + 0.55 * Math.min(1, Math.max(0, (x / cols - 0.1) / 0.15)))]);
+  for (const [x, y, g, k] of B.decor) add(x, y, g, k);
+  for (const L of [1, 0]) GLYPH[L].forEach((g, i) => g && !(L && TOP[i]) && add(i % cols, Math.floor(i / cols), g, g === "o" ? 0.42 : L ? 0.2 : 0.36));
+  for (const c of B.chips) {
+    c.act = 0;
+    c.hue = null;
+    c.mem = Array.from({ length: c.w * c.h }, () => Math.floor(rand() * 16));
+  }
+  // under way when the wallpaper starts (a still or reduced motion shows just this)
+  for (let k = 0; k < 120; k++) step(0.05);
 }
 
 // ---- packets ----
-const SPEED = 26; // cells per second
-const TRAIL = 2.2; // seconds the copper glows after a packet
-// light a trace with a packet that set off at t0 (from its far end if `back`)
-function packet(tr, t0, t, colour, k, back) {
-  const n = tr.cells.length, run = t - t0;
-  if (run < 0 || run > n / SPEED + TRAIL * 4) return false;
-  const head = run * SPEED;
-  for (let j = 0; j < n && j <= head; j++) {
-    const age = (head - j) / SPEED; // seconds since the packet passed cell j
-    const glow = Math.exp(-age / TRAIL);
-    if (glow < 0.04) continue;
-    const i = tr.cells[back ? n - 1 - j : j];
-    const isHead = head - j < 1;
-    LIT.set(i, [isHead ? PH.flash : colour, Math.max(LIT.get(i)?.[1] ?? 0, (isHead ? 1.4 : glow) * k)]);
-  }
-  return run * SPEED >= n; // arrived
+function send(t, back, colour, n, power, hops = 0, wait = 0) {
+  packs.push({ t, back, colour, n, power, hops, pos: -wait * SPEED, bits: Array.from({ length: n }, () => (rand() < 0.5 ? "0" : "1")) });
 }
-const LIT = new Map(); // cell -> [colour, strength], rebuilt each frame
-
-// ---- reactions ----
-let lanterns = []; // { source, colour, chip }
-let arrivals = []; // a message: { trace, colour, t0, tau, chip, out: [traces] }
-let flashAt = -1e9, nowT = 0;
-onReaction((r) => {
-  if (!dims) return;
-  if (r.type === "pulse" && Array.isArray(r.colour) && (EDGE_TRACES.length || TRACES.length)) {
-    const pool = EDGE_TRACES.length ? EDGE_TRACES : TRACES;
-    const trace = pool[Math.floor(Math.random() * pool.length)];
-    const others = TRACES.filter((t) => t.chip === trace.chip && t !== trace);
-    const out = others.sort(() => Math.random() - 0.5).slice(0, 2);
-    arrivals.push({ trace, colour: r.colour.map((v) => v / 255), t0: nowT, tau: Math.max(1.5, (r.afterglow ?? 6) / 3), chip: trace.chip, out });
-    if (arrivals.length > 4) arrivals.shift();
-  } else if (r.type === "flash") flashAt = nowT;
-  else if (r.type === "lanterns") {
-    const items = (Array.isArray(r.items) ? r.items : []).filter((l) => Array.isArray(l.colour)).slice(0, CHIPS.length);
-    const next = [];
-    for (const it of items) {
-      const had = lanterns.find((l) => l.source === it.source);
-      const chip = had?.chip ?? CHIPS.find((c) => !next.some((l) => l.chip === c) && !lanterns.some((l) => l.chip === c && items.some((x) => x.source === l.source)));
-      if (chip) next.push({ source: it.source, colour: it.colour.map((v) => v / 255), chip });
-    }
-    lanterns = next;
+function arrive(p) {
+  const c = p.back ? p.t.A : p.t.B;
+  if (!c) return;
+  c.act = Math.min(1.2, c.act + 0.6 * p.power);
+  c.hue = p.colour;
+  for (let k = 0; k < 6 + p.n * 3; k++) c.mem[Math.floor(rand() * c.mem.length)] = Math.floor(rand() * 16);
+  // and the chip sends something on
+  const list = c.outs.filter(([t]) => t !== p.t);
+  if (!list.length) return;
+  const n = p.colour ? (p.hops > 0 ? 2 : 0) : packs.length < MAX && rand() < PASS_ON ? 1 : 0;
+  for (let k = 0; k < n; k++) {
+    const [t, back] = pick(list);
+    send(t, back, p.colour, p.colour ? 6 : 2 + Math.floor(rand() * 6), p.colour ? 1.1 : 0.75, p.hops - 1, 0.2 + 0.15 * k);
   }
-});
-
-function frame(t) {
-  nowT = t;
-  if (!dims) return;
-  const T = STILL ? STILL_AT : reduced ? 40 : t;
-  const flash = Math.max(0, 1 - (T - flashAt) / 0.9);
-  LIT.clear();
-  // ambient traffic: a packet now and then on a random trace, worked out from
-  // time buckets so it needs no memory
-  if (TRACES.length)
-    for (let b = Math.floor(T / 0.8) - 8; b <= Math.floor(T / 0.8); b++) {
-      if (hash(b, 1, 3) > 0.75) continue;
-      const tr = TRACES[Math.floor(hash(b, 2, 3) * TRACES.length)];
-      packet(tr, b * 0.8 + hash(b, 3, 3) * 0.8, T, PH.ink, 0.55, hash(b, 4, 3) < 0.5);
-    }
-  // messages: in from the edge, the chip lights, the signal goes on out
-  const chipGlow = new Map();
-  arrivals = arrivals.filter((a) => T - a.t0 < a.trace.cells.length / SPEED + a.tau * 6);
-  for (const a of arrivals) {
-    const k = 1.2;
-    const arrived = packet(a.trace, a.t0, T, a.colour, k, true);
-    if (!arrived) continue;
-    const ta = a.t0 + a.trace.cells.length / SPEED;
-    chipGlow.set(a.chip, [a.colour, Math.exp(-(T - ta) / a.tau)]);
-    for (const o of a.out) packet(o, ta + 0.15, T, a.colour, 0.9, false);
+}
+const sent = new Set();
+function messages() {
+  for (const m of apps.messages) {
+    if (sent.has(m.t0)) continue;
+    sent.add(m.t0);
+    if (sent.size > 40) sent.delete(sent.values().next().value);
+    const pool = B.edge.length ? B.edge : B.traces;
+    if (!pool.length) continue;
+    const t = pick(pool);
+    if (reduced) arrive({ t, back: false, colour: m.colour, n: 8, power: 2, hops: 0 });
+    else send(t, false, m.colour, 8, 1.4, 2);
   }
+}
+function step(dt) {
+  clock += dt;
+  if (B.traces.length && clock > next) {
+    next = clock + EVERY * (0.4 + rand() * 1.2);
+    if (packs.length < MAX) {
+      const t = pick(B.traces), back = rand() < 0.5;
+      // now and then a whole bus goes at once
+      const all = rand() < (BUSY ? 0.2 : 0.07) ? B.traces.filter((q) => q.A === t.A && q.B === t.B && q.L === t.L).slice(0, 5) : [t];
+      for (const q of all) send(q, back, null, 2 + Math.floor(rand() * 5), 0.75);
+    }
+  }
+  for (const c of B.chips) {
+    c.act *= Math.exp(-dt / (c.hue ? 2.4 : 0.9));
+    if (c.act < 0.03) c.hue = null;
+    if (c.kind !== "xtal") continue;
+    const tick = Math.floor(clock / 4.8 + c.n * 0.5); // the clock ticks out along one of its traces
+    if (c.tick === tick) continue;
+    c.tick = tick;
+    c.act = Math.max(c.act, 0.6);
+    if (c.outs.length) send(...c.outs[tick % c.outs.length], null, 1, 0.6);
+  }
+  for (const L of [0, 1]) {
+    const g = GLOW[L], h = HUE[L];
+    for (const i of hot) g[i] *= Math.exp(-dt / (h[i] ? 2.6 : TAU));
+  }
+  for (const i of hot) if (GLOW[0][i] < 0.02 && GLOW[1][i] < 0.02) hot.delete(i);
+  const moving = packs;
+  packs = [];
+  for (const p of moving) {
+    const was = p.pos, n = p.t.cells.length, { L } = p.t;
+    p.pos += SPEED * dt;
+    for (let k = Math.max(0, Math.ceil(was)); k <= Math.min(n - 1, p.pos); k++) {
+      const i = p.t.cells[p.back ? n - 1 - k : k];
+      if (GLOW[L][i] < p.power || p.colour) {
+        GLOW[L][i] = p.power;
+        HUE[L][i] = p.colour;
+      }
+      hot.add(i);
+    }
+    if (was < n - 1 && p.pos >= n - 1) arrive(p);
+    if (p.pos < n + p.n) packs.push(p);
+  }
+}
 
+// ---- drawing ----
+const put = (x, y, g, col, k, white = 0) => cells.putAt(x, y, g, white ? mixc(scale(col, Math.min(1, k)), PH.flash, white) : scale(col, Math.min(1, k)));
+function text(s, x, y, col, k, white) {
+  for (let j = 0; j < s.length; j++) if (s[j] !== " ") put(x + j, y, s[j], col, k, white);
+}
+const BLANK = "01#+x:=*";
+const hex = (v) => v.toString(16).toUpperCase();
+
+const DRAW = {
+  xtal: (c, col, k) => text("16.000MHZ", c.x + 2, c.y + 1, col, 0.35 + 0.55 * k),
+  header: (c, col, k) => text("o o o o o o o o o o o", c.x + 2, c.y + 1, col, 0.32 + 0.5 * k),
+  ic(c, col, k, app) {
+    const s = (app ? app.source.toUpperCase().replace(/[^A-Z0-9]/g, "") : c.label).slice(0, c.w - 4), two = c.h > 5;
+    text(s, c.x + ((c.w - s.length) >> 1), c.y + (c.h >> 1) - (two ? 1 : 0), col, 0.45 + 0.5 * k);
+    if (two) text(c.mem.slice(0, c.w - 6).map((m) => (m > 7 ? "1" : "0")).join(""), c.x + 3, c.y + (c.h >> 1) + 1, col, 0.18 + 0.5 * k);
+    const on = app ? Math.sin(clock * 3.8) > -0.2 : c.act > 0.25;
+    put(c.x + c.w - 3, c.y + 1, "*", col, on ? 1 : 0.2, on ? 0.3 : 0);
+    put(c.x + 2, c.y + 1, "o", col, 0.35);
+  },
+  // a field of bits
+  ram(c, col, k) {
+    for (let y = 1; y < c.h - 1; y++)
+      for (let x = 2; x < c.w - 2; x++) {
+        const m = c.mem[y * c.w + x];
+        put(c.x + x, c.y + y, m > 11 ? "#" : m > 7 ? ":" : ".", col, (m > 11 ? 0.24 : 0.13) + 0.6 * k * (m / 15));
+      }
+    text("RAM", c.x + c.w - 6, c.y, col, 0.4 + 0.4 * k);
+  },
+  // registers, and cores that switch now and then
+  cpu(c, col, k) {
+    const R = c.h - 4, at = Math.floor(clock * 2) % R;
+    for (let y = 0; y < R; y++) {
+      const on = y === at;
+      if (on && c.reg !== at) {
+        c.reg = at;
+        c.mem[y * 8 + Math.floor(rand() * 8)] = Math.floor(rand() * 16);
+      }
+      text("R" + hex(y % 16), c.x + 3, c.y + 2 + y, col, 0.24 + 0.3 * k);
+      text(c.mem.slice(y * 8, y * 8 + 8).map(hex).join(""), c.x + 6, c.y + 2 + y, col, on ? 0.75 : 0.27 + 0.4 * k, on ? 0.2 : 0);
+    }
+    const bw = 9, bh = 4;
+    let n = 0;
+    for (let y = c.y + 2; y + bh <= c.y + c.h - 1; y += bh + 1)
+      for (let x = c.x + 18; x + bw <= c.x + c.w - 2; x += bw + 1, n++) {
+        const busy = Math.max(0, Math.sin(clock * (0.22 + (n % 5) * 0.06) + n * 2.4)) ** (BUSY ? 3 : 9);
+        for (let b = 0; b < bh; b++)
+          for (let a = 0; a < bw; a++) {
+            const m = c.mem[(n * 37 + b * bw + a) % c.mem.length], flat = b === 0 || b === bh - 1, edge = flat || a === 0 || a === bw - 1;
+            put(x + a, y + b, flat ? "-" : edge ? "|" : BLANK[m >> 1], col, (edge ? 0.2 : 0.16) + (0.55 * busy + 0.3 * k) * (0.4 + m / 25));
+          }
+        if (busy > 0.4 && rand() < 0.2) c.mem[(n * 37 + Math.floor(rand() * 36)) % c.mem.length] = Math.floor(rand() * 16);
+      }
+    text("AG-64 PROCESSOR", c.x + ((c.w - 15) >> 1), c.y, col, 0.55 + 0.4 * k);
+  },
+};
+
+let last = 0;
+function frame() {
+  if (!dims || !B) return;
+  const at = performance.now(), dt = Math.min(0.1, (at - last) / 1000);
+  last = at;
+  apps.tidy();
+  messages();
+  // reduced motion: the packets stand still, but reactions still fade
+  if (reduced) for (const c of B.chips) c.act *= 0.75;
+  else if (!STILL) step(dt);
+  const flash = apps.flash(), ink = PH.ink;
   cells.clear();
-  // the board
-  for (const [c, r, g, kind] of STATIC) {
-    const i = r * cols + c;
-    const lit = LIT.get(i);
-    let col;
-    if (kind === 0) col = scale(PH.dim, 0.45 + 0.5 * flash);
-    else if (kind === 1) col = scale(PH.dim, 0.8);
-    else if (kind === 2) col = scale(PH.dim, 0.6);
-    else if (kind === 3) col = scale(PH.dim, 0.5);
-    else col = scale(PH.dim, 0.16);
-    if (lit) col = mixc(col, lit[0], Math.min(1, lit[1]));
-    cells.putAt(c, r, g, col);
+  for (const [i, g, k] of REST) cells.put(i, g, scale(ink, k * (1 + 1.6 * flash)));
+  for (const i of hot) {
+    const L = TOP[i] ? 0 : 1, k = GLOW[L][i];
+    if (k > 0.03) cells.put(i, GLYPH[L][i], scale(HUE[L][i] ?? ink, Math.min(1, 0.36 + (L ? 0.36 : 0.55) * k)));
   }
-  // chips: part numbers, or the waiting app's name, its LED blinking
-  for (const chip of CHIPS) {
-    const lan = lanterns.find((l) => l.chip === chip);
-    const cg = chipGlow.get(chip);
-    let label = chip.label, col = scale(PH.dim, 1.1);
-    if (lan) {
-      label = lan.source.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, chip.w - 2);
-      col = scale(lan.colour, 0.85);
-      const on = Math.sin(T * Math.PI * 1.2) > -0.2;
-      cells.putAt(chip.x + chip.w - 2, chip.y + 1, "*", scale(lan.colour, on ? 1.4 : 0.3));
-      for (let xx = chip.x; xx < chip.x + chip.w; xx++) {
-        cells.putAt(xx, chip.y, xx === chip.x || xx === chip.x + chip.w - 1 ? "+" : "-", scale(lan.colour, 0.5));
-        cells.putAt(xx, chip.y + chip.h - 1, xx === chip.x || xx === chip.x + chip.w - 1 ? "+" : "-", scale(lan.colour, 0.5));
-      }
+  // the packets themselves: bits, the first one brightest
+  for (const p of packs) {
+    const n = p.t.cells.length;
+    for (let k = Math.min(p.n, n) - 1; k >= 0; k--) {
+      const j = Math.floor(p.pos) - k;
+      if (j < 0 || j >= n) continue;
+      const i = p.t.cells[p.back ? n - 1 - j : j], f = 1 - 0.6 * (k / p.n);
+      if (p.t.L && TOP[i]) continue; // underneath
+      cells.put(i, p.bits[k], mixc(scale(p.colour ?? ink, 0.5 + 0.5 * f), PH.flash, (p.colour ? 0.35 : 0.6) * f));
     }
-    if (cg) {
-      col = mixc(col, cg[0], cg[1]);
-      // the whole outline flares in the message's colour
-      for (let xx = chip.x; xx < chip.x + chip.w; xx++) {
-        cells.putAt(xx, chip.y, xx === chip.x || xx === chip.x + chip.w - 1 ? "+" : "-", scale(cg[0], 0.4 + cg[1]));
-        cells.putAt(xx, chip.y + chip.h - 1, xx === chip.x || xx === chip.x + chip.w - 1 ? "+" : "-", scale(cg[0], 0.4 + cg[1]));
-      }
-    }
-    const [lx, ly] = [chip.x + Math.max(1, (chip.w - label.length) >> 1), chip.labelAt[1]];
-    [...label].forEach((ch, k) => cells.putAt(lx + k, ly, ch, col));
   }
-  watchSeen(lanterns, (l) => [(l.chip.x + l.chip.w / 2) * cwH, (l.chip.y + l.chip.h / 2) * chH], dims.H, 0.06);
+  for (const c of B.chips) {
+    const app = apps.waiting.find((a) => chipOf(a) === c), col = app ? app.colour : (c.hue ?? ink), k = Math.max(c.act, app ? 0.55 * apps.lit(app) : 0, 0.5 * flash), e = 0.4 + 0.55 * k;
+    for (let x = c.x; x < c.x + c.w; x++) {
+      const g = x === c.x || x === c.x + c.w - 1 ? "+" : "-";
+      put(x, c.y, g, col, e);
+      put(x, c.y + c.h - 1, g, col, e);
+    }
+    for (let y = c.y + 1; y < c.y + c.h - 1; y++) {
+      put(c.x, y, "|", col, e);
+      put(c.x + c.w - 1, y, "|", col, e);
+    }
+    text(c.ref, c.x + 1, c.y, col, 0.4 + 0.4 * k);
+    DRAW[c.kind](c, col, k, app);
+  }
+  if (HOVER) {
+    // anywhere on the chip, or a little beside it
+    const x = pointer.x / dims.cw, y = pointer.y / dims.ch;
+    const hit = pointer.on && apps.waiting.find((a) => {
+      const c = chipOf(a);
+      return c && x > c.x - 2 && x < c.x + c.w + 2 && y > c.y - 1 && y < c.y + c.h + 1;
+    });
+    watchSeen(hit ? [hit] : [], () => [pointer.x / dims.H, pointer.y / dims.H], dims.H);
+  }
 }
+const chipOf = (a) => ICS[a.i % Math.max(1, ICS.length)];
 
 crt();
 startScene({
-  label: "A dark circuit board in glowing green: chips and buses of traces, with packets of light running along them and fading behind.",
+  label: "A dark circuit board in glowing green: chips and buses of traces, with packets of bits running along them and fading behind.",
   fps: 20,
-  fontPx: (H) => Math.max(6, Math.min(11, H / 115)),
+  fontPx: (H) => (preview ? Math.max(3, H / 100) : Math.max(6, Math.min(11, H / 115))),
   layout,
   frame,
   sample: cells.sample,

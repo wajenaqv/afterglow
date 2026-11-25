@@ -114,11 +114,18 @@ export const DETAILS = {
     hover: "None.",
   },
   circuit: {
-    about: "A dark circuit board: chips and buses of traces, with packets of light running along them and the copper glowing behind.",
-    message: "A packet in the app's colour runs in from the edge and lights up a chip.",
+    about: "A dark circuit board at work: packets of bits run between the chips, the copper glows on behind them, and what arrives changes what a chip shows.",
+    message: "A packet in the app's colour runs in from the edge and is passed on from chip to chip.",
     waiting: "Each app takes a chip showing its name, with a blinking LED. Rest your cursor on it for a moment to mark it seen.",
     flash: "Current surges through every trace.",
     hover: "None.",
+  },
+  silicon: {
+    about: "Electronics in solid glowing copper: chips stacked on a board, a processor, a memory bus, or a board you only see where signals have just passed.",
+    message: "A signal in the app's colour runs in along one trace and out along others.",
+    waiting: "Each app lights a core of the chip, or a trace, in its colour. Rest your cursor on it for a moment to mark it seen.",
+    flash: "All the copper lights up.",
+    hover: "None: the cursor only marks waiting apps as seen.",
   },
   impossible: {
     about: "An impossible shape in solid glowing pieces, each tucked under the next all the way round. A light runs along them, under and over, and never reaches the end.",
@@ -260,9 +267,17 @@ export const WALLPAPERS = [
   {
     id: "circuit",
     name: "circuit board",
-    about: "A circuit board with pulses of light on its traces.",
+    about: "A circuit board at work, bits running between its chips.",
     tag: "tech",
-    options: [PHOSPHOR, CRT],
+    options: [{ key: "board", label: "chips", choices: [["", "mixed"], ["processor", "one big processor"]] }, { key: "traffic", label: "traffic", choices: [["", "calm"], ["busy", "busy"]] }, PHOSPHOR, CRT],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "silicon",
+    name: "silicon",
+    about: "Chips and traces in solid glowing copper, signals running through.",
+    tag: "tech",
+    options: [{ key: "board", label: "board", choices: [["", "stacked chips"], ["processor", "processor"], ["bus", "memory bus"], ["dark", "in the dark"]] }, PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {

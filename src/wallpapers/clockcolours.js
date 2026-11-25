@@ -77,6 +77,7 @@ const WALLS = {
   radar: phosphor,
   life: phosphor,
   circuit: phosphor,
+  silicon: phosphor,
   impossible: phosphor,
 };
 export const wallColours = (wall, tint, hue = null) => (WALLS[wall] ?? jelly)(tint || "natural", hue);

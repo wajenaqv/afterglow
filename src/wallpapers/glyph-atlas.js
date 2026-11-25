@@ -27,8 +27,8 @@ float glyphInk(float g, vec3 c, vec2 local) {
 }`;
 
 // Draw the atlas for `glyphs` (a string, one slot each) into texture `tex`.
-// Returns the slot size in device px.
-export function buildAtlas(gl, tex, glyphs, { cw, ch, dpr, fontPx, font }) {
+// fill ({ k, dy }, dy in CSS px): see nightscene.js fillRows(). Returns the slot size in device px.
+export function buildAtlas(gl, tex, glyphs, { cw, ch, dpr, fontPx, font, fill }) {
   const slotW = Math.ceil(cw * dpr) + 1;
   const slotH = Math.ceil(ch * dpr) + 1;
   const ac = document.createElement("canvas");
@@ -42,7 +42,10 @@ export function buildAtlas(gl, tex, glyphs, { cw, ch, dpr, fontPx, font }) {
   for (let level = 0; level < LEVELS; level++) {
     const v = levelGrey(level);
     actx.fillStyle = `rgb(${v},${v},${v})`;
-    [...glyphs].forEach((chr, i) => actx.fillText(chr, i * slotW, level * slotH));
+    [...glyphs].forEach((chr, i) => {
+      if (fill) actx.setTransform(1, 0, 0, fill.k, 0, level * slotH + fill.dy * dpr);
+      actx.fillText(chr, i * slotW, fill ? 0 : level * slotH);
+    });
   }
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);

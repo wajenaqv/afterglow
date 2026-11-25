@@ -85,7 +85,10 @@ function ink(col, chr, h = 0.5, css = null) {
 //                           (scene-gl.js): { glsl, bind }. Used when the
 //                           Rendering setting allows (gpu.js) and the scene has
 //                           no overlay; otherwise the CPU renderer below.
-export function startScene({ label, fps = 20, layout, frame: onFrame, sample, overlay, fontPx: sizeFor, gpu }) {
+//   fill                    true: stretch the characters so a capital fills its
+//                           row; otherwise each row leaves a dark gap, and a
+//                           solid surface looks striped
+export function startScene({ label, fps = 20, layout, frame: onFrame, sample, overlay, fontPx: sizeFor, gpu, fill: filled }) {
   const newCanvas = () => {
     const c = document.createElement("canvas");
     c.className = "canvas-wall";
@@ -124,6 +127,13 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
   }
   const measure = document.createElement("canvas").getContext("2d"); // for character widths
   const dims = {};
+  // how a row-filling scene stretches its characters: k times as tall, moved by dy
+  let fill = null;
+  function fillRows(ch) {
+    measure.textBaseline = "top";
+    const m = measure.measureText("#"), top = -m.actualBoundingBoxAscent, tall = m.actualBoundingBoxDescent - top;
+    return { k: ch / tall, dy: (-top * ch) / tall };
+  }
 
   function resize() {
     const dpr = STILL ? 1 : devicePixelRatio || 1; // stills are exactly the size asked for
@@ -134,8 +144,9 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     const font = `700 ${fontPx}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
     measure.font = font;
     const cw = wholePx(measure.measureText("M").width, dpr), ch = wholePx(fontPx * 1.02, dpr);
+    fill = filled ? fillRows(ch) : null;
     Object.assign(dims, { W, H, A: W / H, cw, ch, cols: Math.ceil(W / cw), rows: Math.ceil(H / ch) });
-    if (GLR) GLR.resize({ dpr, cw, ch, cols: dims.cols, rows: dims.rows, fontPx, font });
+    if (GLR) GLR.resize({ dpr, cw, ch, cols: dims.cols, rows: dims.rows, fontPx, font, fill });
     else {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.font = font;
@@ -174,10 +185,16 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     for (const [c, r, chr, col] of top) put(c, r, ink(col, chr));
     ctx.fillStyle = `rgb(${BG.join(",")})`;
     ctx.fillRect(0, 0, W, H);
+    if (fill) {
+      ctx.save();
+      ctx.transform(1, 0, 0, fill.k, 0, fill.dy);
+    }
+    const rowH = fill ? ch / fill.k : ch;
     for (const [s, list] of groups) {
       ctx.fillStyle = s;
-      for (let i = 0; i < list.length; i += 3) ctx.fillText(list[i + 2], list[i] * cw, list[i + 1] * ch);
+      for (let i = 0; i < list.length; i += 3) ctx.fillText(list[i + 2], list[i] * cw, list[i + 1] * rowH);
     }
+    if (fill) ctx.restore();
   }
 
   if (STILL) {
