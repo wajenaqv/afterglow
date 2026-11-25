@@ -16,7 +16,7 @@
 // Drawn on a canvas, one character per cell (about 1,500 cells, cheap on the
 // CPU): the clock is the agreed exception to the GPU and CPU renderer rule.
 
-import { hash, HOVER, pointer, stillFor, STILL, STILL_AT, sendStill, fontReady, paceFrames } from "./common.js";
+import { hash, HOVER_FX, pointer, stillFor, STILL, STILL_AT, sendStill, fontReady, paceFrames } from "./common.js";
 import { timeText, is12 } from "./hoverclock.js";
 
 const FONT = {
@@ -171,7 +171,7 @@ export function startHeyClock({ colours, hours = "auto", size = 1, fps = 30 }) {
     const phase = ((t - sweepAt) % 7) / 1.6;
     const wavePos = reduced || STILL || phase > 1 ? -1e4 : phase * span - band;
     // hover: strong while the cursor moves, gone a second after it stops
-    const live = HOVER && pointer.on ? Math.max(0, 1 - stillFor() / 0.9) : 0;
+    const live = HOVER_FX && pointer.on ? Math.max(0, 1 - stillFor() / 0.9) : 0;
     const px = pointer.x / cw, py = pointer.y / ch;
     const flash = Math.max(0, 1 - (t - flashAt) / 0.35);
 

@@ -75,7 +75,6 @@ const WALLS = {
     return [pale(bytes(p.b), 0.5), readable(bytes(p.a))];
   },
   radar: phosphor,
-  life: phosphor,
   circuit: phosphor,
   silicon: phosphor,
   impossible: phosphor,

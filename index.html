@@ -50,15 +50,10 @@
           <div id="wall-tabs" class="tabs" role="tablist" aria-label="wallpaper kinds"></div>
           <div id="cards" class="cards"></div>
 
-          <h3 class="sub">hover</h3>
-          <div class="list">
-            <label><input type="checkbox" id="scramble" /> scramble a jelly's characters when I hover it <span class="dim">resting the cursor on a lit jelly still marks it seen</span></label>
-          </div>
-
           <h3 class="sub">rotation</h3>
           <div class="list rotate">
             <label><input type="checkbox" id="rotate-on" /> change wallpaper every <select id="rotate-minutes"><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">hour</option></select></label>
-            <div class="rotate-walls" id="rotate-walls"></div>
+            <div class="rotate-walls" id="rotate-walls" hidden></div>
           </div>
 
           <h3 class="sub">stills</h3>

@@ -1,10 +1,13 @@
-// Constellation: cats in the stars. On a quiet
-// starfield with a faint band of milky way, a handful of brighter stars fade
-// in somewhere in the sky, then faint lines draw from star to star like a
-// star chart until they make a small cat: sitting, asleep, strolling, its
-// face, pouncing, a loaf, stretching. Its name appears underneath ("felis
-// sedens" ...), it holds a while, dissolves, and the next forms somewhere
-// else. Now and then two cats form at once in different parts of the sky.
+// Constellation: cats in the stars. On a quiet starfield with a faint band of
+// milky way, stars gather somewhere in the sky until they make a small cat:
+// sitting, asleep, a loaf, peeking over the horizon, reaching for a star,
+// trotting, stretching, with a ball of yarn, or two with their tails in a
+// heart. There are no lines: the cat is stardust, with a few bright stars at
+// the ears, paws and tail, and its eyes are stars. Its name appears underneath
+// ("felis sedens" ...), it holds a while, dissolves, and the next gathers
+// somewhere else. Now and then two gather at once in different parts of the sky.
+// (Stars joined by chart lines came first, as on heywajih.com: stiff, and with
+// rounder cats the lines turned them into drawings with stars on top.)
 //
 // Hover: sweep the cursor quickly across the sky and a shooting star streaks
 // off the way it was going (at most one every couple of seconds).
@@ -19,11 +22,12 @@
 // into a cell buffer (cells.js), which the CPU draws as text and the GPU from
 // a texture. Colours go through the same tone map as nightscene.js ink().
 //
-// Options: ?tint=natural|cool|warm|grey|green ?pose=sitting|sleeping|walking|
-// face|pouncing|loaf|stretching (keep to one) ?side=any (use the whole sky;
-// the left fifth is kept clear for desktop icons by default) ?size=0.3-2.5
+// Options: ?tint=natural|cool|warm|grey|green ?pose=sitting|sleeping|loaf|
+// peeking|reaching|walking|stretching|yarn|pair (keep to one) ?side=any (use
+// the whole sky; the left fifth is kept clear for desktop icons by default)
+// ?size=0.3-2.5 ?fx=0 (no shooting stars from the cursor)
 
-import { num, hash, params, HOVER, pointer, stillFor, onReaction, seenLantern, STILL } from "./common.js";
+import { num, hash, params, HOVER, HOVER_FX, pointer, stillFor, onReaction, seenLantern, STILL } from "./common.js";
 import { CONSTELLATION } from "./palettes.js";
 import { startScene, setPalette, reduced } from "./nightscene.js";
 import { cellBuffer } from "./cells.js";
@@ -41,53 +45,86 @@ const add = (a, b, f = 1) => [a[0] + b[0] * f, a[1] + b[1] * f, a[2] + b[2] * f]
 // ---- palettes ----
 const COL = CONSTELLATION[params.get("tint")] ?? CONSTELLATION.natural;
 
-// ---- the cats: stars (x right, y down, about -1..1) and the lines between them ----
+// ---- the cats: outlines (x right, y down, about -1..1) the stars gather along ----
+// A head: round cheeks and two pointed ears. Strokes join at the ear tips; a
+// stroke of three or more points is a curve.
+function head(x, y, r, tilt = 0) {
+  const c = Math.cos(tilt), n = Math.sin(tilt), at = ([a, b]) => [x + (a * c - b * n) * r, y + (a * n + b * c) * r];
+  const L = [-0.8, -1.12], T = [0.8, -1.12], face = [[0.92, -0.28], [1.04, 0.16], [0.78, 0.6], [0, 0.82], [-0.78, 0.6], [-1.04, 0.16], [-0.92, -0.28]];
+  return {
+    at,
+    strokes: [[[-0.92, -0.28], L], [L, [-0.34, -0.74]], [[-0.34, -0.74], [0, -0.79], [0.34, -0.74]], [[0.34, -0.74], T], [T, [0.92, -0.28]], face].map((k) => k.map(at)),
+    mask: [...face, [-0.8, -1.05], [-0.34, -0.74], [0.34, -0.74], [0.8, -1.05]].map(at), // hides what is behind it
+    ears: [at(L), at(T)],
+  };
+}
+// eyes: open (they blink), happy or asleep. tips: the bright stars, besides the
+// ears. gold: strokes in the gold of the names. cut: the head is hidden below this.
 const POSES = [
   {
-    name: "felis sedens", // sitting, facing left: ears, head, chest down to a front paw, the back sloping to the haunch, the tail curling up from the base
-    stars: [[-0.55, -0.5], [-0.62, -1.0], [-0.44, -0.78], [-0.24, -1.0], [-0.14, -0.6], [-0.46, -0.12], [-0.42, 0.75], [0.16, -0.24], [0.46, 0.28], [0.34, 0.75], [0.78, 0.7], [0.98, 0.4]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [4, 7], [7, 8], [8, 9], [9, 6], [9, 10], [10, 11]],
+    name: "felis sedens", // sitting up, tail curled
+    heads: [head(0, -0.4, 0.52)], eyes: "open",
+    body: [[[-0.34, -0.1], [-0.5, 0.36], [-0.5, 0.74], [-0.3, 0.92], [0, 0.93], [0.3, 0.92], [0.5, 0.74], [0.5, 0.36], [0.34, -0.1]], [[-0.13, 0.5], [-0.15, 0.91]], [[0.13, 0.5], [0.15, 0.91]], [[0.48, 0.8], [0.82, 0.84], [1.02, 0.62], [0.92, 0.36], [0.74, 0.44]]],
+    tips: [[-0.15, 0.91], [0.15, 0.91], [0.74, 0.44]],
   },
   {
-    name: "felis dormiens", // curled up asleep: an oval, the head with its ears at one end, the tail wrapping round to meet it
-    stars: [[-0.88, -0.22], [-0.86, -0.64], [-0.67, -0.47], [-0.5, -0.72], [-0.05, -0.64], [0.45, -0.5], [0.82, -0.06], [0.68, 0.42], [0.2, 0.7], [-0.35, 0.66], [-0.72, 0.4], [-0.62, 0.08]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11]],
+    name: "felis dormiens", // curled up asleep
+    heads: [head(-0.45, 0.22, 0.45, -0.1)], eyes: "asleep", zzz: [-0.1, -0.6],
+    body: [[[-0.5, 0], [-0.1, -0.36], [0.4, -0.42], [0.85, -0.16], [1.04, 0.28], [0.86, 0.62], [0.4, 0.8], [-0.15, 0.8], [-0.5, 0.7]], [[1, 0.42], [0.72, 0.5], [0.3, 0.5], [0.02, 0.42]], [[0.5, 0.06], [0.28, 0.24], [0.24, 0.5]]],
+    tips: [[0.02, 0.42], [0.4, -0.42]],
   },
   {
-    name: "felis ambulans", // strolling, tail up
-    stars: [[-0.98, 0.1], [-0.98, -0.18], [-1.02, -0.44], [-0.85, -0.26], [-0.68, -0.44], [-0.6, -0.12], [-0.15, -0.16], [0.45, -0.4], [0.76, -0.68], [0.62, -1.0], [-0.72, 0.26], [-1.08, 0.56], [-0.6, 0.56], [0.2, 0.08], [0.45, 0.56], [0.62, 0.56]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [0, 10], [10, 11], [10, 12], [10, 13], [13, 14], [7, 15]],
+    name: "felis panis", // a loaf
+    heads: [head(-0.36, -0.22, 0.48)], eyes: "happy",
+    body: [[[-0.2, -0.3], [0.3, -0.38], [0.8, -0.2], [1.04, 0.2], [0.98, 0.58], [0.6, 0.68], [0, 0.7], [-0.6, 0.68], [-0.96, 0.56], [-0.98, 0.2], [-0.7, 0]], [[-0.52, 0.66], [-0.38, 0.52], [-0.22, 0.54], [-0.14, 0.68]], [[1, 0.5], [0.72, 0.42], [0.5, 0.5]]],
+    tips: [[0.5, 0.5], [0.8, -0.2]],
   },
   {
-    name: "caput felis", // a cat's face: ears, cheeks, eyes, nose and whiskers
-    stars: [[-0.5, -0.45], [-0.72, -0.98], [-0.9, -0.28], [-0.86, 0.22], [-0.46, 0.62], [0, 0.76], [0.46, 0.62], [0.86, 0.22], [0.9, -0.28], [0.72, -0.98], [0.5, -0.45], [0, -0.52], [-0.38, -0.06], [0.38, -0.06], [0, 0.24], [-1.3, 0.1], [-1.25, 0.42], [1.3, 0.1], [1.25, 0.42]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 0], [14, 5], [14, 15], [14, 16], [14, 17], [14, 18]],
+    name: "felis curiosa", // peeking over the horizon, paws on the edge
+    heads: [head(0, 0.06, 0.72)], eyes: "open", cut: 0.5,
+    body: [[[-1.35, 0.5], [-1.12, 0.5]], [[-0.62, 0.5], [0.62, 0.5]], [[1.12, 0.5], [1.35, 0.5]]],
+    front: [-1, 1].flatMap((m) => [[[1.12 * m, 0.5], [1.1 * m, 0.34], [0.87 * m, 0.24], [0.64 * m, 0.34], [0.62 * m, 0.5]], [[1.12 * m, 0.5], [1.06 * m, 0.64], [0.87 * m, 0.68], [0.68 * m, 0.64], [0.62 * m, 0.5]], [[0.95 * m, 0.52], [0.95 * m, 0.64]], [[0.79 * m, 0.52], [0.79 * m, 0.64]]]),
+    tips: [[-1.35, 0.5], [1.35, 0.5]],
   },
   {
-    name: "felis saliens", // leaping to the right: head and ears in front, the spine level, front legs reaching, back legs pushing off, the tail streaming behind
-    stars: [[0.7, -0.66], [0.88, -0.64], [1.04, -0.4], [0.72, -0.34], [0.45, -0.24], [-0.05, -0.3], [-0.5, -0.2], [-0.95, -0.48], [-1.22, -0.36], [0.66, 0.06], [1.02, 0.24], [-0.72, 0.16], [-1.06, 0.42], [0.02, 0.04]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 0], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [4, 9], [9, 10], [6, 11], [11, 12], [9, 13], [13, 11]],
+    name: "felis et stella", // reaching for a star
+    heads: [head(-0.2, -0.3, 0.47, 0.16)], eyes: "open", prize: [0.94, -0.84],
+    body: [[[-0.42, 0], [-0.6, 0.42], [-0.56, 0.78], [-0.3, 0.92], [0.2, 0.92], [0.46, 0.76], [0.44, 0.4], [0.3, 0.2]], [[0.1, 0.1], [0.4, 0], [0.62, -0.28], [0.74, -0.56], [0.9, -0.52], [0.86, -0.28], [0.66, 0.1], [0.3, 0.34]], [[-0.1, 0.55], [-0.1, 0.91]], [[-0.54, 0.8], [-0.88, 0.86], [-1.08, 0.62], [-1, 0.36], [-0.84, 0.42]]],
+    tips: [[-0.84, 0.42], [-0.1, 0.91]],
   },
   {
-    name: "felis panis", // a loaf: paws tucked in, tail wrapped round
-    stars: [[-0.95, -0.38], [-0.82, -0.74], [-0.67, -0.5], [-0.5, -0.76], [-0.36, -0.42], [0.12, -0.5], [0.7, -0.42], [0.96, -0.04], [0.86, 0.4], [-0.9, 0.4], [-1.02, 0.02], [0.55, 0.24], [0.1, 0.3]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 0], [7, 11], [11, 12]],
+    name: "felis ambulans", // a kitten trotting, tail up
+    heads: [head(-0.52, -0.24, 0.46)], eyes: "happy",
+    body: [[[-0.2, -0.1], [0.15, -0.02], [0.5, -0.1], [0.72, 0.1], [0.76, 0.4], [0.9, 0.66], [0.84, 0.78], [0.68, 0.74], [0.54, 0.46]], [[0.54, 0.46], [0.1, 0.5], [-0.32, 0.46]], [[-0.32, 0.46], [-0.5, 0.72], [-0.66, 0.78], [-0.74, 0.66], [-0.6, 0.44], [-0.58, 0.1]], [[-0.22, 0.48], [-0.16, 0.76], [-0.02, 0.77]], [[0.34, 0.48], [0.26, 0.76], [0.4, 0.77]], [[0.62, -0.02], [0.9, -0.26], [0.96, -0.64], [0.84, -0.92], [1.04, -1]]],
+    tips: [[1.04, -1], [-0.66, 0.78], [0.84, 0.78], [0.96, -0.64]],
   },
   {
-    name: "felis extensa", // the long stretch, facing left: head low with its ears, front paws reaching forward, the rump high, the tail up, a back leg down
-    stars: [[-0.95, 0.18], [-0.98, -0.08], [-1.0, -0.34], [-0.85, -0.2], [-0.7, -0.36], [-0.6, -0.06], [-0.5, 0.3], [-0.8, 0.5], [-1.2, 0.58], [0.1, -0.18], [0.52, -0.48], [0.74, -0.88], [0.6, -1.1], [0.66, 0.06], [0.62, 0.6], [0.1, 0.3]],
-    lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 9], [0, 6], [6, 7], [7, 8], [6, 15], [15, 13], [9, 10], [10, 11], [11, 12], [10, 13], [13, 14]],
+    name: "felis extensa", // the big stretch
+    heads: [head(-0.62, 0.22, 0.4, -0.08)], eyes: "happy",
+    body: [[[-0.4, 0.06], [0, -0.04], [0.3, -0.36], [0.64, -0.56], [0.92, -0.36], [0.96, 0.06], [0.9, 0.44], [0.98, 0.74], [0.74, 0.78], [0.6, 0.5], [0.52, 0.2]], [[0.52, 0.2], [0.16, 0.36], [-0.2, 0.62]], [[-0.2, 0.62], [-0.7, 0.8], [-1.12, 0.78], [-1.14, 0.6], [-0.8, 0.56]], [[0.82, -0.48], [1.08, -0.72], [1.1, -1.02], [0.9, -1.12]]],
+    tips: [[0.9, -1.12], [-1.12, 0.78], [0.64, -0.56], [0.98, 0.74]],
+  },
+  {
+    name: "felis ludens", // with a ball of yarn
+    heads: [head(-0.42, -0.22, 0.47, 0.1)], eyes: "open",
+    body: [[[-0.2, -0.1], [0.16, 0.06], [0.36, 0.4], [0.32, 0.76], [0.04, 0.88], [-0.5, 0.88], [-0.76, 0.72], [-0.74, 0.3], [-0.6, 0]], [[0.16, 0.2], [0.46, 0.22], [0.64, 0.38], [0.56, 0.54], [0.34, 0.54]], [[-0.36, 0.56], [-0.38, 0.87]], [[-0.72, 0.78], [-1, 0.8], [-1.14, 0.54], [-1.02, 0.32], [-0.9, 0.4]]],
+    gold: [[[0.96, 0.36], [1.24, 0.62], [0.96, 0.88], [0.68, 0.62], [0.96, 0.36]], [[0.78, 0.46], [1, 0.6], [1.06, 0.84]], [[0.76, 0.76], [0.98, 0.64], [1.18, 0.5]], [[1.12, 0.84], [1.28, 0.92], [1.42, 0.8]]],
+    tips: [[-0.9, 0.4], [-0.38, 0.87]],
+  },
+  {
+    name: "felis amantes", // two from behind, tails in a heart
+    heads: [head(-0.74, -0.2, 0.36), head(0.74, -0.2, 0.36)],
+    body: [-1, 1].map((m) => [[0.96 * m, -0.04], [1.14 * m, 0.4], [1.08 * m, 0.78], [0.74 * m, 0.88], [0.42 * m, 0.78], [0.38 * m, 0.4], [0.54 * m, -0.04]]),
+    gold: [-1, 1].flatMap((m) => [[[0.44 * m, 0.76], [0.2 * m, 0.86], [0, 0.7]], [[0, 0.7], [0.26 * m, 0.42], [0.3 * m, 0.16], [0.16 * m, 0.04], [0, 0.2]]]),
+    tips: [[0, 0.2], [0, 0.7]],
   },
 ];
 // The order they come in, so neighbours look different
-const ORDER = [0, 3, 1, 4, 2, 5, 6];
+const ORDER = [0, 1, 4, 3, 2, 5, 7, 6, 8];
 const CYCLE = 23; // seconds per pose
-const FIXED = ["sitting", "sleeping", "walking", "face", "pouncing", "loaf", "stretching"].indexOf(params.get("pose"));
-// Timeline within a pose: stars fade in (0-1.5 s), lines draw quickly
-// (1.8-5.8 s), name (from 5.5 s), hold, everything fades (18-21.5 s), a
-// breath of empty sky
-const STAR_STEP = 0.08, STAR_FADE = 0.7, LINE_DRAW = 0.4;
-const lineTime = (i, n) => 1.8 + (i / n) * 3.6;
+const FIXED = ["sitting", "sleeping", "loaf", "peeking", "reaching", "walking", "stretching", "yarn", "pair"].indexOf(params.get("pose"));
+// Timeline within a pose: the stars gather (0-5 s), eyes (from 4 s), name (from
+// 5.5 s), hold, the stars go out one by one (18-21.5 s), a breath of empty sky
 
 // Sky placement: each cat in a different part of the sky, stepping by the
 // golden ratio; every few cycles a second, different cat forms elsewhere at
@@ -147,59 +184,20 @@ function slopeChar(dx, dy) {
   return Math.abs(a) < 0.4 ? "-" : Math.abs(a) > 1.17 ? "|" : a < 0 ? "/" : "\\";
 }
 
-// A line one character wide, the way you'd draw it by hand: walk the long axis
-// (in cells, taller than wide) one cell at a time; steep = | with a slash at
-// each sideways step (all slashes near 45 degrees), shallow = ' - . _ by where
-// the line crosses the cell, so long shallow lines curve gently. (A distance
-// test, every cell near the line, drew steep and diagonal lines two characters
-// wide: || and //.) fn(c, r, chr, k, n) per cell, start to end.
-const SUBROW = "'-._";
-function rasterLine(ax, ay, bx, by, fn) {
-  const x0 = ax / cellW, y0 = ay / cellH, x1 = bx / cellW, y1 = by / cellH;
-  const dx = x1 - x0, dy = y1 - y0;
-  const steep = Math.abs(dy) >= Math.abs(dx);
-  const pts = [];
-  if (steep) {
-    const r0 = Math.floor(y0), r1 = Math.floor(y1), s = r1 >= r0 ? 1 : -1;
-    for (let r = r0; r !== r1 + s; r += s) {
-      const yc = clamp(r + 0.5, Math.min(y0, y1), Math.max(y0, y1));
-      pts.push([Math.floor(x0 + (dy ? ((yc - y0) * dx) / dy : 0)), r]);
-    }
-  } else {
-    const c0 = Math.floor(x0), c1 = Math.floor(x1), s = c1 >= c0 ? 1 : -1;
-    for (let c = c0; c !== c1 + s; c += s) {
-      const xc = clamp(c + 0.5, Math.min(x0, x1), Math.max(x0, x1));
-      const y = y0 + ((xc - x0) * dy) / (dx || 1e-9);
-      pts.push([c, Math.floor(y), y - Math.floor(y)]);
-    }
-  }
-  const diag = dx * dy > 0 ? "\\" : "/";
-  const n = pts.length;
-  const ratio = steep ? Math.abs(dx) / (Math.abs(dy) || 1) : Math.abs(dy) / (Math.abs(dx) || 1);
-  pts.forEach(([c, r, f], k) => {
-    let chr;
-    if (steep) {
-      const nc = (pts[k + 1] ?? pts[k - 1] ?? [c])[0];
-      chr = ratio > 0.6 || nc !== c ? diag : "|";
-    } else chr = ratio < 0.04 ? "-" : SUBROW[Math.min(3, Math.floor(f * 4))];
-    fn(c, r, chr, k, n);
-  });
-}
-// a star's magnitude, like a chart's: 2 bright (bigger, a wider halo), 1, 0 faint
-const magnitude = (pose, i) => (hash(i, pose.stars.length, 3) < 0.25 ? 2 : hash(i, pose.stars.length, 4) < 0.45 ? 1 : 0);
-
-const cells = cellBuffer(RAMP.slice(1) + "|/\\_'ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+const cells = cellBuffer(RAMP.slice(1) + "|/\\_'zABCDEFGHIJKLMNOPQRSTUVWXYZ");
 
 // ---- the starfield: which cells hold a background star never changes ----
 let SKY = []; // [c, r, h]
 function layout(d) {
   dims = d;
-  R = Math.min(0.1, d.A * 0.14) * SIZE;
+  R = Math.min(0.145, d.A * 0.14) * SIZE;
   cellW = d.cw / d.H;
   cellH = d.ch / d.H;
   cols = d.cols;
   rows = d.rows;
   cells.resize(cols, rows);
+  for (const p of POSES) p.dust = null; // gathered again at this size
+  for (const l of lanterns) [l.x, l.y] = lanternSpot(l.i); // the screen changed
   SKY = [];
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
@@ -219,58 +217,130 @@ function drawSky(t, flash) {
   }
 }
 
-// ---- a cat: glow round its named stars, then its chart lines ----
-function drawCat(cat, t) {
-  const { pose, u, fade } = cat;
-  if (fade <= 0 || u <= 0) return;
-  // soft glow around the named stars, summed per cell
-  const glow = new Map();
-  pose.stars.forEach((s, i) => {
-    const a = clamp((u - i * STAR_STEP) / STAR_FADE) * fade;
-    if (a <= 0) return;
-    const [sx, sy] = place(cat, s);
-    const [c0, r0] = toCell(sx, sy);
-    const m = magnitude(pose, i), k = [0.12, 0.2, 0.32][m], spread = [0.00004, 0.00006, 0.0001][m]; // bright stars glow wider
-    for (let r = r0 - 3; r <= r0 + 3; r++)
-      for (let c = c0 - 4; c <= c0 + 4; c++) {
-        const X = (c + 0.5) * cellW, Y = (r + 0.5) * cellH;
-        const g = a * k * Math.exp(-((X - sx) ** 2 + ((Y - sy) * 0.8) ** 2) / spread);
-        if (g > 0.002) glow.set(r * cols + c, (glow.get(r * cols + c) ?? 0) + g);
-      }
-  });
-  for (const [k, g] of glow) if (g > 0.01) light(k % cols, Math.floor(k / cols), add(COL.sky, COL.star, g));
-  // the constellation's lines, drawn one after another, one character wide,
-  // stopping a cell short of the stars
-  pose.lines.forEach(([ia, ib], i) => {
-    const p = clamp((u - lineTime(i, pose.lines.length)) / LINE_DRAW);
-    if (p <= 0) return;
-    const [ax, ay] = place(cat, pose.stars[ia]);
-    const [bx0, by0] = place(cat, pose.stars[ib]);
-    const bx = ax + (bx0 - ax) * p, by = ay + (by0 - ay) * p;
-    const shimmer = reduced ? 1 : 0.85 + 0.15 * Math.sin(t * 1.3 + i);
-    const col = add(COL.sky, COL.line, 0.8 * fade * shimmer);
-    rasterLine(ax, ay, bx, by, (c, r, chr, k, n) => {
-      if (k === 0 || (p >= 1 && k === n - 1)) return;
-      draw(c, r, chr, col);
-    });
-  });
+// ---- a cat ----
+const inside = (pts, x, y) => {
+  let on = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if (pts[i][1] > y !== pts[j][1] > y && x < ((pts[j][0] - pts[i][0]) * (y - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) on = !on;
+  return on;
+};
+// a smooth curve through the points (Catmull-Rom)
+function curve(pts) {
+  const n = pts.length, loop = Math.hypot(pts[0][0] - pts[n - 1][0], pts[0][1] - pts[n - 1][1]) < 1e-6, out = [];
+  if (n < 3) return pts;
+  const at = (i) => (loop ? pts[(i + (n - 1) * 2) % (n - 1)] : pts[clamp(i, 0, n - 1)]);
+  for (let i = 0; i < n - 1; i++) {
+    const [a, b, c, d] = [at(i - 1), at(i), at(i + 1), at(i + 2)];
+    for (let k = 0; k < 10; k++) {
+      const t = k / 10;
+      out.push([0, 1].map((q) => 0.5 * (2 * b[q] + (c[q] - a[q]) * t + (2 * a[q] - 5 * b[q] + 4 * c[q] - d[q]) * t * t + (3 * b[q] - a[q] - 3 * c[q] + d[q]) * t * t * t)));
+    }
+  }
+  out.push(pts[n - 1]);
+  return out;
 }
-// on top: the named stars (bright, twinkling) and the cat's name under it
-function drawCatStars(cat, t, flash) {
+// The stars of a cat at this screen size, once: { x, y, h: random, at: when it
+// appears (s), m: 0 dust, 1 a star with a small halo, 2 a bright one, gold }
+function gather(pose) {
+  const dust = [], taken = new Set(), masks = pose.heads.map((h) => h.mask), paws = (pose.front ?? []).filter((k) => k.length > 3);
+  const behind = (x, y) => masks.some((m) => inside(m, x, y));
+  const sunk = (x, y) => pose.cut && (y > pose.cut - 0.02 || paws.some((m) => inside(m, x, y)));
+  const add = (x, y, h, at, m, gold) => {
+    const key = Math.round((x * R) / cellW) + "," + Math.round((y * R) / cellH);
+    if (taken.has(key)) return;
+    taken.add(key);
+    dust.push({ x, y, h, at, m, gold });
+  };
+  const ears = pose.heads.flatMap((h) => h.ears);
+  [...ears, ...pose.tips].forEach(([x, y], i) => add(x, y, hash(i, 3, 4), 0.25 * i, 2, false));
+  const strokes = [
+    ...pose.heads.flatMap((h) => h.strokes).map((k) => [k, sunk]),
+    ...pose.body.map((k) => [k, pose.cut ? null : behind]),
+    ...(pose.front ?? []).map((k) => [k, null]),
+    ...(pose.gold ?? []).map((k) => [k, null, true]),
+  ];
+  const gap = (1.2 * cellH) / R, off = (0.22 * cellH) / R;
+  strokes.forEach(([k, hidden, gold], q) => {
+    const pts = curve(k), len = [0];
+    for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const L = len[len.length - 1], n = Math.max(1, Math.round(L / gap));
+    for (let i = 0, j = 1; i <= n; i++) {
+      const d = (L * i) / n;
+      while (j < pts.length - 1 && len[j] < d) j++;
+      const t = (d - len[j - 1]) / (len[j] - len[j - 1] || 1), h = hash(q * 50 + i, 7, 3);
+      const x = pts[j - 1][0] + (pts[j][0] - pts[j - 1][0]) * t + (hash(q, i, 8) - 0.5) * 2 * off, y = pts[j - 1][1] + (pts[j][1] - pts[j - 1][1]) * t + (hash(q, i, 9) - 0.5) * 2 * off;
+      if (!hidden?.(x, y)) add(x, y, h, 0.6 + (q / strokes.length) * 2.6 + i * 0.03, h < 0.07 ? 1 : 0, !!gold);
+    }
+  });
+  return dust;
+}
+const WARM = add(scale(COL.bright, 0.6), COL.label, 0.4); // the eyes
+// a star's soft halo, only where the sky is empty
+function halo(c0, r0, col, power, spread) {
+  for (let r = r0 - 3; r <= r0 + 3; r++)
+    for (let c = c0 - 5; c <= c0 + 5; c++) {
+      const i = r * cols + c;
+      if (c < 0 || r < 0 || c >= cols || r >= rows || cells.has(i)) continue;
+      const g = power * Math.exp(-(((c - c0) * cellW) ** 2 + ((r - r0) * cellH) ** 2) / (spread * cellH * cellH));
+      if (g > 0.09) cells.put(i, g > 0.3 ? ":" : ".", scale(col, g));
+    }
+}
+function rays(c, r, col, k) {
+  for (const [x, y, g] of [[-1, 0, "-"], [1, 0, "-"], [0, -1, "'"], [0, 1, "'"]]) cells.putAt(c + x, r + y, g, scale(col, k));
+}
+function drawCat(cat, t, flash) {
   const { pose, u, fade } = cat;
   if (fade <= 0 || u <= 0) return;
-  pose.stars.forEach((s, i) => {
-    const a = clamp((u - i * STAR_STEP) / STAR_FADE) * fade;
-    if (a <= 0) return;
-    const [c, r] = toCell(...place(cat, s));
-    const tw = reduced ? 1 : 0.8 + 0.2 * Math.sin(t * 1.7 + i * 2.1);
-    const m = magnitude(pose, i);
-    draw(c, r, m ? "*" : "+", scale(COL.bright, [0.85, 1.25, 1.7][m] * a * tw * (1 + flash)));
-  });
+  pose.dust ??= gather(pose);
+  const lit = 1 + 0.6 * flash, halos = [];
+  for (const p of pose.dust) {
+    // in one after another, out one by one
+    const a = smooth(0, 0.8, u - p.at) * clamp(fade * 1.7 - p.h * 0.7);
+    if (a <= 0.02) continue;
+    const [c, r] = toCell(...place(cat, [p.x, p.y])), tw = reduced ? 0.9 : 0.78 + 0.22 * Math.sin(t * (0.8 + p.h * 2) + p.h * 40);
+    const col = p.gold ? COL.label : p.m || p.h < 0.18 ? COL.bright : COL.star, k = a * tw * lit;
+    if (p.m === 2) rays(c, r, COL.bright, 0.6 * k);
+    cells.putAt(c, r, p.m ? "*" : p.h < 0.3 ? "+" : p.h < 0.5 ? ":" : ".", scale(col, k * (p.m || p.gold ? 1 : p.h < 0.5 ? 0.88 : 0.76)));
+    if (p.m) halos.push([c, r, COL.star, k * (p.m === 2 ? 0.6 : 0.36), p.m === 2 ? 2.1 : 1.2]);
+  }
+  // the face: eyes and nose are stars
+  const e = smooth(4, 5.2, u) * fade * lit;
+  if (pose.eyes && e > 0.02) {
+    const h = pose.heads[0];
+    const blink = !reduced && pose.eyes === "open" && (t + cat.cx * 7) % 5.3 < 0.2;
+    for (const side of [-0.4, 0.4]) {
+      const [c, r] = toCell(...place(cat, h.at([side, 0.06])));
+      if (pose.eyes === "open" && !blink) {
+        rays(c, r, WARM, 0.6 * e);
+        cells.putAt(c, r, "*", scale(WARM, e));
+        halos.push([c, r, WARM, 0.55 * e, 2]);
+      } else {
+        // shut: a little arc of faint stars
+        const arc = pose.eyes === "happy" ? [[-2, 0, "."], [-1, 0, "'"], [0, -1, "+"], [1, 0, "'"], [2, 0, "."]] : [[-2, 0, "'"], [-1, 0, "."], [0, 0, "+"], [1, 0, "."], [2, 0, "'"]];
+        for (const [x, y, g] of arc) cells.putAt(c + x, r + y, g, scale(WARM, 0.85 * e));
+      }
+    }
+    const [c, r] = toCell(...place(cat, h.at([0, 0.36])));
+    cells.putAt(c, r, "+", scale(WARM, 0.7 * e));
+  }
+  for (const k of halos) halo(...k);
+  if (pose.zzz)
+    ["z", "z", "Z"].forEach((g, n) => {
+      const [c, r] = toCell(...place(cat, [pose.zzz[0] + n * 0.13, pose.zzz[1] - n * 0.16]));
+      const k = reduced ? 0.6 : 0.35 + 0.4 * (0.5 + 0.5 * Math.sin(t * 1.4 - n * 1.1));
+      if (e > 0.02) cells.putAt(c, r, g, scale(COL.label, k * e));
+    });
+  if (pose.prize) {
+    const [c, r] = toCell(...place(cat, pose.prize)), k = smooth(0, 1.2, u) * fade * (reduced ? 1 : 0.88 + 0.12 * Math.sin(t * 2)) * lit;
+    for (const [x, y, g] of [[-2, 0, "-"], [2, 0, "-"], [0, -2, "'"], [0, 2, "'"]]) cells.putAt(c + x, r + y, g, scale(COL.bright, 0.4 * k));
+    rays(c, r, COL.bright, 0.8 * k);
+    cells.putAt(c, r, "*", scale(COL.bright, k));
+    halo(c, r, COL.star, 0.7 * k, 3);
+  }
+  // its name
   const la = smooth(5.5, 7, u) * fade;
   if (la > 0) {
     const text = pose.name.toUpperCase().split("").join(" ");
-    const [c, r] = toCell(cat.cx, cat.cy + R * 0.85 + 0.035);
+    const [c, r] = toCell(cat.cx, cat.cy + R + 0.03);
     [...text].forEach((ch, i) => ch !== " " && draw(c - Math.floor(text.length / 2) + i, r, ch, scale(COL.label, la)));
   }
 }
@@ -285,7 +355,7 @@ function shoot(x, y, dx, dy, at, colour, { speed = 1.1, life = 0.9, tail = 0.17,
   if (shots.length > 6) shots.shift();
 }
 function drawShots(t) {
-  if (HOVER && pointer.on && dims && !reduced) {
+  if (HOVER_FX && pointer.on && dims && !reduced) {
     const speed = Math.hypot(pointer.vx, pointer.vy);
     if (stillFor() < 0.08 && speed > 1300 && t - lastSweep > 2.5) {
       shoot(pointer.x / dims.H, pointer.y / dims.H, pointer.vx / speed, pointer.vy / speed, t, COL.bright);
@@ -366,9 +436,16 @@ onReaction((r) => {
     // a star that's been seen (or read elsewhere) shoots off
     for (const l of lanterns)
       if (!items.some((it) => it.source === l.source)) shoot(l.x, l.y, 0.8, 0.6, nowT, l.colour, { speed: 0.9, life: 0.8, tail: 0.15 });
-    lanterns = items.slice(0, 8).map((it, i) => {
+    // each keeps its place while others come and go
+    const kept = items.slice(0, 8).map((it) => lanterns.find((l) => l.source === it.source)), taken = new Set(kept.filter(Boolean).map((l) => l.i));
+    lanterns = items.slice(0, 8).map((it, n) => {
+      let i = kept[n]?.i;
+      if (i == null) {
+        for (i = 0; taken.has(i); ) i++;
+        taken.add(i);
+      }
       const [x, y] = lanternSpot(i);
-      return { source: it.source, colour: it.colour.map((v) => v / 255), x, y };
+      return { source: it.source, colour: it.colour.map((v) => v / 255), x, y, i };
     });
   }
 });
@@ -379,16 +456,15 @@ function frame(t) {
   const flash = Math.max(0, 1 - (t - flashAt) / 0.8);
   cells.clear();
   const cats = current(t);
-  for (const cat of cats) drawCat(cat, t);
-  drawSky(t, flash); // background stars sit over the lines
-  for (const cat of cats) drawCatStars(cat, t, flash);
+  drawSky(t, flash);
+  for (const cat of cats) drawCat(cat, t, flash);
   drawLanterns(t);
   drawShots(t);
 }
 
 setPalette();
 startScene({
-  label: "Cat constellations: small groups of stars in different parts of a night sky joined by faint lines into cats, sitting, sleeping, pouncing, drawn in coloured text characters.",
+  label: "Cat constellations: stars gathering in different parts of a night sky into cats, sitting, sleeping, playing, drawn in coloured text characters.",
   fps: 15,
   layout,
   frame,

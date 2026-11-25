@@ -230,10 +230,10 @@ mod tests {
 
     #[test]
     fn steps_through_the_list_both_ways() {
-        let list: Vec<String> = ["radar", "gone", "sakura", "life"].iter().map(|s| s.to_string()).collect();
+        let list: Vec<String> = ["radar", "gone", "sakura", "silk"].iter().map(|s| s.to_string()).collect();
         assert_eq!(neighbour(&list, "radar", true).as_deref(), Some("sakura"));
-        assert_eq!(neighbour(&list, "life", true).as_deref(), Some("radar"));
-        assert_eq!(neighbour(&list, "radar", false).as_deref(), Some("life"));
+        assert_eq!(neighbour(&list, "silk", true).as_deref(), Some("radar"));
+        assert_eq!(neighbour(&list, "radar", false).as_deref(), Some("silk"));
         assert_eq!(neighbour(&list, "paws", true).as_deref(), Some("radar"));
         assert_eq!(neighbour(&list[..1], "radar", true), None);
         assert_eq!(neighbour(&[], "jellyfish", true).as_deref(), Some("big-jellyfish"));

@@ -54,6 +54,8 @@ export const wholePx = (px, dpr) => Math.max(1, Math.round(px * dpr)) / dpr;
 // of the last move, ms), vx, vy (smoothed velocity, px/s). Every wallpaper
 // must look complete without its hover effect.
 export const HOVER = !STILL && !params.has("preview") && params.get("hover") !== "0" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+// a wallpaper's own hover effect (?fx=0: none; the cursor still marks waiting apps as seen)
+export const HOVER_FX = HOVER && params.get("fx") !== "0";
 export const pointer = { x: -1, y: -1, on: false, at: -1e9, vx: 0, vy: 0 };
 function movePointer(x, y) {
   const now = performance.now();

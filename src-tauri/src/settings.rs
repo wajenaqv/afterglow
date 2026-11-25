@@ -28,7 +28,7 @@ use crate::tray;
 
 /// The wallpapers: (id, name in the tray). Each is a page wallpapers/<id>.html.
 /// Keep in sync with src/wallpapers/catalog.js.
-pub const WALLPAPERS: &[(&str, &str)] = &[("jellyfish", "Jellyfish"), ("big-jellyfish", "Big jellyfish"), ("paws", "Paw prints"), ("cloudsea", "Cloud sea"), ("sakura", "Sakura"), ("constellation", "Constellation"), ("startrails", "Star trails"), ("currents", "Currents"), ("magnet", "Magnet"), ("attractor", "Attractor"), ("silk", "Silk"), ("radar", "Radar"), ("life", "Phosphor life"), ("circuit", "Circuit board"), ("silicon", "Silicon"), ("impossible", "Impossible"), ("clock", "Clock")];
+pub const WALLPAPERS: &[(&str, &str)] = &[("jellyfish", "Jellyfish"), ("big-jellyfish", "Big jellyfish"), ("clock", "Clock"), ("paws", "Paw prints"), ("sakura", "Sakura"), ("constellation", "Constellation"), ("cloudsea", "Cloud sea"), ("startrails", "Star trails"), ("silicon", "Silicon"), ("circuit", "Circuit board"), ("currents", "Currents"), ("magnet", "Magnet"), ("silk", "Silk"), ("attractor", "Attractor"), ("impossible", "Impossible"), ("radar", "Radar")];
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
@@ -62,7 +62,8 @@ pub struct Settings {
     pub steam: crate::connectors::steam::SteamPrefs,
     /// The hover clock (extras.rs, hoverclock.js)
     pub clock: crate::extras::Clock,
-    /// Hovering a jelly scrambles its characters (off: ?scramble=0)
+    /// What older versions saved: now the jellies' own option (load() moves it)
+    #[serde(skip_serializing)]
     pub scramble: bool,
     /// OLED care (src/wallpapers/oled.js; host.rs apply_pause says when to rest)
     pub oled: bool,
@@ -142,9 +143,6 @@ impl Settings {
         if self.renderer != "auto" && RENDERERS.contains(&self.renderer.as_str()) {
             parts.push(format!("render={}", self.renderer));
         }
-        if !self.scramble {
-            parts.push("scramble=0".into());
-        }
         parts.join("&")
     }
 }
@@ -181,6 +179,7 @@ pub fn load(app: &AppHandle) -> Settings {
         },
     };
     crate::apps::migrate(&mut s);
+    move_scramble(&mut s);
     s.edge = s.edge.tidy();
     s.jobs = s.jobs.tidy();
     if !is_known(&s.wallpaper) {
@@ -199,6 +198,18 @@ pub fn load(app: &AppHandle) -> Settings {
         s.theme = "dark".into();
     }
     s
+}
+
+/// The hover scramble was one switch for everything; only the jellies have it,
+/// so switched off it becomes their own option.
+fn move_scramble(s: &mut Settings) {
+    if s.scramble {
+        return;
+    }
+    s.scramble = true;
+    for id in ["jellyfish", "big-jellyfish"] {
+        s.options.entry(id.into()).or_default().insert("scramble".into(), "0".into());
+    }
 }
 
 pub fn save(app: &AppHandle, s: &Settings) {
@@ -262,19 +273,6 @@ pub fn set_fps(app: AppHandle, fps: u32) -> Result<(), String> {
     Ok(())
 }
 
-/// Settings → wallpaper: the hover scramble on or off (reloads the wallpaper)
-#[tauri::command]
-pub fn set_scramble(app: AppHandle, on: bool) {
-    let host = app.state::<Host>();
-    let snapshot = {
-        let mut s = host.settings.lock().unwrap();
-        s.scramble = on;
-        s.clone()
-    };
-    save(&app, &snapshot);
-    host::show_wallpaper(&app);
-}
-
 /// Settings → general: the window's colours. The page recolours itself; only
 /// the window's own background (seen while resizing) is set from here.
 #[tauri::command]
@@ -333,6 +331,21 @@ pub fn set_renderer(app: AppHandle, renderer: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scramble_off_moves_to_the_jellies() {
+        let mut s: Settings = serde_json::from_str(r#"{"scramble": false, "options": {"jellyfish": {"tint": "cool"}}}"#).unwrap();
+        move_scramble(&mut s);
+        assert_eq!(s.options["jellyfish"]["scramble"], "0");
+        assert_eq!(s.options["jellyfish"]["tint"], "cool");
+        assert_eq!(s.options["big-jellyfish"]["scramble"], "0");
+        assert!(!serde_json::to_string(&s).unwrap().contains("\"scramble\":false"));
+        // and stays as it is once moved
+        let mut again: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        again.options.clear();
+        move_scramble(&mut again);
+        assert!(again.options.is_empty());
+    }
 
     #[test]
     fn only_new_installs_start_dark() {

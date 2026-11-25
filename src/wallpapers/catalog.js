@@ -58,7 +58,7 @@ export const DETAILS = {
     hover: "None: the cursor only marks waiting apps as seen.",
   },
   constellation: {
-    about: "Bright stars kindle one by one and lines draw between them until they make a cat, its Latin name underneath. It holds, fades, and the next one forms elsewhere.",
+    about: "Stars gather until they make a cat, asleep, playing or reaching for a star, its Latin name underneath. It holds, the stars go out, and the next one gathers elsewhere.",
     message: "A shooting star in the app's colour, its trail lingering.",
     waiting: "Each app is a bright star in its colour in the upper sky. Rest your cursor on it for a moment to mark it seen: it shoots off.",
     flash: "Every star flares.",
@@ -106,13 +106,6 @@ export const DETAILS = {
     flash: "The whole screen flares.",
     hover: "None.",
   },
-  life: {
-    about: "Conway's Game of Life on a phosphor screen: cells live and die, and the dead fade slowly, leaving glowing trails.",
-    message: "A pair of gliders in the app's colour sails in; the cells they touch take on the colour.",
-    waiting: "Each app keeps a pulsar beating in its colour. Rest your cursor on it for a moment to mark it seen: it's set free.",
-    flash: "Every cell lights up.",
-    hover: "None.",
-  },
   circuit: {
     about: "A dark circuit board at work: packets of bits run between the chips, the copper glows on behind them, and what arrives changes what a chip shows.",
     message: "A packet in the app's colour runs in from the edge and is passed on from chip to chip.",
@@ -139,14 +132,18 @@ export const DETAILS = {
     message: "The digits glow in the app's colour, then fade.",
     waiting: "Each app is a dot in its colour under the date. Rest your cursor on it for a moment to mark it seen.",
     flash: "The digits flare.",
-    hover: "None.",
+    hover: "The heywajih style glitches under a moving cursor; the others don't react.",
   },
 };
 
-// The techy wallpapers (radar, life, circuit): the phosphor, and the CRT overlay
+// The techy wallpapers (radar, circuit, silicon, impossible): the phosphor, and the CRT overlay
 const PHOSPHOR = { key: "tint", label: "phosphor", choices: [["", "green"], ["amber", "amber"], ["ice", "ice blue"], ["white", "white"]] };
 const CRT = { key: "crt", label: "scanlines", choices: [["", "on"], ["0", "off"]] };
 
+// A wallpaper's own hover effect, or none
+const fx = (text) => ({ key: "fx", label: "hover", choices: [["", text], ["0", "nothing"]] });
+// What the cursor does to a jelly (a lit one is marked seen either way)
+const SCRAMBLE = { key: "scramble", label: "hover", choices: [["", "scramble"], ["0", "nothing"]] };
 // The jellyfish's drifting specks ("marine snow"), or plain black water
 const SPECKS = { key: "specks", label: "background", choices: [["", "specks"], ["0", "black"]] };
 
@@ -156,7 +153,7 @@ export const WALLPAPERS = [
     name: "jellyfish",
     about: "Glowing jellyfish drifting up through dark water.",
     tag: "creatures",
-    options: [PALETTE, { key: "count", label: "count", choices: [["", "auto"], ...Array.from({ length: 10 }, (_, i) => [String(i + 1), String(i + 1)])] }, SPECKS],
+    options: [PALETTE, { key: "count", label: "count", choices: [["", "auto"], ...Array.from({ length: 10 }, (_, i) => [String(i + 1), String(i + 1)])] }, SPECKS, SCRAMBLE],
     reacts: ["pulse", "lanterns", "count", "flash"],
   },
   {
@@ -164,7 +161,27 @@ export const WALLPAPERS = [
     name: "big jellyfish",
     about: "One big jellyfish, pulsing where it floats.",
     tag: "creatures",
-    options: [PALETTE, { key: "hue", label: "colour", choices: [["", "random"], ...Array.from({ length: 6 }, (_, i) => [String(i + 1), String(i + 1)])], hues: true }, SPECKS],
+    options: [PALETTE, { key: "hue", label: "colour", choices: [["", "random"], ...Array.from({ length: 6 }, (_, i) => [String(i + 1), String(i + 1)])], hues: true }, SPECKS, SCRAMBLE],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "clock",
+    name: "clock",
+    about: "The time, big and glowing, in many styles.",
+    tag: "clock",
+    options: [
+      {
+        key: "style",
+        label: "style",
+        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["radar", "radar"], ["scope", "oscilloscope"], ["big", "big"], ["lcd", "lcd"], ["text", "plain text"], ...["doom", "lean", "isometric", "flip-dot", "split-flap", "constellation", "circuit", "extruded", "hatch", "rain", "binary", "dial", "bars", "words"].map((s) => [s, s])],
+      },
+      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"], ["custom", "pick a colour"]] },
+      // a colour of your own, used while the palette is "pick a colour"
+      { key: "colour", label: "colour", type: "color", when: ["tint", "custom"], value: "#ff5fa2" },
+      { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },
+      { key: "hours", label: "hours", choices: [["", "like my system"], ["12", "12-hour"], ["24", "24-hour"]] },
+      fx("glitch (heywajih)"),
+    ],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
@@ -172,15 +189,7 @@ export const WALLPAPERS = [
     name: "paw prints",
     about: "Glowing paw prints of an invisible cat.",
     tag: "creatures",
-    options: [PALETTE],
-    reacts: ["pulse", "flash"],
-  },
-  {
-    id: "cloudsea",
-    name: "cloud sea",
-    about: "A sea of cloud after sunset, its swells lit from behind.",
-    tag: "nature",
-    options: [PALETTE],
+    options: [PALETTE, fx("the cat visits")],
     reacts: ["pulse", "flash"],
   },
   {
@@ -201,8 +210,41 @@ export const WALLPAPERS = [
     tag: "sky",
     options: [
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
-      { key: "pose", label: "cat", choices: [["", "all of them"], ["sitting", "sitting"], ["sleeping", "sleeping"], ["walking", "walking"], ["face", "face"], ["pouncing", "pouncing"], ["loaf", "loaf"], ["stretching", "stretching"]] },
+      { key: "pose", label: "cat", choices: [["", "all of them"], ["sitting", "sitting"], ["sleeping", "sleeping"], ["loaf", "loaf"], ["peeking", "peeking"], ["reaching", "reaching for a star"], ["walking", "trotting"], ["stretching", "stretching"], ["yarn", "with yarn"], ["pair", "two in love"]] },
+      fx("shooting star"),
     ],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "cloudsea",
+    name: "cloud sea",
+    about: "A sea of cloud after sunset, its swells lit from behind.",
+    tag: "nature",
+    options: [PALETTE],
+    reacts: ["pulse", "flash"],
+  },
+  {
+    id: "startrails",
+    name: "star trails",
+    about: "A long exposure of the stars over mountains.",
+    tag: "sky",
+    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["colour", "star colours"], ["cool", "cool"], ["warm", "warm"], ["green", "AfterGlow green"]] }],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "silicon",
+    name: "silicon",
+    about: "Chips and traces in solid glowing copper, signals running through.",
+    tag: "tech",
+    options: [{ key: "board", label: "board", choices: [["", "stacked chips"], ["processor", "processor"], ["bus", "memory bus"], ["dark", "in the dark"]] }, PHOSPHOR, CRT],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "circuit",
+    name: "circuit board",
+    about: "A circuit board at work, bits running between its chips.",
+    tag: "tech",
+    options: [{ key: "board", label: "chips", choices: [["", "mixed"], ["processor", "one big processor"]] }, { key: "traffic", label: "traffic", choices: [["", "calm"], ["busy", "busy"]] }, PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
@@ -225,14 +267,6 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
-    id: "attractor",
-    name: "attractor",
-    about: "Folded veils of light from one small formula.",
-    tag: "abstract",
-    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] }],
-    reacts: ["pulse", "lanterns", "flash"],
-  },
-  {
     id: "silk",
     name: "silk",
     about: "Sheer silk, glowing where it folds.",
@@ -241,43 +275,11 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
-    id: "startrails",
-    name: "star trails",
-    about: "A long exposure of the stars over mountains.",
-    tag: "sky",
-    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["colour", "star colours"], ["cool", "cool"], ["warm", "warm"], ["green", "AfterGlow green"]] }],
-    reacts: ["pulse", "lanterns", "flash"],
-  },
-  {
-    id: "radar",
-    name: "radar",
-    about: "A phosphor radar sweep; waiting apps are contacts.",
-    tag: "tech",
-    options: [PHOSPHOR, CRT],
-    reacts: ["pulse", "lanterns", "flash"],
-  },
-  {
-    id: "life",
-    name: "phosphor life",
-    about: "Conway's Game of Life on a glowing phosphor screen.",
-    tag: "tech",
-    options: [PHOSPHOR, CRT],
-    reacts: ["pulse", "lanterns", "flash"],
-  },
-  {
-    id: "circuit",
-    name: "circuit board",
-    about: "A circuit board at work, bits running between its chips.",
-    tag: "tech",
-    options: [{ key: "board", label: "chips", choices: [["", "mixed"], ["processor", "one big processor"]] }, { key: "traffic", label: "traffic", choices: [["", "calm"], ["busy", "busy"]] }, PHOSPHOR, CRT],
-    reacts: ["pulse", "lanterns", "flash"],
-  },
-  {
-    id: "silicon",
-    name: "silicon",
-    about: "Chips and traces in solid glowing copper, signals running through.",
-    tag: "tech",
-    options: [{ key: "board", label: "board", choices: [["", "stacked chips"], ["processor", "processor"], ["bus", "memory bus"], ["dark", "in the dark"]] }, PHOSPHOR, CRT],
+    id: "attractor",
+    name: "attractor",
+    about: "Folded veils of light from one small formula.",
+    tag: "abstract",
+    options: [{ key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] }],
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
@@ -289,22 +291,11 @@ export const WALLPAPERS = [
     reacts: ["pulse", "lanterns", "flash"],
   },
   {
-    id: "clock",
-    name: "clock",
-    about: "The time, big and glowing, in many styles.",
-    tag: "clock",
-    options: [
-      {
-        key: "style",
-        label: "style",
-        choices: [["", "slant"], ["phosphor", "phosphor (CRT)"], ["heywajih", "heywajih"], ["light", "light"], ["radar", "radar"], ["scope", "oscilloscope"], ["big", "big"], ["lcd", "lcd"], ["text", "plain text"], ...["doom", "lean", "isometric", "flip-dot", "split-flap", "constellation", "circuit", "extruded", "hatch", "rain", "binary", "dial", "bars", "words"].map((s) => [s, s])],
-      },
-      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["grey", "grey"], ["warm", "warm"], ["green", "AfterGlow green"], ["custom", "pick a colour"]] },
-      // a colour of your own, used while the palette is "pick a colour"
-      { key: "colour", label: "colour", type: "color", when: ["tint", "custom"], value: "#ff5fa2" },
-      { key: "fill", label: "fill", choices: [["", "gradient"], ["solid", "solid"]] },
-      { key: "hours", label: "hours", choices: [["", "like my system"], ["12", "12-hour"], ["24", "24-hour"]] },
-    ],
+    id: "radar",
+    name: "radar",
+    about: "A phosphor radar sweep; waiting apps are contacts.",
+    tag: "tech",
+    options: [PHOSPHOR, CRT],
     reacts: ["pulse", "lanterns", "flash"],
   },
 ];

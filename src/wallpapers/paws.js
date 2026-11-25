@@ -26,7 +26,7 @@
 //          ?still=<id>&at=<s> (one frame for the stills page, see common.js)
 //          ?size=<0.3-2.5> (print size) ?preview
 
-import { num, seeded, hash, params, HOVER, pointer, stillFor, STILL, STILL_AT, onReaction } from "./common.js";
+import { num, seeded, hash, params, HOVER_FX, pointer, stillFor, STILL, STILL_AT, onReaction } from "./common.js";
 const TRAIL = params.has("trail");
 import { PAWS } from "./palettes.js";
 import { C, setPalette, startScene, scale, add, mix, smooth, ellipse, circle, reduced } from "./nightscene.js";
@@ -156,7 +156,7 @@ function detour(prints, last, tx, ty, tint) {
   return time;
 }
 function curious(t) {
-  if (!HOVER || !pointer.on || stillFor() < CURIOUS_AFTER || t < curiousUntil) return;
+  if (!HOVER_FX || !pointer.on || stillFor() < CURIOUS_AFTER || t < curiousUntil) return;
   const tx = pointer.x / dims.H, ty = pointer.y / dims.H;
   for (const cat of cats) {
     const i = cat.walks.findIndex((w) => w.prints.length && w.prints[0].at <= t && w.end > t);

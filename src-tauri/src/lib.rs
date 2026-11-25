@@ -100,7 +100,6 @@ pub fn run() {
             extras::open_stills_folder,
             extras::open_link,
             extras::set_clock,
-            settings::set_scramble,
             settings::set_theme,
             settings::set_oled,
             updates::update_state,

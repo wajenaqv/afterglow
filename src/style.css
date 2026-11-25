@@ -320,8 +320,8 @@ button.still {
   gap: 4px 16px;
   margin-left: 26px;
 }
-.rotate-walls.off {
-  opacity: 0.5;
+.rotate-walls[hidden] {
+  display: none;
 }
 
 /* ---- apps ---- */

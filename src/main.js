@@ -68,9 +68,6 @@ function standIn(cmd, a) {
     case "set_theme":
       s.theme = a.theme;
       return save();
-    case "set_scramble":
-      s.scramble = a.on;
-      return save();
     case "set_oled":
       s.oled = a.on;
       s.oled_minutes = a.minutes;
@@ -458,7 +455,7 @@ for (const w of WALLPAPERS) {
 const wallBoxes = () => $$("input", rotateWalls);
 async function saveRotation() {
   const walls = wallBoxes().filter((b) => b.checked).map((b) => b.value);
-  rotateWalls.classList.toggle("off", !rotateOn.checked);
+  rotateWalls.hidden = !rotateOn.checked;
   try {
     // all ticked is sent as "all of them" (also any added later)
     await invoke("set_rotation", { on: rotateOn.checked, minutes: Number(rotateMinutes.value), walls: walls.length === WALLPAPERS.length ? [] : walls });
@@ -469,9 +466,6 @@ async function saveRotation() {
 [rotateOn, rotateMinutes, ...wallBoxes()].forEach((el) => el.addEventListener("change", saveRotation));
 const clockPage = startClock({ invoke, settings: () => settings }); // clockpage.js
 
-// Hover scramble on or off (settings.rs set_scramble; the wallpaper reloads)
-$("#scramble").addEventListener("change", (e) => invoke("set_scramble", { on: e.target.checked }).catch((err) => (stillNote.textContent = String(err))));
-
 // OLED care on or off (settings.rs set_oled)
 
 function showRotation(r = {}) {
@@ -479,7 +473,7 @@ function showRotation(r = {}) {
   rotateMinutes.value = String(r.minutes ?? 10);
   const walls = r.walls ?? [];
   wallBoxes().forEach((b) => (b.checked = !walls.length || walls.includes(b.value)));
-  rotateWalls.classList.toggle("off", !rotateOn.checked);
+  rotateWalls.hidden = !rotateOn.checked;
 }
 
 // ---- stills: the wallpaper rendered once at the screen's real size ----
@@ -722,7 +716,6 @@ async function load() {
   showRotation(saved.rotate);
   showTheme(saved.theme ?? "dark");
   clockPage.show(saved.clock);
-  $("#scramble").checked = saved.scramble ?? true;
   oledBox.checked = saved.oled ?? false;
   oledMinutes.value = String(saved.oled_minutes ?? 5);
   showOled();

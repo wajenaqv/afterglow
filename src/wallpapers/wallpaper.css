@@ -18,7 +18,7 @@ body.canvas-page {
   height: 100%;
 }
 
-/* The techy wallpapers (radar, life, circuit): a CRT over the picture, the
+/* The techy wallpapers (radar, circuit, silicon, impossible): a CRT over the picture, the
    same faint scanlines and vignette as the Settings window. ?crt=0 turns it off. */
 body.crt::before,
 body.crt::after {

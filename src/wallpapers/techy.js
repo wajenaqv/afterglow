@@ -1,4 +1,4 @@
-// Shared by the techy wallpapers (radar, life, circuit): phosphor palettes,
+// Shared by the techy wallpapers (radar, circuit, silicon, impossible): phosphor palettes,
 // the CRT overlay, and "rest the cursor on it to mark it seen".
 
 import { PHOSPHORS } from "./palettes.js";
