@@ -6,7 +6,7 @@
 // 0..1 per channel; ink() tone-maps it, picks a character by brightness and
 // keeps the light's colour, the way jellyfish.js does it.
 
-import { params, num, hash, cssRGB, STILL, STILL_AT, fontReady, sendStill, paceFrames } from "./common.js";
+import { wholePx, params, num, hash, cssRGB, STILL, STILL_AT, fontReady, sendStill, paceFrames } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createSceneGL } from "./scene-gl.js";
 
@@ -133,10 +133,7 @@ export function startScene({ label, fps = 20, layout, frame: onFrame, sample, ov
     const fontPx = sizeFor ? sizeFor(H) : Math.max(6, Math.min(12, H / 105));
     const font = `700 ${fontPx}px "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace`;
     measure.font = font;
-    // the character pitch is a whole number of device pixels: with a fractional
-    // pitch (about 5.2 px) every fifth or sixth cell samples two empty pixel
-    // columns in a row, which shows as black vertical lines running down the picture
-    const cw = Math.max(1, Math.round(measure.measureText("M").width * dpr)) / dpr, ch = fontPx * 1.02;
+    const cw = wholePx(measure.measureText("M").width, dpr), ch = wholePx(fontPx * 1.02, dpr);
     Object.assign(dims, { W, H, A: W / H, cw, ch, cols: Math.ceil(W / cw), rows: Math.ceil(H / ch) });
     if (GLR) GLR.resize({ dpr, cw, ch, cols: dims.cols, rows: dims.rows, fontPx, font });
     else {

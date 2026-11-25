@@ -50,6 +50,7 @@ void main() {
 
 export function silkGL(spec, next) {
   return pointsGL({
+    soft: true, // else its short characters stripe the cloth
     vs: vs(spec),
     draw(gl, u, { cols, rows }) {
       const { F, PAL, cw, ch } = next();

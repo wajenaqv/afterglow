@@ -4,7 +4,7 @@
 // added into a cell-sized float texture, lightly blurred, and turned into
 // characters as in points-cpu.js inkCell(): keep the two in step.
 //
-//   pointsGL({ vs, draw(gl, u, { cols, rows }) })
+//   pointsGL({ vs, draw(gl, u, { cols, rows }), soft (scene-gl.js) })
 
 import { compile } from "./glyph-atlas.js";
 import { GLYPHS, INK } from "./points-cpu.js";
@@ -62,10 +62,11 @@ vec4 sampleCell4(vec2 P) {
   return vec4(floor(c * 63.0 + 0.5) * 4.0 / 255.0, float(n) + 1.0);
 }`;
 
-export function pointsGL({ vs, draw }) {
+export function pointsGL({ vs, draw, soft }) {
   let prog = null, vao = null, fbo = null, acc = null, cols = 0, rows = 0;
   return {
     ramp: GLYPHS,
+    soft,
     glsl: POINTS_GLSL,
     init(gl) {
       if (!gl.getExtension("EXT_color_buffer_float") && !gl.getExtension("EXT_color_buffer_half_float")) return false;

@@ -14,6 +14,7 @@
 // sample(X, Y)); bind() sets those uniforms each frame (texture units from
 // `unit` up are free for it). Optional: init(gl) once (false = use the CPU) and
 // pre(gl, { cols, rows }) each frame, to draw into textures of its own first.
+// soft: true (direct scenes) blurs the characters a touch up and down as well.
 
 import { GLYPH_GLSL, QUAD_VS, buildAtlas, compile, floatTex, gpuContext } from "./glyph-atlas.js";
 
@@ -43,8 +44,15 @@ uniform vec2 uCell;
 uniform float uDpr, uCanvasH;
 uniform vec3 uBG; // 0..255
 uniform float uDirect; // 1 for direct scenes (see lightFS)
+uniform float uSoft; // 1: soften up and down too
 out vec4 o;
 ${GLYPH_GLSL}
+// a direct scene's glyph, softened sideways (main says why)
+float softInk(float g, vec3 c, vec2 loc) {
+  return 0.5 * glyphInk(g, c, loc)
+    + 0.25 * glyphInk(g, c, vec2(clamp(loc.x - 1.0, 0.0, uAtlasW - 1.0), loc.y))
+    + 0.25 * glyphInk(g, c, vec2(clamp(loc.x + 1.0, 0.0, uAtlasW - 1.0), loc.y));
+}
 // common.js hash(x, y, z): the same 32-bit integer maths
 float hash3(int x, int y, int z) {
   uint h = uint(x) * 374761393u + uint(y) * 668265263u + uint(z) * 2147483647u;
@@ -68,9 +76,13 @@ void main() {
     // positions with soft edges, and without it every narrow glyph leaves a hard
     // black column beside it (vertical lines through the picture)
     float g = floor(tx.a + 0.5) - 1.0;
-    float ink = 0.5 * glyphInk(g, c, loc)
-      + 0.25 * glyphInk(g, c, vec2(clamp(loc.x - 1.0, 0.0, uAtlasW - 1.0), loc.y))
-      + 0.25 * glyphInk(g, c, vec2(clamp(loc.x + 1.0, 0.0, uAtlasW - 1.0), loc.y));
+    float ink = softInk(g, c, loc);
+    // and up and down for filled scenes made of short characters (silk), whose
+    // empty tops and bottoms line up into black stripes across the picture
+    if (uSoft > 0.5)
+      ink = 0.5 * ink
+        + 0.25 * softInk(g, c, vec2(loc.x, max(loc.y - 1.0, 0.0)))
+        + 0.25 * softInk(g, c, vec2(loc.x, min(loc.y + 1.0, uAtlasH - 1.0)));
     o = vec4(mix(bg, c / 255.0, ink), 1.0);
     return;
   }
@@ -146,6 +158,7 @@ export function createSceneGL(canvas, { still, spec }) {
     gl.uniform1f(glyph.u.uCanvasH, canvas.height);
     gl.uniform3f(glyph.u.uBG, ...bg);
     gl.uniform1f(glyph.u.uDirect, spec.ramp ? 1 : 0);
+    gl.uniform1f(glyph.u.uSoft, spec.soft ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 

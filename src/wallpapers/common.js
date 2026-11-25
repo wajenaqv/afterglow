@@ -44,6 +44,11 @@ export function sendStill(canvas) {
   canvas.toBlob((blob) => parent.postMessage({ still: params.get("still"), blob }, location.origin), "image/png");
 }
 
+// A character cell's width or height (CSS px) as a whole number of device
+// pixels. With a fractional one (7.14 px, say) every few cells get an extra
+// empty pixel, which shows as black lines across (or down) the picture
+export const wholePx = (px, dpr) => Math.max(1, Math.round(px * dpr)) / dpr;
+
 // ---- the cursor, for hover effects ----
 // pointer: x, y in CSS px within this window, on (over this screen), at (time
 // of the last move, ms), vx, vy (smoothed velocity, px/s). Every wallpaper

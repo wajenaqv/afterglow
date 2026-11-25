@@ -31,7 +31,7 @@
 //          ?hue=1-6: the big jelly's colour in the palette (default: the
 //          moment's for stills, random live)
 
-import { params, num, hash, seeded, cssRGB, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, onReaction, seenLantern, paceFrames } from "./common.js";
+import { wholePx, params, num, hash, seeded, cssRGB, HOVER, pointer, STILL, STILL_AT, fontReady, sendStill, onReaction, seenLantern, paceFrames } from "./common.js";
 import { wantGPU } from "./gpu.js";
 import { createJellyGL } from "./jellyfish-gl.js";
 import { TINTS } from "./palettes.js";
@@ -84,8 +84,9 @@ function resize() {
   // still is the same picture as 1080p, just sharper
   const fontPx = STILL ? H / 105 : Math.max(6, Math.min(12, H / 105));
   measure.font = FONT(fontPx);
-  cw = measure.measureText("M").width;
-  ch = fontPx * 1.02;
+  // whole device pixels both ways (wholePx says why)
+  cw = wholePx(measure.measureText("M").width, dpr);
+  ch = wholePx(fontPx * 1.02, dpr);
   cols = Math.ceil(W / cw);
   rows = Math.ceil(H / ch);
   if (GLR) return GLR.resize({ dpr, cw, ch, cols, rows, fontPx, font: FONT(fontPx) });
