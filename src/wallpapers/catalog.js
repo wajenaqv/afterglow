@@ -64,6 +64,13 @@ export const DETAILS = {
     flash: "Every star flares.",
     hover: "Sweep your cursor quickly across the sky for a shooting star.",
   },
+  currents: {
+    about: "Thousands of fine strands combed by a slow, invisible current. They bend with the flow, stretch into ribbons where it runs fast and shrink away where it is still.",
+    message: "The app's colour spills into the current, drifts along with it and fades.",
+    waiting: "Each app keeps a patch of strands lit in its colour, breathing slowly. Rest your cursor on it for a moment to mark it seen: the current carries it off.",
+    flash: "Every strand brightens and stretches.",
+    hover: "None: the cursor only marks waiting apps as seen.",
+  },
   startrails: {
     about: "A long exposure of the night sky: the stars turn slowly round the pole star, each leaving a thin arc of light, above dark mountains.",
     message: "One star's trail lights up in the app's colour, then fades.",
@@ -167,6 +174,17 @@ export const WALLPAPERS = [
     options: [
       { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
       { key: "pose", label: "cat", choices: [["", "all of them"], ["sitting", "sitting"], ["sleeping", "sleeping"], ["walking", "walking"], ["face", "face"], ["pouncing", "pouncing"], ["loaf", "loaf"], ["stretching", "stretching"]] },
+    ],
+    reacts: ["pulse", "lanterns", "flash"],
+  },
+  {
+    id: "currents",
+    name: "currents",
+    about: "Strands of light combed by a slow current.",
+    tag: "nature",
+    options: [
+      { key: "tint", label: "palette", choices: [["", "natural"], ["cool", "cool"], ["warm", "warm"], ["grey", "grey"], ["green", "AfterGlow green"]] },
+      { key: "flow", label: "flow", choices: [["", "normal"], ["calm", "calm"], ["lively", "lively"]] },
     ],
     reacts: ["pulse", "lanterns", "flash"],
   },

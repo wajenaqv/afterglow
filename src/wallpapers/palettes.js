@@ -122,6 +122,15 @@ export const STARTRAILS = {
   colour: { star: null, rock: [0.42, 0.43, 0.46], haze: [0.5, 0.52, 0.58], bg: [0.012, 0.014, 0.02] },
 };
 
+// Currents: the hues its strands run through, a loop
+export const CURRENTS = {
+  natural: [C(90, 215, 255), C(120, 120, 255), C(200, 110, 255), C(255, 95, 165), C(255, 160, 100), C(235, 110, 190), C(120, 130, 255)],
+  cool: [C(80, 225, 220), C(60, 160, 255), C(95, 100, 255), C(150, 190, 255)],
+  warm: [C(255, 205, 100), C(255, 130, 70), C(255, 85, 110), C(230, 80, 170), C(255, 120, 90)],
+  grey: [C(240, 242, 248), C(150, 156, 170), C(205, 208, 215), C(120, 125, 138)],
+  green: [C(51, 255, 153), C(125, 255, 192), C(30, 190, 115), C(170, 255, 215)],
+};
+
 // The techy wallpapers' phosphors: green = the brand (P1/P31), amber (P3),
 // ice (P7's blue-white flash colour), white (P4)
 export const PHOSPHORS = {
