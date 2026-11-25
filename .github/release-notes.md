@@ -1,7 +1,8 @@
 ### What's new
 
-- **Keep awake:** stop the computer going to sleep, for 30 minutes to 2 hours, until you turn it off, or while the apps you choose are running or in front. In the menu and Settings → awake. It's off until you switch it on.
-- **A shorter menu:** wallpapers, pausing and keep awake. Frame rate, Do Not Disturb and start at login are in Settings; the pause rules are under Pause.
+- **Four new wallpapers:** currents, magnet, attractor and silk. Abstract light, with palettes, and they react to your apps like the others.
+- **Impossible:** redrawn shapes with a light running through them.
+- **Settings:** general and about are now one page.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
