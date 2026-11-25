@@ -1,8 +1,13 @@
 ### What's new
 
-- **Four new wallpapers:** currents, magnet, attractor and silk. Abstract light, with palettes, and they react to your apps like the others.
-- **Impossible:** redrawn shapes with a light running through them.
-- **Settings:** general and about are now one page.
+- **Jobs:** long work lights up when it's done (green), failed (red) or needs you (amber), and keeps the computer awake meanwhile. Connect Claude Code with one click, put `aglow` in front of a terminal command, or send it from a script. Settings → jobs.
+- **Edge:** when windows hide your desktop, the edge of the screen shows what's waiting, in four looks. The tray icon can take its colour too. Settings → edge.
+- **Themes** for Settings: light, dark and afterglow.
+- **Settings:** a new sidebar that says what each feature is doing. Power is now called performance.
+- **Local endpoint:** commands to pause and switch wallpapers, for a Stream Deck or a script.
+- Even character rows on every wallpaper, and softer silk.
+
+Edge and jobs are off until you switch them on.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 

@@ -101,6 +101,7 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 - **Stills**: save any wallpaper as a PNG at your screen's size
 - **Frame rate** and rendering, to suit your machine
 - **OLED care**: an option that lowers the risk of burn-in
+- **Edge**: what's waiting, as light at the edge of the screen when windows hide your desktop, in four looks
 - **Keep awake**: stop the computer going to sleep, by hand or while chosen apps run
 
 <p align="center"><img src="assets/readme/settings.png" alt="AfterGlow Settings: wallpapers to pick from, and the silk options" width="100%"></p>
@@ -110,6 +111,16 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 Claude working through a long task, a render, a big download? AfterGlow can keep your computer from going to sleep: for a while, until you turn it off, or only while the apps you pick are running or in front. It's in the menu and in **Settings → awake**.
 
 <p align="center"><img src="assets/readme/awake.png" alt="AfterGlow Settings, awake: timers by hand, and apps that keep the computer awake while they run" width="100%"></p>
+
+### Jobs
+
+A build, a render, a coding agent: it lights up green when it's done, red when it failed and amber when it needs you. Connect Claude Code with one click in **Settings → jobs**, or copy the small helper there into your terminal and put `aglow` in front of anything long:
+
+```sh
+aglow cargo build
+```
+
+While a job runs, AfterGlow can keep the computer awake.
 
 ### Send your own signals
 
@@ -124,7 +135,7 @@ AfterGlow listens on your own computer only, and refuses requests from web pages
 ## ⚿ Private by design
 
 - No server, no account and no telemetry.
-- AfterGlow keeps *which app* and *how many*, never what a message says.
+- AfterGlow keeps *which app* and *how many*, never what a message says. For jobs: a program's or folder's name and how it ended, never prompts or output.
 - It only goes online to look for updates on GitHub once a day (you can switch that off), and for the accounts you connect yourself.
 - Sign-in tokens stay in your OS keychain.
 

@@ -39,3 +39,19 @@ For buttons such as a Stream Deck's: POST to `/command` instead.
 | `{"do":"pause"}`, `{"do":"resume"}`, `{"do":"toggle-pause"}` | the Pause switch |
 | `{"do":"next"}`, `{"do":"previous"}` | another wallpaper, from the rotation's list (all of them when none are picked) |
 | `{"do":"wallpaper","id":"sakura"}` | one wallpaper |
+
+## Jobs
+
+For long work (switch it on in Settings → jobs): POST to `/job` when it starts and when it ends, with the same id.
+
+```sh
+curl -X POST http://127.0.0.1:47811/job -d '{"id":"render-1","name":"render","state":"start"}'
+curl -X POST http://127.0.0.1:47811/job -d '{"id":"render-1","name":"render","state":"done"}'
+```
+
+| `state` | |
+| --- | --- |
+| `start` | it's running |
+| `needs` | it's waiting for you (amber) |
+| `done`, `failed` | how it ended (green, red) |
+| `end` | forget it, quietly |
