@@ -1,13 +1,11 @@
 ### What's new
 
-- **Jobs:** long work lights up when it's done (green), failed (red) or needs you (amber), and keeps the computer awake meanwhile. Connect Claude Code with one click, put `aglow` in front of a terminal command, or send it from a script. Settings → jobs.
-- **Edge:** when windows hide your desktop, the edge of the screen shows what's waiting, in four looks. The tray icon can take its colour too. Settings → edge.
-- **Themes** for Settings: light, dark and afterglow.
-- **Settings:** a new sidebar that says what each feature is doing. Power is now called performance.
-- **Local endpoint:** commands to pause and switch wallpapers, for a Stream Deck or a script.
-- Even character rows on every wallpaper, and softer silk.
-
-Edge and jobs are off until you switch them on.
+- **Silicon**, a new wallpaper: stacked chips, a processor, a memory bus, or a board you only see where signals have just passed. Waiting apps light up its chips and traces.
+- **Circuit board**, rebuilt: traces routed from pin to pin on two layers, packets of bits, and chips that change and pass things on. Calm or busy.
+- **Constellation**, redrawn: nine cute cats made of nothing but stars, asleep, reaching for a star, with a ball of yarn, or two with their tails in a heart.
+- **Hover effects** are now set in each wallpaper's own panel: jellyfish, constellation, paw prints and the clock. If you had switched the scramble off, it stays off.
+- **Settings:** the wallpapers are in a new order, and the rotation list only shows while rotation is on.
+- Phosphor life has been removed. If it was showing, you get the jellyfish.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
