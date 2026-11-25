@@ -10,6 +10,7 @@
 //   oled             OLED care: slow shift, black when paused or you're away
 //   awake            keep awake: the apps, screen too, battery, how long after
 //   edge             light at a screen edge while windows hide the desktop (edge.rs)
+//   jobs             long work that says when it's done (jobs.rs)
 //   fps              frame rate for every wallpaper: 30 (smooth), 20 (light), 15 (eco)
 //   theme            the Settings window's colours: afterglow, dark or light
 //
@@ -69,6 +70,8 @@ pub struct Settings {
     pub oled_minutes: u32,
     /// Keep awake: which apps, screen, battery (awake.rs)
     pub awake: crate::awake::Awake,
+    /// Long work that says when it's done (jobs.rs)
+    pub jobs: crate::jobs::Prefs,
     /// Light at a screen edge, and the tray icon's colour (edge.rs)
     pub edge: crate::edge::Edge,
     /// Look for a newer version once a day (updates.rs)
@@ -117,6 +120,7 @@ impl Default for Settings {
             oled_minutes: 5,
             awake: Default::default(),
             edge: Default::default(),
+            jobs: Default::default(),
             check_updates: true,
             theme: "dark".into(),
         }
@@ -178,6 +182,7 @@ pub fn load(app: &AppHandle) -> Settings {
     };
     crate::apps::migrate(&mut s);
     s.edge = s.edge.tidy();
+    s.jobs = s.jobs.tidy();
     if !is_known(&s.wallpaper) {
         s.wallpaper = Settings::default().wallpaper;
     }

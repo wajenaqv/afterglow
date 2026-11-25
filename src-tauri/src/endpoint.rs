@@ -3,7 +3,8 @@
 //   curl -X POST http://127.0.0.1:47811/signal -d '{"source":"build","kind":"new"}'
 //
 // (the JSON is a signals.rs Signal), and buttons send commands.rs commands
-// (pause, next wallpaper) to /command. It listens on 127.0.0.1 only, so other
+// (pause, next wallpaper) to /command. Jobs report to /job (jobs.rs), Claude
+// Code's hooks to /hook/claude (claude.rs). It listens on 127.0.0.1 only, so other
 // computers can't reach it. Web pages can't use it either: browsers add an
 // Origin header to every cross-site request, and requests with one are
 // refused (curl, scripts and Home Assistant's REST commands don't send it).
@@ -17,19 +18,28 @@ use tiny_http::{Header, Method, Response, Server};
 
 use crate::commands::{self, Command};
 use crate::signals::{self, Signal};
+use crate::{claude, jobs};
 
 pub const PORT: u16 = 47811;
 const MAX_BODY: u64 = 4096;
+/// A hook event can carry a whole tool result (dropped unread)
+const MAX_HOOK: u64 = 16 * 1024 * 1024;
+
+/// (AFTERGLOW_PORT overrides it, to test a second copy beside a running one)
+fn port() -> u16 {
+    std::env::var("AFTERGLOW_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(PORT)
+}
 
 pub fn start(app: &AppHandle) {
-    let server = match Server::http(("127.0.0.1", PORT)) {
+    let port = port();
+    let server = match Server::http(("127.0.0.1", port)) {
         Ok(s) => s,
         Err(e) => {
-            crate::alog!("afterglow: local endpoint not started (port {PORT} busy?): {e}");
+            crate::alog!("afterglow: local endpoint not started (port {port} busy?): {e}");
             return;
         }
     };
-    crate::alog!("afterglow: listening for signals on http://127.0.0.1:{PORT}/signal");
+    crate::alog!("afterglow: listening for signals on http://127.0.0.1:{port}/signal");
     let app = app.clone();
     thread::spawn(move || {
         let json = Header::from_bytes("Content-Type", "application/json").unwrap();
@@ -41,7 +51,7 @@ pub fn start(app: &AppHandle) {
             } else if req.method() == &Method::Get && req.url() == "/" {
                 let usage = format!("POST http://127.0.0.1:{PORT}/signal with JSON: source (a name), kind (new, unread, clear or flash), optional count, colour (#rrggbb), afterglow (seconds)");
                 let commands = format!("POST http://127.0.0.1:{PORT}/command with JSON: do (pause, resume, toggle-pause, next, previous or wallpaper with id)");
-                reply(200, serde_json::json!({ "afterglow": usage, "commands": commands }).to_string())
+                reply(200, serde_json::json!({ "afterglow": usage, "commands": commands, "jobs": format!("POST http://127.0.0.1:{PORT}/job with JSON: id, state (start, needs, done, failed or end), optional name") }).to_string())
             } else if req.method() == &Method::Post && req.url() == "/signal" {
                 let mut body = String::new();
                 match req.as_reader().take(MAX_BODY).read_to_string(&mut body) {
@@ -66,8 +76,23 @@ pub fn start(app: &AppHandle) {
                         },
                     },
                 }
+            } else if req.method() == &Method::Post && req.url() == "/job" {
+                let mut body = String::new();
+                let read = req.as_reader().take(MAX_BODY).read_to_string(&mut body).map_err(|e| e.to_string());
+                let done = read.and_then(|_| serde_json::from_str(&body).map_err(|e| e.to_string())).and_then(|post| jobs::handle(&app, post));
+                match done {
+                    Ok(()) => reply(200, r#"{"ok":true}"#.into()),
+                    Err(e) => reply(400, serde_json::json!({ "error": e }).to_string()),
+                }
+            } else if req.method() == &Method::Post && req.url() == "/hook/claude" {
+                let done = serde_json::from_reader(req.as_reader().take(MAX_HOOK)).map_err(|e| e.to_string()).and_then(|event| claude::handle(&app, event));
+                // no body: Claude Code reads none as "no opinion"
+                match done {
+                    Ok(()) => reply(200, String::new()),
+                    Err(e) => reply(400, serde_json::json!({ "error": e }).to_string()),
+                }
             } else {
-                reply(404, r#"{"error":"POST /signal or /command"}"#.into())
+                reply(404, r#"{"error":"POST /signal, /command or /job"}"#.into())
             };
             let _ = req.respond(response);
         }

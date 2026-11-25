@@ -7,6 +7,7 @@
 //   apps.rs       apps_state, set_app, add_app, … (appspage.js)
 //   signals.rs    send_signal, unread_by_app
 //   awake.rs      awake_state, awake_apps, set_awake, set_awake_now (awakepage.js)
+//   jobs.rs       jobs_state, set_jobs, forget_job, try_job; claude.rs connect_claude (jobspage.js)
 //   edge.rs       set_edge, try_edge (edgepage.js)
 //   host.rs       power_state, set_paused (powerpage.js)
 //   tray.rs       set_pausing, autostart_state, set_autostart
@@ -23,6 +24,7 @@ import { startApps } from "./appspage.js";
 import { startPower, attempt } from "./powerpage.js";
 import { startAwake } from "./awakepage.js";
 import { startEdge } from "./edgepage.js";
+import { startJobs } from "./jobspage.js";
 import { startActivity } from "./activitypage.js";
 import { startClock } from "./clockpage.js";
 import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
@@ -153,6 +155,17 @@ function standIn(cmd, a) {
     }
     case "power_state":
       return { paused: !!s.paused, screens: [{ w: 2560, h: 1440, reason: s.paused ? "you" : "", renderer: "gpu" }, { w: 1080, h: 1920, reason: s.paused ? "you" : "covered", renderer: "cpu" }], has_battery: false, os: /Mac/.test(navigator.userAgent) ? "macos" : "windows", cpu: 1.24 };
+    case "set_jobs":
+      s.jobs = a.jobs;
+      return save();
+    case "try_job":
+    case "forget_job":
+      return null;
+    case "connect_claude":
+      s.claude = a.on;
+      return save();
+    case "jobs_state":
+      return { claude: s.claude ? "on" : "off", jobs: [{ id: "1", name: "Claude northlight", state: "needs", secs: 40 }, { id: "2", name: "cargo", state: "running", secs: 312 }, { id: "3", name: "ffmpeg", state: "done", secs: 4000 }] };
     case "set_edge":
       s.edge = a.edge;
       return save();
@@ -193,7 +206,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "apps", "edge", "power", "awake", "activity", "general"];
+const PAGES = ["wallpaper", "clock", "apps", "edge", "jobs", "power", "awake", "activity", "general"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -562,6 +575,7 @@ startActivity({ invoke }); // activitypage.js
 // =========================== power (and the quiet rule on apps) ===========================
 const power = startPower({ invoke, inApp: IN_APP }); // powerpage.js
 const awakePage = startAwake({ invoke, inApp: IN_APP }); // awakepage.js
+const jobsPage = startJobs({ invoke, inApp: IN_APP }); // jobspage.js
 const edgePage = startEdge({ invoke }); // edgepage.js
 const powerNote = $("#power-note");
 const pauseBoxes = $$("[data-pause]");
@@ -714,6 +728,7 @@ async function load() {
   $("#check-updates").checked = saved.check_updates ?? true;
   awakePage.show(saved.awake);
   edgePage.show(saved.edge);
+  jobsPage.show(saved.jobs);
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");
   if (first) {

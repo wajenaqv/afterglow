@@ -159,7 +159,7 @@ pub fn pop(app: &AppHandle, source: &str) {
 
 fn samples() -> Vec<Lantern> {
     // names of their own: looking at a sample must not mark the real app seen
-    ["whatsapp", "slack", "gmail"].iter().map(|s| Lantern { source: format!("sample-{s}"), colour: crate::apps::own_colour(s) }).collect()
+    ["whatsapp", "slack", "gmail"].iter().map(|s| Lantern { source: format!("sample-{s}"), colour: crate::apps::own_colour(s), kind: "" }).collect()
 }
 
 fn tick(app: &AppHandle) {
@@ -173,7 +173,10 @@ fn tick(app: &AppHandle) {
     tray_icon(app, &cfg, &waiting);
 
     let trying = edges.trying.lock().unwrap().is_some_and(|until| Instant::now() < until);
-    let items = if trying { samples() } else { waiting };
+    let mut items = if trying { samples() } else { waiting };
+    if !trying {
+        items.extend(crate::jobs::running_light(app));
+    }
     let allowed = (cfg.on || trying)
         && !items.is_empty()
         && !platform::fullscreen_app_in_front()

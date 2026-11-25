@@ -588,9 +588,22 @@ table.apps {
   grid-template-columns: 78px minmax(0, 1fr);
 }
 
+.jobs-helper {
+  margin: 6px 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--dim) 45%, var(--bg));
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1.5;
+  text-shadow: none;
+  white-space: pre;
+  overflow-x: auto;
+}
+
 /* ---- power, activity ---- */
 #page-power [hidden],
 #page-awake [hidden],
+#page-jobs [hidden],
 #page-activity [hidden],
 #page-clock [hidden] {
   display: none !important;

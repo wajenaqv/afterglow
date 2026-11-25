@@ -120,6 +120,11 @@ impl Keeper {
     }
 }
 
+/// Something else changed (a job): look again now
+pub fn nudge(app: &AppHandle) {
+    app.state::<Keeper>().nudge();
+}
+
 /// Which of the picked apps count right now: the first one's reason.
 /// `seen` remembers when each last matched, so it lingers.
 fn app_reason(prefs: &Awake, running: &[RunningApp], seen: &mut HashMap<String, SystemTime>, now: SystemTime) -> Option<String> {
@@ -174,7 +179,7 @@ fn tick(app: &AppHandle, seen: &mut HashMap<String, SystemTime>) {
     };
     let running = if prefs.apps.is_empty() { Vec::new() } else { platform::running_apps() };
     let by_app = app_reason(&prefs, &running, seen, now);
-    let reason = if manual.choice != 0 { Some("you turned it on".to_string()) } else { by_app };
+    let reason = if manual.choice != 0 { Some("you turned it on".to_string()) } else { by_app.or_else(|| crate::jobs::awake_reason(app)) };
     let battery = reason.is_some() && !prefs.on_battery && platform::on_battery();
     let hold = reason.is_some() && !battery;
 

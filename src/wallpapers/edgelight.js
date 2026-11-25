@@ -4,6 +4,8 @@
 //
 //   const e = edgeLights(canvas)
 //   e.set({ items: [{ source, colour }], shown, look, side, strength })
+//     (kind, for jobs: running = one dim light that drifts; done = a sweep
+//     along the whole edge first; needs, failed = as any other)
 //   e.pop(source)          something new: its light swells
 //   e.cursor([x, y]|null)  CSS px within the canvas; resting 0.8 s on a light
 //                          calls e.onSeen(source)
@@ -35,7 +37,7 @@ export function edgeLights(canvas, { scale = 1 } = {}) {
   const rgba = (c, a) => `rgba(${c.map(Math.round)},${Math.min(1, a)})`;
 
   function place() {
-    const free = PLACES.find((p) => !lights.some((l) => l.home === p && !l.gone));
+    const free = PLACES.find((p) => !lights.some((l) => l.home === p && !l.gone && l.kind !== "running"));
     return free ?? 0.08 + 0.84 * ((lights.length * 0.618) % 1);
   }
 
@@ -43,8 +45,15 @@ export function edgeLights(canvas, { scale = 1 } = {}) {
     cfg = { ...cfg, ...next };
     for (const item of cfg.items) {
       const l = lights.find((x) => x.source === item.source && !x.gone);
-      if (l) l.to = item.colour;
-      else lights.push({ source: item.source, col: [...item.colour], to: item.colour, home: place(), amp: 0, pop: 1, drain: 0, away: false, gone: false });
+      if (l) {
+        l.to = item.colour;
+        if (l.kind !== (item.kind ?? "")) {
+          l.kind = item.kind ?? "";
+          l.pop = 1;
+          l.sweep = l.kind === "done" && !still ? 0 : 1;
+        }
+      }
+      else lights.push({ source: item.source, col: [...item.colour], to: item.colour, home: item.kind === "running" ? 0.5 : place(), kind: item.kind ?? "", sweep: item.kind === "done" && !still ? 0 : 1, amp: 0, pop: 1, drain: 0, away: false, gone: false });
     }
     for (const l of lights) if (!cfg.items.some((i) => i.source === l.source)) l.gone = true;
     kick();
@@ -153,9 +162,11 @@ export function edgeLights(canvas, { scale = 1 } = {}) {
       l.amp += ((l.gone ? 0 : 1) - l.amp) * Math.min(1, dt * (l.gone ? 3 : 2.2));
       l.pop *= Math.exp(-dt / 1.6);
       // a slow wander of a few px, kind to OLED screens
-      const u = l.home * span() + (still ? 0 : Math.sin(now / 47000 + l.home * 20) * 8 * scale);
+      const runs = l.kind === "running";
+      const drift = runs && !still ? -0.42 * Math.cos((now / 1000) * ((Math.PI * 2) / 24)) : 0;
+      const u = (l.home + drift) * span() + (still ? 0 : Math.sin(now / 47000 + l.home * 20) * 8 * scale);
       let over = false;
-      if (mouse) {
+      if (mouse && !runs) {
         const [x, y] = xy(u, 0);
         const [dx, dy] = [Math.abs(mouse[0] - x), Math.abs(mouse[1] - y)];
         over = (flat() ? dx : dy) < 45 && (flat() ? dy : dx) < 22;
@@ -169,9 +180,14 @@ export function edgeLights(canvas, { scale = 1 } = {}) {
         api.onSeen(l.source);
       }
       const breathe = still ? 0.6 : 0.6 + 0.16 * Math.sin((now / 1000) * ((Math.PI * 2) / 6) + l.home * 9);
-      const a = l.amp * shown * (POWER[cfg.strength] ?? 0.8) * (breathe + l.pop * 0.7) * (1 - l.drain * 0.85);
+      const a = l.amp * shown * (POWER[cfg.strength] ?? 0.8) * (runs ? 0.34 : breathe + l.pop * 0.7) * (1 - l.drain * 0.85);
       busy ||= l.pop > 0.05 || looking || l.drain > 0 || Math.abs(l.amp - (l.gone ? 0 : 1)) > 0.03;
-      if (a > 0.003) list.push({ u, a, pop: l.pop, col: l.col });
+      if (a > 0.003) list.push({ u, a, pop: runs ? 0 : l.pop, col: l.col });
+      if (l.sweep < 1 && cfg.shown) {
+        l.sweep = Math.min(1, l.sweep + dt / 1.8);
+        busy = true;
+        list.push({ u: l.sweep * span(), a: Math.sin(Math.PI * l.sweep) * shown * (POWER[cfg.strength] ?? 0.8), pop: 0.3, col: l.col });
+      }
     }
     lights = lights.filter((l) => !(l.gone && l.amp < 0.01));
     ctx.clearRect(0, 0, W, H);

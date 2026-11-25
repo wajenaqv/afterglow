@@ -6,6 +6,8 @@
 //   settings.rs  the saved choices (settings.json) and the Settings window's commands
 //   signals.rs   the signal bus: signals in, reactions out to the wallpapers
 //   apps.rs      the apps heard from: allowed or blocked, what each one does
+//   jobs.rs      long work that says when it's done or needs you
+//   claude.rs    Claude Code as a job, through its hooks
 //   edge.rs      what's waiting as light at a screen edge, and the tray icon's colour
 //   awake.rs     keep the computer awake, by hand or while chosen apps run
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
@@ -19,12 +21,14 @@
 pub mod logfile;
 mod apps;
 mod awake;
+mod claude;
 mod commands;
 mod connectors;
 mod edge;
 mod endpoint;
 mod extras;
 mod host;
+mod jobs;
 mod platform;
 mod settings;
 mod signals;
@@ -50,6 +54,7 @@ pub fn run() {
         .manage(awake::Keeper::default())
         .manage(signals::Bus::default())
         .manage(edge::Edges::default())
+        .manage(jobs::Jobs::default())
         .manage(connectors::Connectors::default())
         // what the Settings window and the wallpapers call
         .invoke_handler(tauri::generate_handler![
@@ -67,6 +72,11 @@ pub fn run() {
             apps::finish_apps_setup,
             apps::preview_app,
             extras::set_rotation,
+            jobs::jobs_state,
+            jobs::set_jobs,
+            jobs::forget_job,
+            jobs::try_job,
+            claude::connect_claude,
             edge::set_edge,
             edge::try_edge,
             awake::awake_state,
@@ -114,6 +124,7 @@ pub fn run() {
             tray::build(app.handle())?;
             awake::start(app.handle());
             edge::start(app.handle());
+            jobs::start(app.handle());
             endpoint::start(app.handle());
             connectors::start(app.handle());
             extras::start_rotation(app.handle());

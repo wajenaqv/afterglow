@@ -73,6 +73,8 @@ pub enum Reaction {
 pub struct Lantern {
     pub source: String,
     pub colour: [u8; 3],
+    /// Jobs: needs, done, failed (or running, on edge only); apps: ""
+    pub kind: &'static str,
 }
 
 /// No keyboard or mouse input for this long counts as away (the
@@ -335,6 +337,23 @@ fn process(app: &AppHandle, sig: Signal, real: bool) -> Result<(), String> {
     Ok(())
 }
 
+/// A job lit up (jobs.rs): a pulse in its colour, held like any other while
+/// you're away. `name` is for the activity page.
+pub fn announce(app: &AppHandle, source: &str, name: &str, colour: [u8; 3]) {
+    emit_lanterns(app);
+    let reaction = Reaction::Pulse { colour, afterglow: 4.0, source: source.into() };
+    let sig = Signal { source: name.into(), kind: "new".into(), count: None, colour: None, afterglow: None, linger: None };
+    if quiet(app) {
+        return hold(app, &sig, name, reaction, "held-dnd");
+    }
+    if !watching(app) {
+        return hold(app, &sig, name, reaction, "held-away");
+    }
+    crate::alog!("afterglow: a job -> pulse");
+    record(app, name, "new", None, "pulse", colour_of(&reaction));
+    host::emit_to_walls(app, "reaction", reaction);
+}
+
 // ---- lanterns ----
 
 /// Every app with something waiting that hasn't been seen, in its colour.
@@ -354,12 +373,13 @@ pub fn lanterns(app: &AppHandle) -> Vec<Lantern> {
                 return None;
             }
             let colour = chosen.colour_for(&source);
-            Some(Lantern { source, colour })
+            Some(Lantern { source, colour, kind: "" })
         })
+        .chain(crate::jobs::lanterns(app))
         .collect()
 }
 
-fn emit_lanterns(app: &AppHandle) {
+pub fn emit_lanterns(app: &AppHandle) {
     crate::edge::nudge(app);
     host::emit_to_walls(app, "reaction", Reaction::Lanterns { items: lanterns(app) });
 }
@@ -367,6 +387,11 @@ fn emit_lanterns(app: &AppHandle) {
 /// A wallpaper: you rested the cursor on this app's lantern
 #[tauri::command]
 pub fn dismiss_lantern(app: AppHandle, source: String) {
+    if source.starts_with(crate::jobs::PREFIX) {
+        crate::jobs::seen(&app, &source);
+        emit_lanterns(&app);
+        return;
+    }
     let bus = app.state::<Bus>();
     bus.pending.lock().unwrap().remove(&source);
     let n = bus.unread.lock().unwrap().get(&source).copied().unwrap_or(0);

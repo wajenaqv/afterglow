@@ -104,7 +104,7 @@ fn known_name(source: &str) -> Option<&'static str> {
 
 /// An app's name for people
 pub fn name_of(app: &AppHandle, source: &str) -> String {
-    shown_name(source, &get(app, source))
+    crate::jobs::name_of(app, source).unwrap_or_else(|| shown_name(source, &get(app, source)))
 }
 
 /// An app not heard from before

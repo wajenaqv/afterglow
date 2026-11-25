@@ -26,6 +26,7 @@
           <li><a href="#clock" data-page="clock">clock</a></li>
           <li><a href="#apps" data-page="apps">apps</a></li>
           <li><a href="#edge" data-page="edge">edge</a></li>
+          <li><a href="#jobs" data-page="jobs">jobs</a></li>
           <li><a href="#power" data-page="power">power</a></li>
           <li><a href="#awake" data-page="awake">awake</a></li>
           <li><a href="#activity" data-page="activity">activity</a></li>
@@ -189,6 +190,41 @@
           <p class="hint"><button type="button" id="edge-try">try it</button> <span class="dim">shows three apps waiting for ten seconds</span></p>
           <p class="dim hint">Rest the cursor on a light for a moment and it counts as seen, like a lantern on the wallpaper.</p>
           <p class="hint" id="edge-note" role="status"></p>
+        </section>
+
+        <!-- jobs (src/jobspage.js) -->
+        <section id="page-jobs" data-page="jobs" hidden>
+          <h2>jobs</h2>
+          <p class="dim hint">Long work, such as a build, a render or a coding agent, lights up when it's done (green), failed (red) or needs you (amber).</p>
+          <div class="list">
+            <label><input type="checkbox" id="jobs-on" /> light up for jobs</label>
+          </div>
+          <div id="jobs-more">
+            <div class="list">
+              <label><input type="checkbox" id="jobs-awake" /> keep the computer awake while one runs</label>
+              <label>only when it took <select id="jobs-after"><option value="0">any time at all</option><option value="10">10 seconds or more</option><option value="30">30 seconds or more</option><option value="120">2 minutes or more</option></select></label>
+            </div>
+            <p class="hint">try <button type="button" data-try="done">done</button> <button type="button" data-try="needs">needs you</button> <button type="button" data-try="failed">failed</button></p>
+
+            <h3 class="sub">now</h3>
+            <p class="dim hint" id="jobs-none">Nothing running.</p>
+            <div id="jobs-list"></div>
+
+            <h3 class="sub">Claude Code</h3>
+            <p class="hint"><span id="jobs-claude-state" role="status"></span> <button type="button" id="jobs-claude">connect</button></p>
+            <p class="dim hint">Connecting adds hooks to ~/.claude/settings.json, beside any you have, and keeps a copy of the file. AfterGlow reads only which session, its folder's name and what happened, never your prompts, and can't allow or block anything.</p>
+
+            <h3 class="sub">terminal</h3>
+            <p class="dim hint">Add this <span id="jobs-where"></span>, then put aglow in front of a long command: <code>aglow cargo build</code></p>
+            <div class="scroll-x"><pre id="jobs-helper" class="jobs-helper"></pre></div>
+            <p class="hint"><button type="button" id="jobs-copy">copy</button></p>
+
+            <details class="advanced">
+              <summary>any script</summary>
+              <p class="dim hint">POST to <code>http://127.0.0.1:47811/job</code> with <code>{"id":"render-1","name":"render","state":"start"}</code>, then the same id with done, failed, needs or end.</p>
+            </details>
+          </div>
+          <p class="hint" id="jobs-note" role="status"></p>
         </section>
 
         <section id="page-power" data-page="power" hidden>
