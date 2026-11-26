@@ -43,6 +43,24 @@ const tintOf = (query) => new URLSearchParams(query ?? "").get("tint") ?? "";
 const clock = hoverClock(frames, config.clock ?? {}, { wall: config.wall, tint: tintOf(config.query) });
 clock.setHidden(config.wall === "clock"); // the clock wallpaper is a clock already
 
+// What's playing, in a corner (nowplaying.js). Rest on the cover to pause or play.
+// In a browser, ?np shows a sample song (made up here, no real cover).
+import { nowPlaying } from "./nowplaying.js";
+let toggleMedia = () => {};
+const music = nowPlaying(frames, config.nowplaying ?? {}, { toggle: () => toggleMedia() });
+if (!("__TAURI_INTERNALS__" in window) && new URLSearchParams(location.search).has("np")) {
+  music.configure({ on: true, show: "always" });
+  const sample = { player: "sample", player_name: "Sample", title: "Low Tide", artist: "Harbour Lights", album: "", playing: true, position_ms: 30000, length_ms: 214000, at: Date.now(), cover: "", song: "sample" };
+  music.setTrack({ ...sample }); // a copy: the card compares with what it was given last
+  toggleMedia = () => {
+    sample.position_ms = Math.min(sample.length_ms, sample.position_ms + (sample.playing ? Date.now() - sample.at : 0));
+    sample.at = Date.now();
+    sample.playing = !sample.playing;
+    music.setTrack({ ...sample });
+  };
+  window.__afterglowMusic = { music, toggle: () => toggleMedia() }; // dev aid
+}
+
 // OLED care: a slow shift, and black instead of a frozen picture (oled.js).
 // In a browser, ?oled switches it on (dark after 2 s paused).
 import { oledCare } from "./oled.js";
@@ -70,6 +88,7 @@ function cursor(p) {
   if (hit) send(hit, { type: "cursor", at: { x: p.x - hit.x - dx, y: p.y - hit.y - dy } });
   under = hit ?? null;
   clock.cursor(p);
+  music.cursor(p);
 }
 
 // Pause: the app sends one flag per frame (a monitor hidden behind app
@@ -149,6 +168,8 @@ if ("__TAURI_INTERNALS__" in window) {
     win.listen("wallpaper", ({ payload }) => show(payload));
     win.listen("oled", ({ payload }) => oled.configure(payload ?? {}));
     win.listen("clock", ({ payload }) => clock.configure(payload ?? {}));
+    win.listen("nowplaying", ({ payload }) => music.setTrack(payload ?? null));
+    win.listen("nowplaying-prefs", ({ payload }) => music.configure(payload ?? {}));
     win.listen("reaction", ({ payload }) => {
       log(`host got ${payload?.type} for ${frames.length} frame(s)`);
       reaction(payload);
@@ -159,6 +180,13 @@ if ("__TAURI_INTERNALS__" in window) {
     .then(({ invoke }) => invoke("signal_state"))
     .then((n) => n > 0 && reaction({ type: "count", n }))
     .catch(() => {});
+  // what's playing, and how to pause it
+  import("@tauri-apps/api/core").then(({ invoke }) => {
+    toggleMedia = () => invoke("now_playing_toggle").catch(() => {});
+    invoke("now_playing_state")
+      .then((st) => st?.track && music.setTrack(st.track))
+      .catch(() => {});
+  });
   // and the lanterns
   import("@tauri-apps/api/core")
     .then(({ invoke }) => invoke("lantern_state"))

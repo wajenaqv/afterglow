@@ -42,11 +42,12 @@ struct Showing {
     wall: String,
     query: String,
     clock: crate::extras::Clock,
+    now_playing: crate::nowplaying::Prefs,
 }
 
 impl Showing {
     fn from(s: &Settings) -> Self {
-        Showing { wall: s.wallpaper.clone(), query: s.query(), clock: s.clock.clone() }
+        Showing { wall: s.wallpaper.clone(), query: s.query(), clock: s.clock.clone(), now_playing: s.now_playing.clone() }
     }
 }
 
@@ -92,7 +93,7 @@ impl Wall {
                 ]
             })
             .collect();
-        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens, "clock": showing.clock });
+        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens, "clock": showing.clock, "nowplaying": showing.now_playing });
         format!("window.__AFTERGLOW__ = {config};")
     }
 }

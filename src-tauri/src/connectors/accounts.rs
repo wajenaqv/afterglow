@@ -3,7 +3,8 @@
 //            messagesUnread; read-only label counts, no message content)
 //   outlook  the inbox's unread count, every minute (Microsoft Graph,
 //            mailFolders/inbox unreadItemCount)
-//   spotify  a pulse in Spotify green when the song changes, every 5 s
+//   spotify  a pulse in Spotify green when the song changes, every 5 s, and
+//            the song for the now-playing corner (nowplaying.rs)
 //            (currently-playing; only while something is playing)
 // Counts go through connectors::report like the other connectors, so a
 // count going up pulses, and the count brings in jellies.
@@ -68,7 +69,12 @@ pub fn poll(app: &AppHandle, id: &str) -> Duration {
         },
         "spotify" => {
             static LAST: Mutex<Option<String>> = Mutex::new(None);
-            match oauth::get_json(p, &client, "https://api.spotify.com/v1/me/player/currently-playing") {
+            let answer = oauth::get_json(p, &client, "https://api.spotify.com/v1/me/player/currently-playing");
+            // the now-playing corner uses the song too, paused or not (nowplaying.rs)
+            if let Ok(v) = &answer {
+                crate::nowplaying::from_account(app, v.as_ref());
+            }
+            match answer {
                 Ok(Some(v)) if v["is_playing"].as_bool() == Some(true) => {
                     let track = v["item"]["id"].as_str().unwrap_or("").to_string();
                     let name = v["item"]["name"].as_str().unwrap_or("something");

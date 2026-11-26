@@ -25,8 +25,9 @@ const SCREEN = { x: 0, y: 0, w: 1120, h: 630 };
 const DEFAULTS = { on: true, always: false, style: "slant", corner: "top-right", colour: "wallpaper", fill: "gradient", size: "medium", hours: "auto" };
 const fade = ([a, b]) => `linear-gradient(rgb(${a.join(",")}), rgb(${b.join(",")}))`;
 
-/** settings(): main.js's { wallpaper, options }. Returns { show(saved clock) } */
-export function startClock({ invoke, settings }) {
+/** settings(): main.js's { wallpaper, options }; taken(): the now-playing card's
+ * corner, which the clock can't have. Returns { show(saved clock), corner() } */
+export function startClock({ invoke, settings, taken = () => null }) {
   const page = $("#page-clock");
   const note = $("#clock-note");
   const frame = $("#clock-screen iframe");
@@ -74,6 +75,12 @@ export function startClock({ invoke, settings }) {
     const colours = clockColours(cfg.colour, w.wall, w.tint, hue);
     const picked = cfg.colour.startsWith("#");
     for (const b of $$("[data-set]", page)) b.setAttribute("aria-pressed", String((b.dataset.set === "show" ? show() : cfg[b.dataset.set]) === b.dataset.v));
+    // the now-playing card's corner is taken
+    for (const b of $$('[data-set="corner"]', page)) {
+      const theirs = b.dataset.v === taken();
+      b.disabled = theirs;
+      b.title = theirs ? "now playing is here" : b.dataset.v.replace("-", " ");
+    }
     for (const b of $$("[data-group]", page)) b.setAttribute("aria-pressed", String(b.dataset.group === group));
     for (const b of $$(".clock-style", page)) {
       b.setAttribute("aria-pressed", String(b.dataset.style === cfg.style));
@@ -159,6 +166,7 @@ export function startClock({ invoke, settings }) {
   own.addEventListener("change", () => change({ colour: own.value }));
 
   return {
+    corner: () => cfg.corner,
     show(c = {}) {
       cfg = { ...DEFAULTS, ...c, style: validStyle(c.style) }; // an unknown style falls back to slant
       saved = { ...cfg };

@@ -24,6 +24,7 @@
         <ul aria-labelledby="side-desktop">
           <li><a href="#wallpaper" data-page="wallpaper"><span>wallpaper</span> <i></i></a></li>
           <li><a href="#clock" data-page="clock"><span>clock</span> <i></i></a></li>
+          <li><a href="#playing" data-page="playing"><span>now playing</span> <i></i></a></li>
           <li><a href="#edge" data-page="edge"><span>edge</span> <i></i></a></li>
         </ul>
         <h2 class="side-head" id="side-aware">aware</h2>
@@ -101,6 +102,43 @@
               </div>
             </div>
           </div>
+        </section>
+
+        <!-- now playing (src/nowplayingpage.js) -->
+        <section id="page-playing" data-page="playing" hidden>
+          <h2>now playing</h2>
+          <p class="dim hint">What's playing, in a corner of the wallpaper: the cover drawn in characters, the song and how far along it is. Rest the cursor on the cover to pause or play.</p>
+          <div class="clock-show" role="group" aria-label="show what's playing">
+            <button type="button" data-set="show" data-v="hover"><b>on hover</b><span>rest the cursor in its corner</span></button>
+            <button type="button" data-set="show" data-v="always"><b>always</b><span>while something plays or is paused</span></button>
+            <button type="button" data-set="show" data-v="change"><b>new songs</b><span>a few seconds per song, and on hover</span></button>
+            <button type="button" data-set="show" data-v="never"><b>never</b><span>off</span></button>
+          </div>
+          <div class="np-now" id="np-now">
+            <pre class="np-page-cover" id="np-cover" aria-hidden="true"></pre>
+            <div><p class="np-page-title" id="np-title"></p><p class="dim" id="np-sub"></p></div>
+          </div>
+          <div id="np-choices">
+            <div class="clock-rows">
+              <span>corner</span>
+              <div class="seg" role="group" aria-label="corner"><button type="button" data-set="corner" data-v="top-left" title="top left" aria-label="top left"><i class="mon top-left"></i></button><button type="button" data-set="corner" data-v="top-right" title="top right" aria-label="top right"><i class="mon top-right"></i></button><button type="button" data-set="corner" data-v="bottom-left" title="bottom left" aria-label="bottom left"><i class="mon bottom-left"></i></button><button type="button" data-set="corner" data-v="bottom-right" title="bottom right" aria-label="bottom right"><i class="mon bottom-right"></i></button></div>
+              <span>size</span>
+              <div class="seg" role="group" aria-label="size"><button type="button" data-set="size" data-v="small" title="small" aria-label="small">S</button><button type="button" data-set="size" data-v="medium" title="medium" aria-label="medium">M</button><button type="button" data-set="size" data-v="large" title="large" aria-label="large">L</button></div>
+              <span>pause</span>
+              <div class="seg" role="group" aria-label="rest on the cover to pause"><button type="button" data-set="rest_to_pause" data-v="true">rest on the cover</button><button type="button" data-set="rest_to_pause" data-v="false">off</button></div>
+            </div>
+            <p class="dim hint">The clock and this never share a corner: the clock's is greyed out here, and this one's on the clock page.</p>
+            <h3 class="sub">players</h3>
+            <p class="dim hint" id="np-players-hint">Players show up here once they've played something. Switch one off to keep it out of the corner (a muted video on a web page, say).</p>
+            <div class="list" id="np-players"></div>
+            <div id="np-sources" hidden>
+              <h3 class="sub">on this Mac</h3>
+              <p class="dim hint">macOS lets AfterGlow see Spotify and Music, and asks you once for each. Other players aren't visible on a Mac.</p>
+              <div class="list" id="np-source-list"></div>
+            </div>
+            <p class="dim hint">Signed in to Spotify on the apps page? Music playing on your phone or another computer shows here too, when nothing plays on this one.</p>
+          </div>
+          <p class="hint" id="np-note" role="status"></p>
         </section>
 
         <!-- apps -->
