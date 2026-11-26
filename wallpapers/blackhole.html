@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AfterGlow · black hole</title>
+  </head>
+  <body class="canvas-page">
+    <!-- A black hole. Ray-traced in characters (src/wallpapers/blackhole.js) or,
+         for the trails and sweep views, orbit trails drawn as lines
+         (src/wallpapers/blackholetrails.js).
+         Options: ?view=gargantua|whirlpool|trails|sweep ?tint=fire|natural|cool|green|spectrum ?place=right ?fx=0 ?hover=0 -->
+    <script type="module">
+      const view = new URLSearchParams(location.search).get("view");
+      if (view === "trails" || view === "sweep") import("../src/wallpapers/blackholetrails.js");
+      else import("../src/wallpapers/blackhole.js");
+    </script>
+  </body>
+</html>

@@ -390,7 +390,6 @@ for (const w of WALLPAPERS) {
 // Coming soon: wallpapers on their way, as dim tiles
 // with a sketch, so the picker shows there's more to come
 const SOON = [
-  { name: "black hole", tag: "sky", about: "Light bending round a black hole, traced ray by ray.", art: "  .   *    .\n   .-~~~~-.\n  ( ( @@ ) )\n   '-~~~~-'\n .    *   ." },
   { name: "cats", tag: "creatures", about: "Glowing text-art cats, asleep, in families, dancing.", art: "  /\\_/\\\n ( -.- )\n  > ^ <\n (__)_)~" },
 ];
 for (const w of SOON) {

@@ -6,7 +6,7 @@
 // paw prints, star colours) fade from one into the next; a hue per digit was
 // tried and looked like blocks of colour.
 
-import { TINTS, PAWS, CLOUDS, SAKURA, CONSTELLATION, STARTRAILS, STAR_COOL, STAR_HOT, CURRENTS, MAGNET, ATTRACTOR, SILK, PHOSPHORS } from "./palettes.js";
+import { TINTS, PAWS, CLOUDS, SAKURA, CONSTELLATION, STARTRAILS, STAR_COOL, STAR_HOT, BLACKHOLE, CURRENTS, MAGNET, ATTRACTOR, SILK, PHOSPHORS } from "./palettes.js";
 
 const bytes = (c) => c.map((v) => Math.round(v * 255)); // from 0-1
 const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
@@ -51,6 +51,11 @@ const WALLS = {
   constellation: (tint) => {
     const p = CONSTELLATION[tint] ?? CONSTELLATION.natural;
     return [bytes(p.bright), bytes(p.line)];
+  },
+  blackhole: (tint) => {
+    // the hot inner edge into the glowing gas
+    const { heat } = BLACKHOLE[tint] ?? BLACKHOLE.fire;
+    return [bytes(heat[3]), readable(bytes(heat[1]))];
   },
   startrails: (tint) => {
     const { star } = STARTRAILS[tint] ?? STARTRAILS.natural;

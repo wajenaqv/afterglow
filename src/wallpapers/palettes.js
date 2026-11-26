@@ -164,3 +164,14 @@ export const PHOSPHORS = {
   ice: { ink: [0.55, 0.85, 1.0], dim: [0.18, 0.32, 0.48], flash: [0.95, 0.98, 1.0] },
   white: { ink: [0.88, 0.9, 0.95], dim: [0.32, 0.34, 0.38], flash: [1, 1, 1] },
 };
+
+// Black hole: the gas by temperature, cold (outer edge) to hot (inner edge,
+// the side coming towards you), 0-1; plus the stars
+export const BLACKHOLE = {
+  fire: { heat: [[0.45, 0.05, 0.02], [0.95, 0.32, 0.06], [1, 0.72, 0.35], [1, 0.95, 0.85], [0.8, 0.9, 1]], star: [0.75, 0.82, 1] },
+  natural: { heat: [[0.3, 0.08, 0.45], [0.75, 0.25, 0.75], [1, 0.55, 0.75], [1, 0.88, 0.9], [0.8, 0.95, 1]], star: [0.75, 0.8, 1] },
+  cool: { heat: [[0.05, 0.1, 0.4], [0.15, 0.35, 0.9], [0.4, 0.7, 1], [0.85, 0.95, 1], [1, 1, 1]], star: [0.8, 0.85, 1] },
+  green: { heat: [[0.02, 0.2, 0.1], [0.1, 0.6, 0.35], [0.2, 1, 0.6], [0.7, 1, 0.85], [1, 1, 1]], star: [0.5, 0.85, 0.65] },
+  // after a long-exposure picture: a red outer edge, blue, white-hot inside
+  spectrum: { heat: [[0.55, 0.05, 0.03], [1, 0.24, 0.1], [0.22, 0.35, 0.9], [0.65, 0.78, 1], [1, 1, 1]], star: [0.8, 0.85, 1] },
+};

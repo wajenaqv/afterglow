@@ -29,7 +29,7 @@ use crate::tray;
 
 /// The wallpapers: (id, name in the tray). Each is a page wallpapers/<id>.html.
 /// Keep in sync with src/wallpapers/catalog.js.
-pub const WALLPAPERS: &[(&str, &str)] = &[("jellyfish", "Jellyfish"), ("big-jellyfish", "Big jellyfish"), ("clock", "Clock"), ("paws", "Paw prints"), ("sakura", "Sakura"), ("constellation", "Constellation"), ("cloudsea", "Cloud sea"), ("startrails", "Star trails"), ("silicon", "Silicon"), ("circuit", "Circuit board"), ("currents", "Currents"), ("magnet", "Magnet"), ("silk", "Silk"), ("attractor", "Attractor"), ("impossible", "Impossible"), ("radar", "Radar")];
+pub const WALLPAPERS: &[(&str, &str)] = &[("jellyfish", "Jellyfish"), ("big-jellyfish", "Big jellyfish"), ("clock", "Clock"), ("paws", "Paw prints"), ("sakura", "Sakura"), ("constellation", "Constellation"), ("cloudsea", "Cloud sea"), ("startrails", "Star trails"), ("blackhole", "Black hole"), ("silicon", "Silicon"), ("circuit", "Circuit board"), ("currents", "Currents"), ("magnet", "Magnet"), ("silk", "Silk"), ("attractor", "Attractor"), ("impossible", "Impossible"), ("radar", "Radar")];
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]

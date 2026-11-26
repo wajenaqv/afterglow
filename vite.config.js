@@ -58,6 +58,7 @@ export default defineConfig({
         attractor: resolve(import.meta.dirname, "wallpapers/attractor.html"),
         silk: resolve(import.meta.dirname, "wallpapers/silk.html"),
         startrails: resolve(import.meta.dirname, "wallpapers/startrails.html"),
+        blackhole: resolve(import.meta.dirname, "wallpapers/blackhole.html"),
         radar: resolve(import.meta.dirname, "wallpapers/radar.html"),
         circuit: resolve(import.meta.dirname, "wallpapers/circuit.html"),
         silicon: resolve(import.meta.dirname, "wallpapers/silicon.html"),
