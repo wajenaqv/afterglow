@@ -104,9 +104,9 @@ export const DETAILS = {
   blackhole: {
     about: "A black hole with glowing gas swirling into it. Its gravity bends the light: you see the far side of the disk over the top and under the bottom, a thin ring of light round the shadow, and the stars stretched round it. Gargantua is seen nearly edge-on; whirlpool from above, with spiral arms. Trails and sweep draw the gas as a long exposure: thousands of thin orbit trails, white-hot inside, blue, a red edge; sweep is cropped in, the disk running off the screen.",
     message: "A clump of gas in the app's colour spirals in, and the ring round the shadow flares in its colour as it falls (trails and sweep: a long trail in its colour).",
-    waiting: "Each app is a hot spot in its colour, orbiting in the disk. Rest your cursor on it for a moment to mark it seen: it spirals in.",
+    waiting: "Each app is a hot spot in its colour, orbiting in the disk. Rest your cursor on it for a moment to mark it seen: it fades away.",
     flash: "The ring and the disk flare.",
-    hover: "Bring your cursor near the hole and it feeds: hotter and faster.",
+    hover: "None.",
   },
   radar: {
     about: "A phosphor radar screen: the beam sweeps round, and everything it passes flares and slowly fades. Range rings, bearings, a stretch of coast.",
@@ -249,7 +249,6 @@ export const WALLPAPERS = [
       { key: "view", label: "view", choices: [["", "trails"], ["sweep", "sweep"], ["gargantua", "gargantua"], ["whirlpool", "whirlpool"]] },
       { key: "tint", label: "palette", choices: [["", "default"], ["fire", "fire"], ["spectrum", "white, blue, red"], ["natural", "natural"], ["cool", "ice"], ["green", "AfterGlow green"]] },
       { key: "place", label: "position", choices: [["", "centred"], ["right", "right (clear of the icons)"]] },
-      fx("it feeds"),
     ],
     reacts: ["pulse", "lanterns", "flash"],
   },

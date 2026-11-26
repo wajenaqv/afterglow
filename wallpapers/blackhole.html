@@ -9,7 +9,7 @@
     <!-- A black hole. Ray-traced in characters (src/wallpapers/blackhole.js) or,
          for the trails and sweep views, orbit trails drawn as lines
          (src/wallpapers/blackholetrails.js).
-         Options: ?view=trails (default)|sweep|gargantua|whirlpool ?tint=fire|natural|cool|green|spectrum ?place=right ?fx=0 ?hover=0 -->
+         Options: ?view=trails (default)|sweep|gargantua|whirlpool ?tint=fire|natural|cool|green|spectrum ?place=right ?hover=0 -->
     <script type="module">
       const view = new URLSearchParams(location.search).get("view");
       if (view !== "gargantua" && view !== "whirlpool") import("../src/wallpapers/blackholetrails.js");

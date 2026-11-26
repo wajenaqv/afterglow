@@ -20,23 +20,22 @@
 // Views (?view=, the page defaults to trails, see blackholetrails.js): gargantua, nearly edge-on; whirlpool, seen from
 // higher up with spiral arms of gas falling in.
 //
-// Hover (?fx=0 off): bring the cursor near the hole and it feeds: the disk
-// runs hotter, most at the inner edge, and spins faster.
+// No hover effect: the cursor only marks a waiting app seen.
 //
 // Reactions: a message is a clump of gas in the app's colour spiralling in
 // from the outer edge; when it falls in, the photon ring flares in its colour
 // and fades over the afterglow. Each waiting app is a hot spot orbiting in the
 // disk in its colour (seen twice: once bent over the top); rest the cursor on
-// it for a moment to mark it seen, and it spirals in. A flash lights the ring
+// it for a moment to mark it seen, and it fades where it is. A flash lights the ring
 // and the disk.
 //
 // Drawing: the scene puts each cell's glyph and colour into a cell buffer
 // (cells.js), which the CPU draws as text and the GPU from a texture, so the
 // two renderers can't drift apart.
 //
-// Options: ?view=gargantua|whirlpool ?tint=fire|natural|cool|green ?place=right ?fx=0
+// Options: ?view=gargantua|whirlpool ?tint=fire|natural|cool|green ?place=right
 
-import { hash, params, HOVER, HOVER_FX, pointer, seenLantern, STILL } from "./common.js";
+import { hash, params, HOVER, pointer, seenLantern, STILL } from "./common.js";
 import { BLACKHOLE } from "./palettes.js";
 import { startScene, setPalette, reduced } from "./nightscene.js";
 import { cellBuffer } from "./cells.js";
@@ -193,17 +192,17 @@ function traceSome(budgetMs, most = Infinity) {
 // a waiting app's orbit: radius as a share of the disk, and where it starts
 const SLOTS = [0.1, 0.45, 0.8, 0.28, 0.62, 0.95, 0.18, 0.52];
 const orbitR = (i) => R_IN + 2.2 + SLOTS[i % SLOTS.length] * (VIEW.rout - R_IN - 4);
-const falls = []; // seen apps spiralling in: { colour, r0, a0, t0 }
+let gone = []; // seen apps fading where they are: { a, r, ang, t0 }
 const apps = trackApps({
   onSeen(a) {
     const s = spots.find((p) => p.a.source === a.source);
-    if (s) falls.push({ colour: a.colour, r0: s.r, a0: s.ang, t0: now(), dur: 2.2, tau: 5 });
+    if (s) gone.push({ a, r: s.r, ang: s.ang, t0: now() });
   },
 });
 let spots = []; // this frame's hot spots: { a, r, ang, x, z, on }
 const orbits = new Map(); // source -> where its hot spot is on its orbit (radians)
 let over = null; // { source, at } the hot spot under the cursor
-let flare = 0, spin = 0, lastT = null;
+let spin = 0, lastT = null;
 
 function frame(t) {
   if (!dims) return;
@@ -214,33 +213,25 @@ function frame(t) {
   const dt = lastT == null ? 0 : clamp(t - lastT, 0, 0.1);
   lastT = t;
   apps.tidy();
-  // hover: feeding
-  let want = 0;
-  if (HOVER_FX && pointer.on) {
-    const hx = cx * dims.cw, hy = cy * dims.ch, d = Math.hypot(pointer.x - hx, pointer.y - hy);
-    want = clamp(1 - (d - shadowPx * 1.2) / (shadowPx * 3));
-  }
-  flare += (want - flare) * Math.min(1, dt * (want > flare ? 2.5 : 0.8));
-  spin += reduced ? 0 : dt * 0.55 * (1 + 1.4 * flare);
+  spin += reduced ? 0 : dt * 0.55;
   const flash = apps.flash();
   const fadeIn = STILL ? 1 : smooth(0, 1.2, T - readyAt);
 
-  // waiting apps: hot spots on fixed orbits; hovering one drains it
-  // (they drift round slowly, far slower than the gas, so the cursor can rest
-  // on one, and hold still under it)
+  // waiting apps: hot spots on fixed orbits, drifting round slowly (far
+  // slower than the gas, so the cursor can rest on one); a seen one fades
+  // out where it is over 1.5 s
   spots = apps.waiting.map((a) => {
-    const r = orbitR(a.i), held = over?.source === a.source;
-    const an = (orbits.get(a.source) ?? a.i * 2.4 + 1) - (held || reduced ? 0 : dt * 0.09 * (R_IN / r) ** 1.5);
+    const r = orbitR(a.i);
+    const an = (orbits.get(a.source) ?? a.i * 2.4 + 1) - (reduced ? 0 : dt * 0.09 * (R_IN / r) ** 1.5);
     orbits.set(a.source, an);
-    const drain = held ? clamp((T - over.at) / 0.8) : 0;
-    return { a, r, ang: an, x: r * Math.cos(an), z: r * Math.sin(an), on: apps.lit(a) * (1 - 0.85 * drain), hits: [] };
+    return { a, r, ang: an, x: r * Math.cos(an), z: r * Math.sin(an), on: apps.lit(a), hits: [] };
   });
-  // gas falling in: messages from the outer edge (4 s), seen apps from their orbit
+  gone = gone.filter((g) => T - g.t0 < 1.5);
+  for (const g of gone) spots.push({ a: g.a, r: g.r, ang: g.ang, x: g.r * Math.cos(g.ang), z: g.r * Math.sin(g.ang), on: 1 - smooth(0, 1.5, T - g.t0), hits: [], gone: true });
+  // gas falling in: messages from the outer edge (4 s)
   const clumps = [];
   let ringCol = heat(0.8), ringBoost = flash * 1.2;
   for (const m of apps.messages) clumps.push({ colour: m.colour, r0: VIEW.rout, a0: (m.t0 * 7.3) % 6.283, t0: m.t0, dur: 4, tau: m.tau });
-  for (let k = falls.length - 1; k >= 0; k--) if (T - falls[k].t0 > falls[k].dur + falls[k].tau * 3) falls.splice(k, 1);
-  clumps.push(...falls);
   for (const c of clumps) {
     const age = T - c.t0, k = clamp(age / c.dur);
     c.r = c.r0 - (c.r0 - R_IN) * k * k;
@@ -256,7 +247,6 @@ function frame(t) {
   const live = clumps.filter((c) => c.on > 0.01);
 
   const drift = t * 0.004; // the sky turns slowly behind the hole
-  const heatUp = flare * 0.25, hotEdge = flare * 0.7;
   L.fill(0);
   for (let i = 0; i < n; i++) {
     const k3 = i * 3;
@@ -265,16 +255,15 @@ function frame(t) {
       const tex = VIEW.whirl
         ? 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(sw * 3)) ** 2 * (0.75 + 0.25 * Math.sin(sw * 11 + r))
         : 0.7 + 0.3 * Math.sin(sw * 8) * Math.sin(sw * 3 + 1.7);
-      const inner = R_IN / r;
-      const b = (light[i] * tex * (1 + hotEdge * inner) + flare * 0.06) * (1 + 0.6 * flash);
-      let c = heat(temp[i] + heatUp * inner + flash * 0.15);
+      const b = light[i] * tex * (1 + 0.6 * flash);
+      let c = heat(temp[i] + flash * 0.15);
       c = [c[0] * b, c[1] * b, c[2] * b];
       if (spots.length || live.length) {
         const px = r * Math.cos(ang[i]), pz = r * Math.sin(ang[i]);
         for (const s of spots) {
           // its shape (for the hit test, whatever its brightness), then its light
           const shape = Math.exp(-((px - s.x) ** 2 + (pz - s.z) ** 2) / 2.4), k = shape * s.on;
-          if (shape > 0.35 && s.on > 0.05) s.hits.push(i);
+          if (shape > 0.35 && s.on > 0.05 && !s.gone) s.hits.push(i);
           if (k > 0.01) c = mix(c, s.a.colour.map((v) => v * 1.6), clamp(k * 1.3));
         }
         for (const f of live) {
@@ -293,7 +282,7 @@ function frame(t) {
         L[k3 + 1] = PAL.star[1] * b;
         L[k3 + 2] = PAL.star[2] * b;
       }
-      const rb = ring[i] * (0.9 + ringBoost * 2.2 + flare * 0.5);
+      const rb = ring[i] * (0.9 + ringBoost * 2.2);
       if (rb > 0.02) {
         L[k3] += ringCol[0] * rb;
         L[k3 + 1] += ringCol[1] * rb;

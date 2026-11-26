@@ -32,13 +32,12 @@
 // Reactions: a message lights a long trail in the app's colour and the
 // photon ring flares in it; every app with something waiting is a bright
 // clump on a slow orbit, in its colour, until you rest the cursor on it
-// (then it spirals in); a flash brightens every trail. Hover (?fx=0 off):
-// near the hole it feeds, the gas turning faster and brighter.
+// (then it fades where it is); a flash brightens every trail. No hover effect.
 //
 // Options: ?view=trails|sweep ?tint=spectrum|fire|natural|cool|green
-// ?place=right ?glow=0 ?fps ?fx=0 ?hover=0
+// ?place=right ?glow=0 ?fps ?hover=0
 
-import { params, num, hash, STILL, STILL_AT, HOVER, HOVER_FX, pointer, onReaction, seenLantern, sendStill, paceFrames } from "./common.js";
+import { params, num, hash, STILL, STILL_AT, HOVER, pointer, onReaction, seenLantern, sendStill, paceFrames } from "./common.js";
 import { BLACKHOLE } from "./palettes.js";
 import { wantGPU } from "./gpu.js";
 import { compile, QUAD_VS } from "./glyph-atlas.js";
@@ -231,7 +230,7 @@ function place() {
 
 // ---- reactions ----
 let messages = []; // a long trail in the app's colour: { r, a0, colour, t0, tau }
-let lanterns = []; // { source, colour, slot, r, a, fall (time it was seen, or null) }
+let lanterns = []; // { source, colour, slot, r, a, fall (real seconds when it was seen, or null) }
 let flashAt = -1e9, nowT = 0, over = null;
 const SLOTS = [0.12, 0.3, 0.2, 0.42, 0.26, 0.36];
 const lanternR = (i) => R_IN + 5 + SLOTS[i % SLOTS.length] * 30;
@@ -243,7 +242,7 @@ onReaction((r) => {
   else if (r.type === "lanterns") {
     const items = Array.isArray(r.items) ? r.items.filter((l) => Array.isArray(l.colour)) : [];
     const keep = new Set(items.map((l) => l.source));
-    for (const l of lanterns) if (!keep.has(l.source) && l.fall == null) l.fall = nowT;
+    for (const l of lanterns) if (!keep.has(l.source) && l.fall == null) l.fall = performance.now() / 1000;
     for (const it of items.slice(0, 6)) {
       const had = lanterns.find((l) => l.source === it.source && l.fall == null);
       if (had) had.colour = it.colour.map((v) => v / 255);
@@ -270,20 +269,16 @@ function watchHover() {
 }
 
 // ---- one frame's numbers, for either renderer ----
-let start = performance.now(), last = -1, spin = 0, feed = 0;
+let start = performance.now(), last = -1, spin = 0;
 function step(now) {
   const t = STILL ? STILL_AT : reduced ? 40 : (now - start) / 1000 + 40;
   const dt = last < 0 ? 0 : Math.min(0.2, t - last);
   last = t;
   nowT = t;
-  // feeding: the cursor near the hole
-  let want = 0;
-  if (HOVER_FX && pointer.on) want = clamp(1 - (Math.hypot(pointer.x - cx, pointer.y - cy) - shadowPx * 1.2) / (shadowPx * 3));
-  feed += (want - feed) * clamp(dt * 1.5);
-  spin = STILL || reduced ? t : spin + dt * (1 + 1.5 * feed);
+  spin = STILL || reduced ? t : spin + dt;
   watchHover();
   const flash = Math.max(0, 1 - (t - flashAt) / 0.8);
-  const gain = VIEW.gain * (1 + 0.35 * feed) * (1 + 1.2 * flash);
+  const gain = VIEW.gain * (1 + 1.2 * flash);
   // messages: a long bright trail in the app's colour; the ring flares in it
   let ringCol = mix(heat(0.95), [1, 1, 1], 0.3), ringA = 0.5 * flash;
   const extra = [];
@@ -294,15 +289,14 @@ function step(now) {
     ringCol = mix(ringCol, m.colour, on * 0.8);
     ringA = Math.max(ringA, 0.9 * on);
   }
-  // waiting apps: a clump each, breathing, on a slow orbit (held while the cursor is on it)
-  lanterns = lanterns.filter((l) => l.fall == null || t - l.fall < 2.6);
+  // waiting apps: a clump each, breathing, on a slow orbit; once seen it fades
+  // where it is (real seconds, so it fades at reduced motion too)
+  const real = performance.now() / 1000;
+  lanterns = lanterns.filter((l) => l.fall == null || real - l.fall < 1.5);
   for (const l of lanterns) {
-    const held = over?.source === l.source && l.fall == null;
-    if (!held && !reduced) l.a += dt * 0.1 * (R_IN / l.r) ** 1.5 * (l.fall != null ? 4 : 1);
-    if (l.fall != null) l.r = Math.max(R_IN * 0.9, l.r - dt * 5);
-    const fade = l.fall != null ? 1 - smooth(1.2, 2.6, t - l.fall) : 1;
-    const drain = held ? 1 - 0.7 * clamp((performance.now() - over.at) / 800) : 1;
-    extra.push({ r: l.r, head: l.a, len: 1.4, colour: l.colour, a: (0.8 + 0.2 * Math.sin(t * 2.2 + l.slot)) * fade * drain, w: 2.2, clump: true });
+    if (!reduced) l.a += dt * 0.1 * (R_IN / l.r) ** 1.5;
+    const fade = l.fall != null ? 1 - smooth(0, 1.5, real - l.fall) : 1;
+    extra.push({ r: l.r, head: l.a, len: 1.4, colour: l.colour, a: (0.8 + 0.2 * Math.sin(t * 2.2 + l.slot)) * fade, w: 2.2, clump: true });
   }
   return { gain, extra, ringCol, ringA };
 }
