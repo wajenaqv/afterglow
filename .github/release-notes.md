@@ -1,6 +1,6 @@
 ### What's new
 
-- **Now playing on macOS:** Spotify's album covers now show. Before, the card drew a placeholder pattern instead of the cover. A cover that isn't ready right after a song changes is also asked for again.
+- **Now playing on macOS:** when a Spotify cover can't be downloaded, AfterGlow tries again through macOS's own network settings, and the log says why it failed.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 

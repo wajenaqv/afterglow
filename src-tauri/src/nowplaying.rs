@@ -359,13 +359,13 @@ impl CoverCache {
 
 /// The cover as a data: URL. A web address (Spotify) is downloaded; anything
 /// else is asked of the player (Windows' thumbnail, Music's artwork).
-fn read_cover(s: &Session) -> Result<String, &'static str> {
+fn read_cover(s: &Session) -> Result<String, String> {
     let bytes = match &s.cover_url {
-        Some(url) if url.starts_with("https://") => download(url).ok_or("download failed")?,
+        Some(url) if url.starts_with("https://") => download(url)?,
         _ => platform::media_cover(&s.handle).ok_or("the player gave none")?,
     };
     if bytes.is_empty() || bytes.len() > MAX_COVER {
-        return Err("empty or too big");
+        return Err(format!("{} bytes: empty or too big", bytes.len()));
     }
     let mime = if bytes.starts_with(b"\x89PNG") {
         "image/png"
@@ -378,16 +378,46 @@ fn read_cover(s: &Session) -> Result<String, &'static str> {
     } else if bytes.starts_with(b"BM") {
         "image/bmp"
     } else {
-        return Err("not an image");
+        return Err(format!("not an image ({} bytes)", bytes.len()));
     };
     Ok(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes)))
 }
 
-fn download(url: &str) -> Option<Vec<u8>> {
-    let r = ureq::get(url).timeout(Duration::from_secs(10)).call().ok()?;
-    let mut bytes = Vec::new();
-    r.into_reader().take(MAX_COVER as u64 + 1).read_to_end(&mut bytes).ok()?;
-    Some(bytes)
+/// Download a cover. On macOS, when the built-in download fails, the system's
+/// own curl tries (it uses macOS's network and certificate settings). The
+/// error says what failed, never the address.
+fn download(url: &str) -> Result<Vec<u8>, String> {
+    let ours = (|| -> Result<Vec<u8>, String> {
+        let r = ureq::get(url).timeout(Duration::from_secs(10)).call().map_err(|e| match e {
+            ureq::Error::Status(code, _) => format!("the server said {code}"),
+            ureq::Error::Transport(t) => format!("{:?}: {}", t.kind(), t.message().unwrap_or_default()),
+        })?;
+        let mut bytes = Vec::new();
+        r.into_reader().take(MAX_COVER as u64 + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+        Ok(bytes)
+    })();
+    #[cfg(target_os = "macos")]
+    {
+        if let Err(e) = &ours {
+            crate::alog!("afterglow: now playing: cover download failed ({e}); trying curl");
+            return curl(url).map_err(|c| format!("download failed ({e}); curl: {c}"));
+        }
+    }
+    ours.map_err(|e| format!("download failed ({e})"))
+}
+
+/// The address goes to curl as one argument (no shell), and only an https one
+#[cfg(target_os = "macos")]
+fn curl(url: &str) -> Result<Vec<u8>, String> {
+    let out = std::process::Command::new("/usr/bin/curl")
+        .args(["-fsSL", "--proto", "=https", "--max-time", "10", "--max-filesize", &MAX_COVER.to_string(), "--", url])
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(format!("exit {:?}: {}", out.status.code(), String::from_utf8_lossy(&out.stderr).trim()));
+    }
+    Ok(out.stdout)
 }
 
 // ---- the Spotify account (connectors/accounts.rs) ----
