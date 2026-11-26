@@ -1,6 +1,6 @@
 ### What's new
 
-- **Now playing on macOS:** when a Spotify cover can't be downloaded, AfterGlow tries again through macOS's own network settings, and the log says why it failed.
+- **Black hole wallpaper:** a black hole with its glowing disk, in four views. Gargantua and whirlpool are traced ray by ray in characters; trails and sweep show the gas as a long exposure of glowing streaks. A message spirals into it, each waiting app is a hot spot orbiting the hole (rest the cursor on it to clear it), and it feeds when the cursor comes near. Centred, or to the right to keep your desktop icons clear.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
