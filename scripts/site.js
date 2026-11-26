@@ -18,7 +18,10 @@ for (const [from, to] of [
   ["assets/site/reel-poster.webp", "reel-poster.webp"],
   ["assets/site/share.png", "share.png"],
   ["assets/site/poster.webp", "poster.webp"],
-  ["assets/site/awake-white.webp", "awake-white.webp"],
+  ["assets/site/tile-edge.mp4", "tile-edge.mp4"],
+  ["assets/site/tile-awake.mp4", "tile-awake.mp4"],
+  ["assets/site/tile-jobs.mp4", "tile-jobs.mp4"],
+  ["assets/site/tile-clock.mp4", "tile-clock.mp4"],
   [font + "400-normal.woff2", "mono-400.woff2"],
   [font + "700-normal.woff2", "mono-700.woff2"],
 ]) cpSync(join(root, from), join(out, to));

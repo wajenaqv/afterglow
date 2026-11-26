@@ -32,7 +32,7 @@ No popups. No badges. No sounds.<br>
 You just ***see*** that something is waiting.
 
 <p align="center">
-  <a href="https://afterglow.heywajih.com"><img src="assets/readme/reaction.gif" alt="Three wallpapers react: Claude needs you and a jellyfish lights up red, a WhatsApp message slides down the silk in green, and Gmail turns strands of the current red" width="100%"></a>
+  <a href="https://afterglow.heywajih.com"><img src="assets/readme/reaction.gif" alt="Three wallpapers react: Claude needs you and a jellyfish lights up red, a Slack message lights a chip on the silicon board purple, and a WhatsApp message runs green down the silk" width="100%"></a>
 </p>
 
 ## ↓ Install
@@ -101,16 +101,15 @@ Each wallpaper reacts in its own way. Every app starts switched off; you choose 
 - **Stills**: save any wallpaper as a PNG at your screen's size
 - **Frame rate** and rendering, to suit your machine
 - **OLED care**: an option that lowers the risk of burn-in
-- **Edge**: what's waiting, as light at the edge of the screen when windows hide your desktop, in four looks
-- **Keep awake**: stop the computer going to sleep, by hand or while chosen apps run
 
-<p align="center"><img src="assets/readme/settings.png" alt="AfterGlow Settings: wallpapers to pick from, and the silk options" width="100%"></p>
+<p align="center"><img src="assets/readme/settings.png" alt="AfterGlow Settings, wallpaper: every wallpaper with a live preview, and the jellyfish options open beside them" width="100%"></p>
 
-### Keep awake
+### More it does
 
-Claude working through a long task, a render, a big download? AfterGlow can keep your computer from going to sleep: for a while, until you turn it off, or only while the apps you pick are running or in front. It's in the menu and in **Settings → awake**.
-
-<p align="center"><img src="assets/readme/awake.png" alt="AfterGlow Settings, awake: timers by hand, and apps that keep the computer awake while they run" width="100%"></p>
+<table>
+<tr><td width="50%" valign="top"><img src="assets/readme/tile-edge.gif" alt="A red and a green line of light glow along the bottom edge of the screen" width="100%"><br><b>Edge</b><br>Windows in the way? What's waiting glows along the edge of the screen instead.</td><td width="50%" valign="top"><img src="assets/readme/tile-awake.gif" alt="The jellyfish dim as the screen starts to sleep, then brighten again, marked awake" width="100%"><br><b>Keep awake</b><br>Keeps the computer awake while your apps work: by hand, or while the apps you pick run.</td></tr>
+<tr><td width="50%" valign="top"><img src="assets/readme/tile-jobs.gif" alt="A Claude Code session works through a task and finishes" width="100%"><br><b>Jobs</b><br>A build or a coding agent lights up when it's done, failed or needs you.</td><td width="50%" valign="top"><img src="assets/readme/tile-clock.gif" alt="The eclipse clock wallpaper showing 21:41" width="100%"><br><b>Clock</b><br>A clock in any corner when you rest the cursor there, or as the wallpaper itself.</td></tr>
+</table>
 
 ### Jobs
 
@@ -138,13 +137,6 @@ AfterGlow listens on your own computer only, and refuses requests from web pages
 - AfterGlow keeps *which app* and *how many*, never what a message says. For jobs: a program's or folder's name and how it ended, never prompts or output.
 - It only goes online to look for updates on GitHub once a day (you can switch that off), and for the accounts you connect yourself.
 - Sign-in tokens stay in your OS keychain.
-
-## ▤ Next
-
-- [x] First release, with one-line installs
-- [ ] More wallpapers
-- [ ] winget and the Microsoft Store
-- [x] In-app updates
 
 Ideas and bugs are welcome in [issues](https://github.com/wajenaqv/afterglow/issues).
 

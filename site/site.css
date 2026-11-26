@@ -33,6 +33,17 @@ h3 { margin: 24px 0 8px; }
 video, main > img { display: block; width: 100%; height: auto; border: 1px solid color-mix(in srgb, var(--dim) 55%, var(--bg)); }
 /* site.js plays the clips like GIFs, without the player's controls */
 video.clip { cursor: pointer; }
+/* More it does: small tiles, three across, one on phones */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 20px; }
+.tile { margin: 0; }
+.tile video, .tile pre { aspect-ratio: 16 / 9; width: 100%; }
+.tile pre { margin: 0; display: flex; align-items: center; justify-content: center; white-space: pre; font: inherit; font-size: 12px; line-height: 1.5; color: var(--bright); border: 1px solid color-mix(in srgb, var(--dim) 55%, var(--bg)); overflow: hidden; }
+.tile pre span { color: var(--on); }
+.tile pre code { font: inherit; }
+.tile figcaption { margin-top: 10px; font-size: 14px; }
+.tile figcaption b { display: block; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } }
 summary { cursor: pointer; color: var(--bright); padding: 8px 0; list-style: none; }
 summary::-webkit-details-marker { display: none; }
 summary::before { content: "[+] " / ""; color: var(--accent); }

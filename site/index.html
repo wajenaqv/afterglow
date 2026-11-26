@@ -59,16 +59,25 @@
     <p class="note">Why a line to paste? AfterGlow is a free hobby project without paid signing, so a downloaded installer shows a security warning. You can still <a href="https://github.com/wajenaqv/afterglow/releases/latest">download it by hand</a>.</p>
 
     <h2>How it feels</h2>
-    <video src="reaction.mp4" poster="poster.webp" muted loop playsinline controls preload="metadata" aria-label="Three wallpapers react: Claude needs you and a jellyfish lights up red, a WhatsApp message slides down the silk in green, and Gmail turns strands of the current red"></video>
+    <video src="reaction.mp4" poster="poster.webp" muted loop playsinline controls preload="metadata" aria-label="Three wallpapers react: Claude needs you and a jellyfish lights up red, a Slack message lights a chip on the silicon board purple, and a WhatsApp message runs green down the silk"></video>
     <p>A message arrives, and the wallpaper lights up in that app's colour, each in its own way, then slowly fades. Things pile up, and the scene fills. No popups, no badges, no sounds.</p>
 
     <h2>Pick a scene</h2>
     <video src="reel.mp4" poster="reel-poster.webp" muted loop playsinline controls preload="metadata" aria-label="Several AfterGlow wallpapers, one after another"></video>
     <p>Creatures, skies, abstract light and clocks, each with its own palettes. More are on the way.</p>
 
-    <h2>Keep awake</h2>
-    <img src="awake-white.webp" width="1560" height="850" loading="lazy" alt="Settings, awake: off, 30 minutes, 1 hour, 2 hours or until off; and apps that keep the computer awake while they run">
-    <p>Claude working through a long task, a render, a big download? AfterGlow can keep your computer from going to sleep: for a while, until you turn it off, or only while the apps you pick are running or in front.</p>
+    <h2>More it does</h2>
+    <div class="tiles">
+      <figure class="tile"><video src="tile-edge.mp4" muted loop playsinline controls preload="metadata" aria-label="A red and a green line of light glow along the bottom edge of the screen"></video><figcaption><b>Edge</b> Windows in the way? What's waiting glows along the edge of the screen instead.</figcaption></figure>
+      <figure class="tile"><video src="tile-awake.mp4" muted loop playsinline controls preload="metadata" aria-label="The jellyfish dim as the screen starts to sleep, then brighten again, marked awake"></video><figcaption><b>Keep awake</b> Keeps the computer awake while your apps work: by hand, or while the apps you pick run.</figcaption></figure>
+      <figure class="tile"><video src="tile-jobs.mp4" muted loop playsinline controls preload="metadata" aria-label="A Claude Code session works through a task and finishes"></video><figcaption><b>Jobs</b> A build or a coding agent lights up when it's done, failed or needs you.</figcaption></figure>
+      <figure class="tile"><video src="tile-clock.mp4" muted loop playsinline controls preload="metadata" aria-label="The eclipse clock wallpaper showing 21:41"></video><figcaption><b>Clock</b> A clock in any corner when you rest the cursor there, or as the wallpaper itself.</figcaption></figure>
+      <figure class="tile"><pre aria-hidden="true"><code>game in front
+<span>■</span> wallpaper paused</code></pre><figcaption><b>Pauses for games</b> Stops drawing while a game or fullscreen app is in front, and on battery if you like.</figcaption></figure>
+      <figure class="tile"><pre aria-hidden="true"><code>curl -X POST \
+  127.0.0.1:47811/signal \
+  -d '{"source":"build"}'</code></pre><figcaption><b>Your own signals</b> Scripts, CI or Home Assistant can light it up too.</figcaption></figure>
+    </div>
 
     <h2>Private by design</h2>
     <p>AfterGlow has no server, no account and no telemetry. It keeps which app and how many, never what a message says. It only goes online to look for updates on GitHub once a day, which you can switch off, and for the accounts you connect yourself (Google, Microsoft, Spotify, Steam), straight from your computer. Sign-in tokens stay in your system's keychain.</p>
