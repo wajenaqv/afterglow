@@ -323,11 +323,15 @@ fn differs(old: Option<&Track>, new: Option<&Track>) -> bool {
     }
 }
 
-/// The cover of the song showing, read once per song
+/// The cover of the song showing, read once per song. A player may not have
+/// it yet just after a song changes, so a missing cover is asked for again
+/// (every 5 s, 4 times) before the card settles for the pattern.
 #[derive(Default)]
 struct CoverCache {
     song: String,
     cover: String,
+    tries: u32,
+    last: Option<Instant>,
 }
 
 impl CoverCache {
@@ -335,7 +339,19 @@ impl CoverCache {
         let id = s.song_id();
         if id != self.song {
             self.song = id;
-            self.cover = read_cover(s).unwrap_or_default();
+            self.cover.clear();
+            self.tries = 0;
+            self.last = None;
+        }
+        let due = self.last.is_none_or(|t| t.elapsed() >= Duration::from_secs(5));
+        if self.cover.is_empty() && self.tries < 4 && due {
+            self.tries += 1;
+            self.last = Some(Instant::now());
+            match read_cover(s) {
+                Ok(c) => self.cover = c,
+                // never the title: only which player and why
+                Err(why) => crate::alog!("afterglow: now playing: no cover from {} ({why}, try {})", s.name, self.tries),
+            }
         }
         self.cover.clone()
     }
@@ -343,13 +359,13 @@ impl CoverCache {
 
 /// The cover as a data: URL. A web address (Spotify) is downloaded; anything
 /// else is asked of the player (Windows' thumbnail, Music's artwork).
-fn read_cover(s: &Session) -> Option<String> {
+fn read_cover(s: &Session) -> Result<String, &'static str> {
     let bytes = match &s.cover_url {
-        Some(url) if url.starts_with("https://") => download(url)?,
-        _ => platform::media_cover(&s.handle)?,
+        Some(url) if url.starts_with("https://") => download(url).ok_or("download failed")?,
+        _ => platform::media_cover(&s.handle).ok_or("the player gave none")?,
     };
     if bytes.is_empty() || bytes.len() > MAX_COVER {
-        return None;
+        return Err("empty or too big");
     }
     let mime = if bytes.starts_with(b"\x89PNG") {
         "image/png"
@@ -362,9 +378,9 @@ fn read_cover(s: &Session) -> Option<String> {
     } else if bytes.starts_with(b"BM") {
         "image/bmp"
     } else {
-        return None;
+        return Err("not an image");
     };
-    Some(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes)))
+    Ok(format!("data:{mime};base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes)))
 }
 
 fn download(url: &str) -> Option<Vec<u8>> {

@@ -136,7 +136,13 @@ fn parse(player: &str, name: &str, out: &str) -> Option<Session> {
     // Spotify: ms; Music: seconds
     let length_ms = if player == "spotify" { length as u64 } else { (length * 1000.0) as u64 };
     let position_ms = number(f[5]).map(|p| (p * 1000.0) as u64);
+    // Spotify gives "http://i.scdn.co/image/…"; the same address works over https
     let cover = f[6].trim();
+    let cover_url = if let Some(rest) = cover.strip_prefix("http://") {
+        Some(format!("https://{rest}"))
+    } else {
+        cover.starts_with("https://").then(|| cover.to_string())
+    };
     Some(Session {
         player: player.into(),
         name: name.into(),
@@ -147,7 +153,7 @@ fn parse(player: &str, name: &str, out: &str) -> Option<Session> {
         playing: f[0] == "playing",
         position_ms,
         length_ms: (length_ms > 0).then_some(length_ms),
-        cover_url: cover.starts_with("https://").then(|| cover.to_string()),
+        cover_url,
     })
 }
 
@@ -201,6 +207,9 @@ mod tests {
     fn reads_what_the_scripts_print() {
         let s = parse("spotify", "Spotify", "playing\nLow Tide\nHarbour Lights\nShore\n214000\n31,5\nhttps://i.scdn.co/image/abc").unwrap();
         assert_eq!((s.title.as_str(), s.playing, s.length_ms, s.position_ms), ("Low Tide", true, Some(214_000), Some(31_500)));
+        assert_eq!(s.cover_url.as_deref(), Some("https://i.scdn.co/image/abc"));
+        // Spotify's AppleScript says http
+        let s = parse("spotify", "Spotify", "playing\nA\nB\nC\n1000\n0\nhttp://i.scdn.co/image/abc").unwrap();
         assert_eq!(s.cover_url.as_deref(), Some("https://i.scdn.co/image/abc"));
         let m = parse("music", "Music", "paused\nSong\nArtist\nAlbum\n200.5\n12.25\n").unwrap();
         assert_eq!((m.playing, m.length_ms, m.position_ms, m.cover_url), (false, Some(200_500), Some(12_250), None));

@@ -1,8 +1,6 @@
 ### What's new
 
-- **Now playing:** what's playing, in a corner of the wallpaper. The cover is drawn in coloured characters, with the title, artist and a progress bar. Show it on hover, always, or for a moment when the song changes. Rest the cursor on the cover to pause or play. It works with any player on Windows, browsers included, and with Spotify and Music on macOS (macOS asks once to let AfterGlow see them). Off by default: Settings → now playing.
-- **macOS, two screens:** a second screen with a different sharpness from the main one (a MacBook with an ordinary monitor) now gets its wallpaper, and hover works on it.
-- **macOS, fullscreen apps:** a fullscreen app pauses only the screen it's on. The other screen keeps going.
+- **Now playing on macOS:** Spotify's album covers now show. Before, the card drew a placeholder pattern instead of the cover. A cover that isn't ready right after a song changes is also asked for again.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
