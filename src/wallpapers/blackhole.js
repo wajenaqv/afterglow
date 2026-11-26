@@ -17,7 +17,7 @@
 // stars; the tracing runs once per screen size, a slice each frame so the
 // first frames don't stall.
 //
-// Views (?view=): gargantua (default), nearly edge-on; whirlpool, seen from
+// Views (?view=, the page defaults to trails, see blackholetrails.js): gargantua, nearly edge-on; whirlpool, seen from
 // higher up with spiral arms of gas falling in.
 //
 // Hover (?fx=0 off): bring the cursor near the hole and it feeds: the disk

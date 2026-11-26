@@ -246,7 +246,7 @@ export const WALLPAPERS = [
     about: "Glowing gas swirling into a black hole, traced ray by ray.",
     tag: "sky",
     options: [
-      { key: "view", label: "view", choices: [["", "gargantua"], ["whirlpool", "whirlpool"], ["trails", "trails"], ["sweep", "sweep"]] },
+      { key: "view", label: "view", choices: [["", "trails"], ["sweep", "sweep"], ["gargantua", "gargantua"], ["whirlpool", "whirlpool"]] },
       { key: "tint", label: "palette", choices: [["", "default"], ["fire", "fire"], ["spectrum", "white, blue, red"], ["natural", "natural"], ["cool", "ice"], ["green", "AfterGlow green"]] },
       { key: "place", label: "position", choices: [["", "centred"], ["right", "right (clear of the icons)"]] },
       fx("it feeds"),
