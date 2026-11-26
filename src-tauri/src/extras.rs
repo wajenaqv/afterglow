@@ -142,6 +142,7 @@ const LINKS: &[&str] = &[
     "https://steamcommunity.com/my/edit/settings",
     "ms-settings:privacy-notifications",
     "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation",
 ];
 
 /// Open one of LINKS in the browser (or the OS settings page)
@@ -216,6 +217,10 @@ pub fn set_clock(app: AppHandle, clock: Clock) -> Result<(), String> {
     let host = app.state::<Host>();
     let snapshot = {
         let mut s = host.settings.lock().unwrap();
+        // the clock and the now-playing card never share a corner
+        if clock.corner == s.now_playing.corner {
+            return Err("now playing is in that corner".into());
+        }
         s.clock = clock.clone();
         s.clone()
     };

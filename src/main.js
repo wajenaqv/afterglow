@@ -27,6 +27,7 @@ import { startEdge } from "./edgepage.js";
 import { startJobs } from "./jobspage.js";
 import { startActivity } from "./activitypage.js";
 import { startClock } from "./clockpage.js";
+import { startNowPlaying } from "./nowplayingpage.js";
 import { startSidebar } from "./sidebar.js";
 import { startTerminal, paintStatus, bootOn, setBoot } from "./terminal.js";
 
@@ -63,8 +64,24 @@ function standIn(cmd, a) {
       s.renderer = a.renderer;
       return save();
     case "set_clock":
+      if (a.clock.corner === (s.now_playing?.corner ?? "bottom-right")) throw "now playing is in that corner";
       s.clock = a.clock;
       return save();
+    case "set_now_playing":
+      if (a.prefs.corner === (s.clock?.corner ?? "top-right")) throw "the clock is in that corner";
+      s.now_playing = a.prefs;
+      return save();
+    // a sample song, so the now playing page can be designed here
+    case "now_playing_state":
+      return {
+        prefs: s.now_playing ?? {},
+        track: { player: "spotify", player_name: "Spotify", title: "Low Tide", artist: "Harbour Lights", album: "", playing: true, position_ms: 30000, length_ms: 214000, at: Date.now(), cover: "", song: "sample" },
+        players: [{ id: "spotify", name: "Spotify", shown: true }, { id: "chrome", name: "Chrome", shown: !(s.now_playing?.hidden ?? []).includes("chrome") }],
+        sources: /Mac/.test(navigator.userAgent) ? [{ id: "spotify", name: "Spotify", state: "allowed", text: "allowed" }, { id: "music", name: "Music", state: "not-running", text: "not running; macOS asks once when it's open" }] : [],
+        note: "",
+      };
+    case "now_playing_toggle":
+      return null;
     case "set_theme":
       s.theme = a.theme;
       return save();
@@ -204,7 +221,7 @@ AG.forEach((line, i) => {
 });
 
 // ---- pages ----
-const PAGES = ["wallpaper", "clock", "edge", "apps", "awake", "jobs", "activity", "performance", "general"];
+const PAGES = ["wallpaper", "clock", "playing", "edge", "apps", "awake", "jobs", "activity", "performance", "general"];
 function show() {
   const page = PAGES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "wallpaper";
   for (const s of $$("main > section")) s.hidden = s.dataset.page !== page;
@@ -464,7 +481,9 @@ async function saveRotation() {
   }
 }
 [rotateOn, rotateMinutes, ...wallBoxes()].forEach((el) => el.addEventListener("change", saveRotation));
-const clockPage = startClock({ invoke, settings: () => settings }); // clockpage.js
+// the clock and the now-playing card never share a corner: each page greys out the other's
+let playingPage = null; // made further down (now playing)
+const clockPage = startClock({ invoke, settings: () => settings, taken: () => playingPage?.corner() }); // clockpage.js
 
 // OLED care on or off (settings.rs set_oled)
 
@@ -572,6 +591,7 @@ const power = startPower({ invoke, inApp: IN_APP }); // powerpage.js
 const awakePage = startAwake({ invoke, inApp: IN_APP }); // awakepage.js
 const jobsPage = startJobs({ invoke, inApp: IN_APP }); // jobspage.js
 const edgePage = startEdge({ invoke }); // edgepage.js
+playingPage = startNowPlaying({ invoke, taken: () => clockPage.corner() }); // nowplayingpage.js
 const powerNote = $("#power-note");
 const pauseBoxes = $$("[data-pause]");
 const pauseBox = (k) => pauseBoxes.find((b) => b.dataset.pause === k).checked;
@@ -722,6 +742,7 @@ async function load() {
   $("#check-updates").checked = saved.check_updates ?? true;
   awakePage.show(saved.awake);
   edgePage.show(saved.edge);
+  playingPage.show(saved.now_playing);
   jobsPage.show(saved.jobs);
   showPausing(saved);
   $("#autostart").checked = await invoke("autostart_state");

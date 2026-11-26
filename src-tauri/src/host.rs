@@ -31,7 +31,7 @@ use std::thread;
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::platform;
 use crate::settings::{self, Settings};
@@ -42,11 +42,12 @@ struct Showing {
     wall: String,
     query: String,
     clock: crate::extras::Clock,
+    now_playing: crate::nowplaying::Prefs,
 }
 
 impl Showing {
     fn from(s: &Settings) -> Self {
-        Showing { wall: s.wallpaper.clone(), query: s.query(), clock: s.clock.clone() }
+        Showing { wall: s.wallpaper.clone(), query: s.query(), clock: s.clock.clone(), now_playing: s.now_playing.clone() }
     }
 }
 
@@ -92,7 +93,7 @@ impl Wall {
                 ]
             })
             .collect();
-        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens, "clock": showing.clock });
+        let config = serde_json::json!({ "wall": showing.wall, "query": showing.query, "screens": screens, "clock": showing.clock, "nowplaying": showing.now_playing });
         format!("window.__AFTERGLOW__ = {config};")
     }
 }
@@ -184,6 +185,51 @@ pub fn stop(_app: &AppHandle) {
     platform::restore_desktop();
 }
 
+/// Put a window over a rectangle given in a monitor's physical pixels
+/// (the units of Tauri's monitor list; `scale` is that monitor's).
+///
+/// macOS: Tauri turns a physical position into points with the scale of the
+/// screen the window is on NOW (a new window opens on the main screen), not
+/// the screen it's going to. With a Retina built-in screen (2x) and an
+/// ordinary external one (1x) the external screen's wall landed at half its
+/// position, on the built-in screen behind the first wall, so the external
+/// screen showed nothing. Points (logical units) are the same on every
+/// screen, so placing in points is right whatever the window's scale.
+pub(crate) fn place(window: &tauri::WebviewWindow, x: i32, y: i32, w: u32, h: u32, scale: f64) -> tauri::Result<()> {
+    if cfg!(target_os = "macos") {
+        let s = if scale > 0.0 { scale } else { 1.0 };
+        window.set_position(tauri::LogicalPosition::new(x as f64 / s, y as f64 / s))?;
+        window.set_size(tauri::LogicalSize::new(w as f64 / s, h as f64 / s))
+    } else {
+        window.set_position(tauri::PhysicalPosition::new(x, y))?;
+        window.set_size(tauri::PhysicalSize::new(w, h))
+    }
+}
+
+/// The cursor in the same units as the monitor list: each monitor's own
+/// physical pixels from the origin (see `place`).
+///
+/// macOS: Tauri reports the cursor as points times the MAIN screen's scale,
+/// while a monitor's position is points times its own scale, so on a second
+/// screen with another scale the cursor fell outside its wall (no hover).
+/// Here it's turned back into points and scaled by the screen it's on.
+fn cursor_now(app: &AppHandle, screens: &[Screen]) -> Option<(f64, f64)> {
+    let pos = app.cursor_position().ok()?;
+    if !cfg!(target_os = "macos") {
+        return Some((pos.x, pos.y));
+    }
+    let main = app.primary_monitor().ok().flatten().map(|m| m.scale_factor()).unwrap_or(1.0);
+    let (px, py) = (pos.x / main, pos.y / main);
+    for s in screens {
+        let k = if s.scale > 0.0 { s.scale } else { 1.0 };
+        let (x, y, w, h) = (s.x as f64 / k, s.y as f64 / k, s.w as f64 / k, s.h as f64 / k);
+        if px >= x && py >= y && px < x + w && py < y + h {
+            return Some((px * k, py * k));
+        }
+    }
+    Some((px * main, py * main))
+}
+
 fn current_screens(app: &AppHandle) -> Vec<Screen> {
     app.available_monitors()
         .unwrap_or_default()
@@ -252,8 +298,7 @@ fn build_walls(app: &AppHandle) -> tauri::Result<()> {
             .visible(false)
             .always_on_bottom(true)
             .build()?;
-        window.set_position(PhysicalPosition::new(wall.x, wall.y))?;
-        window.set_size(PhysicalSize::new(wall.w, wall.h))?;
+        place(&window, wall.x, wall.y, wall.w, wall.h, wall.scale)?;
         if let Err(e) = platform::attach(&window, wall.x, wall.y, wall.w, wall.h) {
             crate::alog!("afterglow: could not put {} behind the desktop icons: {e}", wall.label);
         }
@@ -276,7 +321,9 @@ fn cursor_loop(app: AppHandle) {
     let mut last_label: Option<String> = None;
     loop {
         thread::sleep(Duration::from_millis(33));
-        let Ok(pos) = app.cursor_position() else { continue };
+        let screens = app.state::<Host>().screens.lock().unwrap().clone();
+        let Some((x, y)) = cursor_now(&app, &screens) else { continue };
+        let pos = Cursor { x, y };
         if last == Some((pos.x, pos.y)) {
             continue;
         }
@@ -341,6 +388,15 @@ pub fn resting_now(app: &AppHandle) -> bool {
     resting(oled, platform::idle_seconds(), rest_secs(minutes))
 }
 
+/// Per monitor: is a fullscreen app showing on it? macOS only; on Windows
+/// the fullscreen rule pauses every monitor (see apply_pause).
+fn fullscreen_each(rects: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
+    #[cfg(target_os = "macos")]
+    return platform::fullscreen_on(rects);
+    #[cfg(not(target_os = "macos"))]
+    return vec![false; rects.len()];
+}
+
 /// Work out whether wallpapers should be paused and tell them. Also called
 /// straight away from the tray when Pause is toggled.
 pub fn apply_pause(app: &AppHandle) {
@@ -356,7 +412,8 @@ pub fn apply_pause(app: &AppHandle) {
     // Everything pauses (and why)...
     let why = if host.user_paused.load(Ordering::Relaxed) {
         "you"
-    } else if rule_fullscreen && platform::fullscreen_app_in_front() {
+    } else if rule_fullscreen && !cfg!(target_os = "macos") && platform::fullscreen_app_in_front() {
+        // Windows only says "something is fullscreen", not where
         "fullscreen"
     } else if rule_battery && platform::on_battery() {
         "battery"
@@ -366,16 +423,20 @@ pub fn apply_pause(app: &AppHandle) {
         ""
     };
     let all = !why.is_empty();
-    // ...or just the monitors whose desktop is hidden behind app windows
+    // ...or just the monitors with a fullscreen app (macOS can tell which
+    // display it's on) or whose desktop is hidden behind app windows
     let walls = host.walls.lock().unwrap().clone();
     for wall in walls {
         let rects: Vec<(i32, i32, u32, u32, f64)> = wall.screens.iter().map(|s| (s.x, s.y, s.w, s.h, s.scale)).collect();
-        let hidden = if rule_covered && !all { platform::covered(&rects) } else { vec![false; rects.len()] };
+        let full = if rule_fullscreen && !all { fullscreen_each(&rects) } else { vec![false; rects.len()] };
+        let covered = if rule_covered && !all { platform::covered(&rects) } else { vec![false; rects.len()] };
+        let hidden: Vec<Option<&'static str>> =
+            full.iter().zip(&covered).map(|(&f, &c)| if f { Some("fullscreen") } else if c { Some("covered") } else { None }).collect();
         // one flag per monitor, in the order host.html laid out its frames.
         // Sent every time (not only on change): a window that just loaded
         // learns the current state within one tick
-        let flags: Vec<bool> = hidden.iter().map(|&h| all || h).collect();
-        let reasons = hidden.iter().map(|&h| if all { why } else if h { "covered" } else { "" }).collect();
+        let flags: Vec<bool> = hidden.iter().map(|h| all || h.is_some()).collect();
+        let reasons = hidden.iter().map(|h| if all { why } else { h.unwrap_or("") }).collect();
         host.reasons.lock().unwrap().insert(wall.label.clone(), reasons);
         {
             let mut last = host.last_paused.lock().unwrap();

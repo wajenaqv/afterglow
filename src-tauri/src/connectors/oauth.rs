@@ -62,7 +62,9 @@ pub const SPOTIFY: Provider = Provider {
     id: "spotify",
     auth_url: "https://accounts.spotify.com/authorize",
     token_url: "https://accounts.spotify.com/api/token",
-    scopes: "user-read-currently-playing",
+    // modify-playback-state: pausing from the now-playing corner (nowplaying.rs);
+    // Spotify only allows that for Premium accounts
+    scopes: "user-read-currently-playing user-modify-playback-state",
     host: "127.0.0.1",
     extra: &[],
 };
@@ -276,6 +278,24 @@ pub fn get_json(p: &'static Provider, client: &Client, url: &str) -> Result<Opti
             Err("the sign-in expired; it will be renewed".into())
         }
         Err(ureq::Error::Status(code, r)) => Err(format!("{} said {code}: {}", p.id, r.into_string().unwrap_or_default().chars().take(160).collect::<String>())),
+        Err(e) => Err(format!("couldn't reach {}: {e}", p.id)),
+    }
+}
+
+/// PUT with an empty body (Spotify's play and pause). Ok when the service
+/// accepted it; the error says why not in a line Settings can show.
+pub fn put(p: &'static Provider, client: &Client, url: &str) -> Result<(), String> {
+    let token = access_token(p, client)?;
+    match ureq::put(url).set("Authorization", &format!("Bearer {token}")).set("Content-Length", "0").timeout(Duration::from_secs(20)).call() {
+        Ok(_) => Ok(()),
+        Err(ureq::Error::Status(401, _)) => {
+            if let Some(m) = ACCESS.lock().unwrap().as_mut() {
+                m.remove(p.id);
+            }
+            Err("the sign-in expired; try again in a moment".into())
+        }
+        Err(ureq::Error::Status(403, _)) => Err(format!("{} refused: pausing needs Spotify Premium, or signing in again on the apps page", p.id)),
+        Err(ureq::Error::Status(code, _)) => Err(format!("{} said {code}", p.id)),
         Err(e) => Err(format!("couldn't reach {}: {e}", p.id)),
     }
 }

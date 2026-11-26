@@ -15,16 +15,29 @@
 //   running_apps()               the apps running now, and which is in front
 //   covered(screens)             per monitor (x, y, w, h physical px, scale): are app
 //                                windows hiding its desktop?
+// and, in media_windows.rs / media_macos.rs (nowplaying.rs):
+//   media_sessions()             what the players are playing, and sources the
+//                                user may need to allow
+//   media_cover(handle)          a player's cover, as image bytes
+//   media_toggle(handle)         pause or play that player
 
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
 pub use self::windows::*;
+#[cfg(windows)]
+mod media_windows;
+#[cfg(windows)]
+pub use self::media_windows::*;
 
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(target_os = "macos")]
 pub use self::macos::*;
+#[cfg(target_os = "macos")]
+mod media_macos;
+#[cfg(target_os = "macos")]
+pub use self::media_macos::*;
 
 // Anything else (Linux): no desktop integration yet, windows stay normal
 #[cfg(not(any(windows, target_os = "macos")))]
@@ -63,6 +76,15 @@ mod other {
     }
     pub fn covered(screens: &[(i32, i32, u32, u32, f64)]) -> Vec<bool> {
         vec![false; screens.len()]
+    }
+    pub fn media_sessions() -> (Vec<crate::nowplaying::Session>, Vec<crate::nowplaying::SourceState>) {
+        (Vec::new(), Vec::new())
+    }
+    pub fn media_cover(_: &str) -> Option<Vec<u8>> {
+        None
+    }
+    pub fn media_toggle(_: &str) -> Result<(), String> {
+        Err("not supported on this OS yet".into())
     }
 }
 #[cfg(not(any(windows, target_os = "macos")))]

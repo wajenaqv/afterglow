@@ -8,13 +8,15 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const sum = (o) => Object.values(o ?? {}).reduce((a, n) => a + (Number(n) || 0), 0);
 
 /** page -> [text, is it on] from what Rust says. Parts that couldn't be read are missing. */
-export function states({ settings: s, apps, unread, awake, jobs }) {
+export function states({ settings: s, apps, unread, awake, jobs, playing }) {
   const out = {};
   if (s) {
     out.wallpaper = [(WALLPAPERS.find((w) => w.id === (s.wallpaper ?? "jellyfish"))?.name ?? s.wallpaper).toLowerCase(), true];
     const c = { on: true, always: false, ...(s.clock ?? {}) };
     out.clock = !c.on ? ["off", false] : s.wallpaper === "clock" ? ["hidden", false] : [c.always ? "always" : "on hover", true];
     out.edge = s.edge?.on ? [s.edge.look, true] : ["off", false];
+    if (!s.now_playing?.on) out.playing = ["off", false];
+    else if (playing) out.playing = !playing.track ? ["nothing playing", false] : [playing.track.playing ? "playing" : "paused", true];
   }
   if (apps) {
     const on = apps.apps.filter((a) => a.allowed).length;
@@ -49,8 +51,8 @@ export function startSidebar({ invoke }) {
     if (running) return void (again = true);
     running = true;
     const get = (cmd) => invoke(cmd).catch(() => null);
-    const [settings, apps, unread, awake, jobs] = await Promise.all(["get_settings", "apps_state", "unread_by_app", "awake_state", "jobs_state"].map(get));
-    for (const [page, [text, on]] of Object.entries(states({ settings, apps, unread, awake, jobs }))) {
+    const [settings, apps, unread, awake, jobs, playing] = await Promise.all(["get_settings", "apps_state", "unread_by_app", "awake_state", "jobs_state", "now_playing_state"].map(get));
+    for (const [page, [text, on]] of Object.entries(states({ settings, apps, unread, awake, jobs, playing }))) {
       const el = $(`.side a[data-page="${page}"] i`);
       if (!el) continue;
       if (el.textContent !== text) el.textContent = text;

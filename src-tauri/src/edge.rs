@@ -19,7 +19,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, EventTarget, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::host::{self, Host};
 use crate::signals::{self, Lantern};
@@ -278,8 +278,7 @@ fn build(app: &AppHandle, s: &Strip) -> Result<(), String> {
         .build()
         .map_err(|e| e.to_string())?;
     let e = |e: tauri::Error| e.to_string();
-    window.set_position(PhysicalPosition::new(s.rect.x, s.rect.y)).map_err(e)?;
-    window.set_size(PhysicalSize::new(s.rect.w, s.rect.h)).map_err(e)?;
+    crate::host::place(&window, s.rect.x, s.rect.y, s.rect.w, s.rect.h, s.scale).map_err(e)?;
     window.set_ignore_cursor_events(true).map_err(e)?;
     if let Err(err) = platform::overlay(&window) {
         let _ = window.destroy();

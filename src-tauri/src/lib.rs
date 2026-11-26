@@ -10,6 +10,7 @@
 //   claude.rs    Claude Code as a job, through its hooks
 //   edge.rs      what's waiting as light at a screen edge, and the tray icon's colour
 //   awake.rs     keep the computer awake, by hand or while chosen apps run
+//   nowplaying.rs  what's playing, for the corner card (cover, title, rest to pause)
 //   endpoint.rs  the local endpoint for signals (POST 127.0.0.1:47811/signal)
 //   connectors/  watchers that turn other apps' activity into signals
 //   extras.rs    wallpaper rotation and saving a still as a PNG
@@ -29,6 +30,7 @@ mod endpoint;
 mod extras;
 mod host;
 mod jobs;
+mod nowplaying;
 mod platform;
 mod settings;
 mod signals;
@@ -55,6 +57,7 @@ pub fn run() {
         .manage(signals::Bus::default())
         .manage(edge::Edges::default())
         .manage(jobs::Jobs::default())
+        .manage(nowplaying::NowPlaying::default())
         .manage(connectors::Connectors::default())
         // what the Settings window and the wallpapers call
         .invoke_handler(tauri::generate_handler![
@@ -100,6 +103,9 @@ pub fn run() {
             extras::open_stills_folder,
             extras::open_link,
             extras::set_clock,
+            nowplaying::now_playing_state,
+            nowplaying::set_now_playing,
+            nowplaying::now_playing_toggle,
             settings::set_theme,
             settings::set_oled,
             updates::update_state,
@@ -127,6 +133,7 @@ pub fn run() {
             endpoint::start(app.handle());
             connectors::start(app.handle());
             extras::start_rotation(app.handle());
+            nowplaying::start(app.handle());
             updates::start(app.handle());
             Ok(())
         })

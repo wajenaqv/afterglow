@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged into AfterGlow.app's Info.plist by Tauri. The sentence macOS shows
+     when it asks to let AfterGlow talk to Spotify or Music (nowplaying.rs). -->
+<plist version="1.0">
+<dict>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>AfterGlow shows what Spotify or Music is playing on your wallpaper, and pauses it when you rest the cursor on the cover.</string>
+</dict>
+</plist>

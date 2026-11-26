@@ -50,6 +50,9 @@ windows = { version = "0.61", features = [
   "ApplicationModel",
   "Foundation",
   "Foundation_Collections",
+  "Media",
+  "Media_Control",
+  "Storage_Streams",
   "UI_Notifications",
   "UI_Notifications_Management",
 ] }

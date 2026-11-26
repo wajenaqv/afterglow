@@ -1663,3 +1663,48 @@ body:not([data-page="wallpaper"]) .wall-panel {
     grid-template-columns: 150px minmax(0, 1fr);
   }
 }
+
+/* ---- now playing (src/nowplayingpage.js) ---- */
+.np-now {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin: 0 0 18px;
+}
+/* the cover stays on black, like the wallpaper previews */
+.np-page-cover {
+  margin: 0;
+  padding: 8px;
+  background: #000;
+  font: 400 9px/9px "JetBrains Mono", monospace;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+}
+.np-now.empty .np-page-cover {
+  display: none;
+}
+.np-page-title {
+  margin: 0 0 4px;
+  color: var(--bright);
+  font-weight: 700;
+}
+.np-now p {
+  margin: 0;
+}
+#np-choices.off {
+  opacity: 0.55;
+}
+#np-source-list button {
+  margin-left: 8px;
+}
+#np-players {
+  margin-bottom: 14px;
+}
+/* a corner the other corner thing already has (clock / now playing) */
+.seg button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+#np-choices .clock-rows + .hint {
+  margin-top: 10px;
+}
