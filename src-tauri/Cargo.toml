@@ -1,6 +1,6 @@
 [package]
 name = "afterglow"
-version = "0.1.8"
+version = "0.1.9"
 description = "Live ASCII wallpapers that glow when something happens"
 authors = ["Mohammad Wajih"]
 license = "MIT"

@@ -1,8 +1,8 @@
 ### What's new
 
-- **Clock wallpaper:** three new styles. **Eclipse** is dark digits with the light behind them, **tube** is the time as a glowing CRT tube, and **jelly** is glassy glowing digits. Tube and jelly replace phosphor and light; if you used those, you get the new ones.
-- **Fewer clock styles** to pick from on the wallpaper: thirteen. If yours was one of the others, the clock switches to slant. The corner clock keeps all its styles.
-- **Waiting apps on the clock** are softer glowing dots, and you mark them seen one at a time: rest the cursor on a dot.
+- **Now playing:** what's playing, in a corner of the wallpaper. The cover is drawn in coloured characters, with the title, artist and a progress bar. Show it on hover, always, or for a moment when the song changes. Rest the cursor on the cover to pause or play. It works with any player on Windows, browsers included, and with Spotify and Music on macOS (macOS asks once to let AfterGlow see them). Off by default: Settings → now playing.
+- **macOS, two screens:** a second screen with a different sharpness from the main one (a MacBook with an ordinary monitor) now gets its wallpaper, and hover works on it.
+- **macOS, fullscreen apps:** a fullscreen app pauses only the screen it's on. The other screen keeps going.
 
 On 0.1.1 or older, run the install line below one more time. After that it updates from its menu.
 
